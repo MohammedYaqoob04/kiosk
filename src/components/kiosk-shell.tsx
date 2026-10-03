@@ -7,13 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const erpRoles = [
   { role: "student", label: "Student Login" },
@@ -23,7 +17,12 @@ const erpRoles = [
 
 function Brand() {
   return (
-    <Link to="/" className="flex min-w-0 items-center gap-3 text-foreground" aria-label="Home">
+    <Link
+      to="/"
+      reloadDocument
+      className="flex min-w-0 items-center gap-3 text-foreground"
+      aria-label="Home"
+    >
       <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-border bg-card font-display text-base font-bold text-primary">
         AEC
       </span>
@@ -85,6 +84,7 @@ export function SiteHeader() {
           <nav aria-label="Main navigation" className="hidden items-center gap-3 xl:flex">
             <Link
               to="/"
+              reloadDocument
               activeOptions={{ exact: true }}
               activeProps={{ className: "text-foreground after:scale-x-100" }}
               className="relative inline-flex min-h-14 items-center px-4 font-display text-lg font-semibold uppercase tracking-[0.12em] text-muted-foreground after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:origin-left after:scale-x-0 after:bg-primary"
@@ -136,6 +136,7 @@ export function SiteHeader() {
           <SheetClose asChild>
             <Link
               to="/"
+              reloadDocument
               activeOptions={{ exact: true }}
               activeProps={{ className: "border-primary bg-card text-foreground" }}
               className="flex min-h-14 items-center border-l-2 border-transparent px-4 font-display text-lg font-semibold uppercase tracking-[0.12em] text-muted-foreground active:bg-muted"

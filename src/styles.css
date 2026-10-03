@@ -35,33 +35,44 @@
 
 :root {
   color-scheme: dark;
-  --background: #0B1220;
-  --foreground: #E8EDF5;
-  --card: #111B2E;
-  --card-foreground: #E8EDF5;
-  --popover: #111B2E;
-  --popover-foreground: #E8EDF5;
-  --primary: #F59E0B;
-  --primary-foreground: #0B1220;
-  --secondary: #18243A;
-  --secondary-foreground: #E8EDF5;
-  --muted: #18243A;
-  --muted-foreground: #9AA7BD;
-  --accent: #18243A;
-  --accent-foreground: #E8EDF5;
-  --destructive: #C94B4B;
-  --destructive-foreground: #E8EDF5;
+  --background: #0b1220;
+  --foreground: #e8edf5;
+  --card: #111b2e;
+  --card-foreground: #e8edf5;
+  --popover: #111b2e;
+  --popover-foreground: #e8edf5;
+  --primary: #f59e0b;
+  --primary-foreground: #0b1220;
+  --secondary: #18243a;
+  --secondary-foreground: #e8edf5;
+  --muted: #18243a;
+  --muted-foreground: #9aa7bd;
+  --accent: #18243a;
+  --accent-foreground: #e8edf5;
+  --destructive: #c94b4b;
+  --destructive-foreground: #e8edf5;
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.14);
-  --ring: #F59E0B;
-  --icon: #8FA3C7;
-  --surface: #111B2E;
+  --ring: #f59e0b;
+  --icon: #8fa3c7;
+  --surface: #111b2e;
   --ambient-blue: rgb(76 101 139 / 90%);
   --ambient-slate: rgb(110 128 154 / 90%);
   --grid-line: rgb(255 255 255 / 4%);
   --sweep-highlight: rgb(255 255 255 / 7%);
   --border-strong: rgb(255 255 255 / 20%);
   --shadow-card: 0 24px 64px rgb(0 0 0 / 24%);
+  --print-paper: #ffffff;
+  --print-ink: #111827;
+}
+
+.site-shell:has(.erp-student-app) > .relative > header,
+.site-shell:has(.erp-student-app) > .relative > footer {
+  display: none;
+}
+
+.site-shell:has(.erp-student-app) > .relative > main {
+  min-height: 100vh;
 }
 
 @layer base {
@@ -76,7 +87,10 @@
       linear-gradient(var(--grid-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
       radial-gradient(ellipse at top, var(--card) 0%, var(--background) 58%);
-    background-size: 48px 48px, 48px 48px, 100% 520px;
+    background-size:
+      48px 48px,
+      48px 48px,
+      100% 520px;
     background-repeat: repeat, repeat, no-repeat;
     background-attachment: fixed, fixed, fixed;
   }
@@ -178,6 +192,41 @@
   right: 0;
   bottom: 0;
   width: min(340px, 88%);
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .assignment-print-page,
+  .assignment-print-page * {
+    visibility: visible !important;
+  }
+
+  .assignment-print-page {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    width: 210mm !important;
+    min-width: 210mm !important;
+    min-height: 297mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--print-paper) !important;
+    color: var(--print-ink) !important;
+    box-shadow: none !important;
+  }
+
+  .assignment-print-page * {
+    color: var(--print-ink) !important;
+  }
 }
 
 .attendance-ring {

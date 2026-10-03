@@ -15,12 +15,28 @@ import { Route as CampusNavigationRouteImport } from './routes/campus-navigation
 import { Route as CoeRouteImport } from './routes/coe'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DepartmentsRouteImport } from './routes/departments'
+import { Route as ErpRouteRouteImport } from './routes/erp/route'
 import { Route as FacilitiesRouteImport } from './routes/facilities'
 import { Route as NoticesRouteImport } from './routes/notices'
+import { Route as CoeLoginRouteImport } from './routes/coe/login'
+import { Route as CoePortalRouteImport } from './routes/coe/portal'
+import { Route as CoeResultsRouteImport } from './routes/coe/results'
+import { Route as ErpAssignmentRouteImport } from './routes/erp/assignment'
+import { Route as ErpBookVerificationFormRouteImport } from './routes/erp/book-verification-form'
+import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
+import { Route as ErpFeesRouteImport } from './routes/erp/fees'
+import { Route as ErpLeaveRouteImport } from './routes/erp/leave'
+import { Route as ErpLeaveRequestsRouteImport } from './routes/erp/leave-requests'
 import { Route as ErpLoginRouteImport } from './routes/erp.login'
+import { Route as ErpPasswordRouteImport } from './routes/erp/password'
+import { Route as ErpProfileRouteImport } from './routes/erp/profile'
+import { Route as ErpResultsRouteImport } from './routes/erp/results'
+import { Route as ErpStaffRouteImport } from './routes/erp/staff'
+import { Route as ErpTimetableRouteImport } from './routes/erp/timetable'
 import { Route as LoginHodRouteImport } from './routes/login.hod'
 import { Route as LoginStaffRouteImport } from './routes/login.staff'
 import { Route as LoginStudentRouteImport } from './routes/login.student'
+import { Route as ErpStaffLeaveRouteImport } from './routes/erp/staff.leave'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +68,11 @@ const DepartmentsRoute = DepartmentsRouteImport.update({
   path: '/departments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErpRouteRoute = ErpRouteRouteImport.update({
+  id: '/erp',
+  path: '/erp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FacilitiesRoute = FacilitiesRouteImport.update({
   id: '/facilities',
   path: '/facilities',
@@ -62,10 +83,80 @@ const NoticesRoute = NoticesRouteImport.update({
   path: '/notices',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CoeLoginRoute = CoeLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => CoeRoute,
+} as any)
+const CoePortalRoute = CoePortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => CoeRoute,
+} as any)
+const CoeResultsRoute = CoeResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => CoeRoute,
+} as any)
+const ErpAssignmentRoute = ErpAssignmentRouteImport.update({
+  id: '/assignment',
+  path: '/assignment',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpBookVerificationFormRoute = ErpBookVerificationFormRouteImport.update({
+  id: '/book-verification-form',
+  path: '/book-verification-form',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpDashboardRoute = ErpDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpFeesRoute = ErpFeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpLeaveRoute = ErpLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpLeaveRequestsRoute = ErpLeaveRequestsRouteImport.update({
+  id: '/leave-requests',
+  path: '/leave-requests',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
 const ErpLoginRoute = ErpLoginRouteImport.update({
-  id: '/erp/login',
-  path: '/erp/login',
-  getParentRoute: () => rootRouteImport,
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpPasswordRoute = ErpPasswordRouteImport.update({
+  id: '/password',
+  path: '/password',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpProfileRoute = ErpProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpResultsRoute = ErpResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpStaffRoute = ErpStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
+const ErpTimetableRoute = ErpTimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => ErpRouteRoute,
 } as any)
 const LoginHodRoute = LoginHodRouteImport.update({
   id: '/login/hod',
@@ -82,54 +173,108 @@ const LoginStudentRoute = LoginStudentRouteImport.update({
   path: '/login/student',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErpStaffLeaveRoute = ErpStaffLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/campus-navigation': typeof CampusNavigationRoute
-  '/coe': typeof CoeRoute
+  '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRoute
   '/facilities': typeof FacilitiesRoute
   '/notices': typeof NoticesRoute
+  '/coe/login': typeof CoeLoginRoute
+  '/coe/portal': typeof CoePortalRoute
+  '/coe/results': typeof CoeResultsRoute
+  '/erp/assignment': typeof ErpAssignmentRoute
+  '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
+  '/erp/dashboard': typeof ErpDashboardRoute
+  '/erp/fees': typeof ErpFeesRoute
+  '/erp/leave': typeof ErpLeaveRoute
+  '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/password': typeof ErpPasswordRoute
+  '/erp/profile': typeof ErpProfileRoute
+  '/erp/results': typeof ErpResultsRoute
+  '/erp/staff': typeof ErpStaffRouteWithChildren
+  '/erp/timetable': typeof ErpTimetableRoute
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/staff/leave': typeof ErpStaffLeaveRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/campus-navigation': typeof CampusNavigationRoute
-  '/coe': typeof CoeRoute
+  '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRoute
   '/facilities': typeof FacilitiesRoute
   '/notices': typeof NoticesRoute
+  '/coe/login': typeof CoeLoginRoute
+  '/coe/portal': typeof CoePortalRoute
+  '/coe/results': typeof CoeResultsRoute
+  '/erp/assignment': typeof ErpAssignmentRoute
+  '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
+  '/erp/dashboard': typeof ErpDashboardRoute
+  '/erp/fees': typeof ErpFeesRoute
+  '/erp/leave': typeof ErpLeaveRoute
+  '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/password': typeof ErpPasswordRoute
+  '/erp/profile': typeof ErpProfileRoute
+  '/erp/results': typeof ErpResultsRoute
+  '/erp/staff': typeof ErpStaffRouteWithChildren
+  '/erp/timetable': typeof ErpTimetableRoute
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/staff/leave': typeof ErpStaffLeaveRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/campus-navigation': typeof CampusNavigationRoute
-  '/coe': typeof CoeRoute
+  '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRoute
   '/facilities': typeof FacilitiesRoute
   '/notices': typeof NoticesRoute
+  '/coe/login': typeof CoeLoginRoute
+  '/coe/portal': typeof CoePortalRoute
+  '/coe/results': typeof CoeResultsRoute
+  '/erp/assignment': typeof ErpAssignmentRoute
+  '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
+  '/erp/dashboard': typeof ErpDashboardRoute
+  '/erp/fees': typeof ErpFeesRoute
+  '/erp/leave': typeof ErpLeaveRoute
+  '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/password': typeof ErpPasswordRoute
+  '/erp/profile': typeof ErpProfileRoute
+  '/erp/results': typeof ErpResultsRoute
+  '/erp/staff': typeof ErpStaffRouteWithChildren
+  '/erp/timetable': typeof ErpTimetableRoute
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/staff/leave': typeof ErpStaffLeaveRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/erp'
     | '/about'
     | '/campus-navigation'
     | '/coe'
@@ -137,13 +282,29 @@ export interface FileRouteTypes {
     | '/departments'
     | '/facilities'
     | '/notices'
+    | '/coe/login'
+    | '/coe/portal'
+    | '/coe/results'
+    | '/erp/assignment'
+    | '/erp/book-verification-form'
+    | '/erp/dashboard'
+    | '/erp/fees'
+    | '/erp/leave'
+    | '/erp/leave-requests'
     | '/erp/login'
+    | '/erp/password'
+    | '/erp/profile'
+    | '/erp/results'
+    | '/erp/staff'
+    | '/erp/timetable'
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/staff/leave'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/erp'
     | '/about'
     | '/campus-navigation'
     | '/coe'
@@ -151,13 +312,29 @@ export interface FileRouteTypes {
     | '/departments'
     | '/facilities'
     | '/notices'
+    | '/coe/login'
+    | '/coe/portal'
+    | '/coe/results'
+    | '/erp/assignment'
+    | '/erp/book-verification-form'
+    | '/erp/dashboard'
+    | '/erp/fees'
+    | '/erp/leave'
+    | '/erp/leave-requests'
     | '/erp/login'
+    | '/erp/password'
+    | '/erp/profile'
+    | '/erp/results'
+    | '/erp/staff'
+    | '/erp/timetable'
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/staff/leave'
   id:
     | '__root__'
     | '/'
+    | '/erp'
     | '/about'
     | '/campus-navigation'
     | '/coe'
@@ -165,22 +342,37 @@ export interface FileRouteTypes {
     | '/departments'
     | '/facilities'
     | '/notices'
+    | '/coe/login'
+    | '/coe/portal'
+    | '/coe/results'
+    | '/erp/assignment'
+    | '/erp/book-verification-form'
+    | '/erp/dashboard'
+    | '/erp/fees'
+    | '/erp/leave'
+    | '/erp/leave-requests'
     | '/erp/login'
+    | '/erp/password'
+    | '/erp/profile'
+    | '/erp/results'
+    | '/erp/staff'
+    | '/erp/timetable'
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/staff/leave'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ErpRouteRoute: typeof ErpRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
   CampusNavigationRoute: typeof CampusNavigationRoute
-  CoeRoute: typeof CoeRoute
+  CoeRoute: typeof CoeRouteWithChildren
   ContactRoute: typeof ContactRoute
   DepartmentsRoute: typeof DepartmentsRoute
   FacilitiesRoute: typeof FacilitiesRoute
   NoticesRoute: typeof NoticesRoute
-  ErpLoginRoute: typeof ErpLoginRoute
   LoginHodRoute: typeof LoginHodRoute
   LoginStaffRoute: typeof LoginStaffRoute
   LoginStudentRoute: typeof LoginStudentRoute
@@ -230,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DepartmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/erp': {
+      id: '/erp'
+      path: '/erp'
+      fullPath: '/erp'
+      preLoaderRoute: typeof ErpRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/facilities': {
       id: '/facilities'
       path: '/facilities'
@@ -244,12 +443,110 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NoticesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/coe/login': {
+      id: '/coe/login'
+      path: '/login'
+      fullPath: '/coe/login'
+      preLoaderRoute: typeof CoeLoginRouteImport
+      parentRoute: typeof CoeRoute
+    }
+    '/coe/portal': {
+      id: '/coe/portal'
+      path: '/portal'
+      fullPath: '/coe/portal'
+      preLoaderRoute: typeof CoePortalRouteImport
+      parentRoute: typeof CoeRoute
+    }
+    '/coe/results': {
+      id: '/coe/results'
+      path: '/results'
+      fullPath: '/coe/results'
+      preLoaderRoute: typeof CoeResultsRouteImport
+      parentRoute: typeof CoeRoute
+    }
+    '/erp/assignment': {
+      id: '/erp/assignment'
+      path: '/assignment'
+      fullPath: '/erp/assignment'
+      preLoaderRoute: typeof ErpAssignmentRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/book-verification-form': {
+      id: '/erp/book-verification-form'
+      path: '/book-verification-form'
+      fullPath: '/erp/book-verification-form'
+      preLoaderRoute: typeof ErpBookVerificationFormRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/dashboard': {
+      id: '/erp/dashboard'
+      path: '/dashboard'
+      fullPath: '/erp/dashboard'
+      preLoaderRoute: typeof ErpDashboardRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/fees': {
+      id: '/erp/fees'
+      path: '/fees'
+      fullPath: '/erp/fees'
+      preLoaderRoute: typeof ErpFeesRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/leave': {
+      id: '/erp/leave'
+      path: '/leave'
+      fullPath: '/erp/leave'
+      preLoaderRoute: typeof ErpLeaveRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/leave-requests': {
+      id: '/erp/leave-requests'
+      path: '/leave-requests'
+      fullPath: '/erp/leave-requests'
+      preLoaderRoute: typeof ErpLeaveRequestsRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
     '/erp/login': {
       id: '/erp/login'
-      path: '/erp/login'
+      path: '/login'
       fullPath: '/erp/login'
       preLoaderRoute: typeof ErpLoginRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/password': {
+      id: '/erp/password'
+      path: '/password'
+      fullPath: '/erp/password'
+      preLoaderRoute: typeof ErpPasswordRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/profile': {
+      id: '/erp/profile'
+      path: '/profile'
+      fullPath: '/erp/profile'
+      preLoaderRoute: typeof ErpProfileRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/results': {
+      id: '/erp/results'
+      path: '/results'
+      fullPath: '/erp/results'
+      preLoaderRoute: typeof ErpResultsRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/staff': {
+      id: '/erp/staff'
+      path: '/staff'
+      fullPath: '/erp/staff'
+      preLoaderRoute: typeof ErpStaffRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
+    '/erp/timetable': {
+      id: '/erp/timetable'
+      path: '/timetable'
+      fullPath: '/erp/timetable'
+      preLoaderRoute: typeof ErpTimetableRouteImport
+      parentRoute: typeof ErpRouteRoute
     }
     '/login/hod': {
       id: '/login/hod'
@@ -272,19 +569,86 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginStudentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/erp/staff/leave': {
+      id: '/erp/staff/leave'
+      path: '/leave'
+      fullPath: '/erp/staff/leave'
+      preLoaderRoute: typeof ErpStaffLeaveRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
   }
 }
 
+interface ErpStaffRouteChildren {
+  ErpStaffLeaveRoute: typeof ErpStaffLeaveRoute
+}
+
+const ErpStaffRouteChildren: ErpStaffRouteChildren = {
+  ErpStaffLeaveRoute: ErpStaffLeaveRoute,
+}
+
+const ErpStaffRouteWithChildren = ErpStaffRoute._addFileChildren(
+  ErpStaffRouteChildren,
+)
+
+interface ErpRouteRouteChildren {
+  ErpAssignmentRoute: typeof ErpAssignmentRoute
+  ErpBookVerificationFormRoute: typeof ErpBookVerificationFormRoute
+  ErpDashboardRoute: typeof ErpDashboardRoute
+  ErpFeesRoute: typeof ErpFeesRoute
+  ErpLeaveRoute: typeof ErpLeaveRoute
+  ErpLeaveRequestsRoute: typeof ErpLeaveRequestsRoute
+  ErpLoginRoute: typeof ErpLoginRoute
+  ErpPasswordRoute: typeof ErpPasswordRoute
+  ErpProfileRoute: typeof ErpProfileRoute
+  ErpResultsRoute: typeof ErpResultsRoute
+  ErpStaffRoute: typeof ErpStaffRouteWithChildren
+  ErpTimetableRoute: typeof ErpTimetableRoute
+}
+
+const ErpRouteRouteChildren: ErpRouteRouteChildren = {
+  ErpAssignmentRoute: ErpAssignmentRoute,
+  ErpBookVerificationFormRoute: ErpBookVerificationFormRoute,
+  ErpDashboardRoute: ErpDashboardRoute,
+  ErpFeesRoute: ErpFeesRoute,
+  ErpLeaveRoute: ErpLeaveRoute,
+  ErpLeaveRequestsRoute: ErpLeaveRequestsRoute,
+  ErpLoginRoute: ErpLoginRoute,
+  ErpPasswordRoute: ErpPasswordRoute,
+  ErpProfileRoute: ErpProfileRoute,
+  ErpResultsRoute: ErpResultsRoute,
+  ErpStaffRoute: ErpStaffRouteWithChildren,
+  ErpTimetableRoute: ErpTimetableRoute,
+}
+
+const ErpRouteRouteWithChildren = ErpRouteRoute._addFileChildren(
+  ErpRouteRouteChildren,
+)
+
+interface CoeRouteChildren {
+  CoeLoginRoute: typeof CoeLoginRoute
+  CoePortalRoute: typeof CoePortalRoute
+  CoeResultsRoute: typeof CoeResultsRoute
+}
+
+const CoeRouteChildren: CoeRouteChildren = {
+  CoeLoginRoute: CoeLoginRoute,
+  CoePortalRoute: CoePortalRoute,
+  CoeResultsRoute: CoeResultsRoute,
+}
+
+const CoeRouteWithChildren = CoeRoute._addFileChildren(CoeRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ErpRouteRoute: ErpRouteRouteWithChildren,
   AboutRoute: AboutRoute,
   CampusNavigationRoute: CampusNavigationRoute,
-  CoeRoute: CoeRoute,
+  CoeRoute: CoeRouteWithChildren,
   ContactRoute: ContactRoute,
   DepartmentsRoute: DepartmentsRoute,
   FacilitiesRoute: FacilitiesRoute,
   NoticesRoute: NoticesRoute,
-  ErpLoginRoute: ErpLoginRoute,
   LoginHodRoute: LoginHodRoute,
   LoginStaffRoute: LoginStaffRoute,
   LoginStudentRoute: LoginStudentRoute,
