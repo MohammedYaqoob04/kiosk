@@ -100,3 +100,7 @@ function Index() {
 
         {/* social rail: inside the hero, always visible, 56px targets */}
         <div className="absolute right-0 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-3"></div>
+      </section>
+    </div>
+  );
+}

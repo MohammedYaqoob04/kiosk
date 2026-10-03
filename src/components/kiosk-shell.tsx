@@ -1,6 +1,26 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Building2, ContactRound, GraduationCap, House, MapPinned, Megaphone, ShieldCheck, Shapes } from "lucide-react";
+import {
+  BookOpen,
+  Building2,
+  ContactRound,
+  GraduationCap,
+  House,
+  MapPinned,
+  Megaphone,
+  ShieldCheck,
+  UserRound,
+  UsersRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export const sections = [
   { to: "/", label: "Home", icon: House },
@@ -8,68 +28,114 @@ export const sections = [
   { to: "/departments", label: "Departments", icon: BookOpen },
   { to: "/facilities", label: "Facilities", icon: Building2 },
   { to: "/campus-navigation", label: "Campus Navigation", icon: MapPinned },
-  { to: "/contact", label: "Contact", icon: ContactRound },
   { to: "/notices", label: "Notices", icon: Megaphone },
+  { to: "/contact", label: "Contact", icon: ContactRound },
 ] as const;
 
-const mobileSections = [sections[0], sections[2], sections[3], sections[4], sections[6]] as const;
+const logins = [
+  { to: "/login/student", label: "Student Login", icon: UserRound },
+  { to: "/login/staff", label: "Staff Login", icon: UsersRound },
+  { to: "/login/hod", label: "HOD Login", icon: GraduationCap },
+] as const;
 
 export function KioskShell() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const current = sections.find((section) => section.to === pathname) ?? sections[0];
 
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[304px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-sidebar px-5 py-8 text-sidebar-foreground lg:flex">
-        <Link to="/" className="mb-12 flex min-h-16 items-center gap-3 px-3" aria-label="Arunai Engineering College home">
-          <span className="grid size-14 shrink-0 place-items-center rounded-2xl border border-sidebar-border bg-sidebar-accent font-display text-sm font-bold text-primary">AEC</span>
-          <span className="min-w-0"><span className="block font-display text-lg font-semibold leading-tight">Arunai Engineering</span><span className="mt-1 block text-base text-sidebar-foreground/70">College kiosk</span></span>
-        </Link>
-        <p className="mb-3 px-4 text-base font-semibold text-sidebar-foreground/60">Explore</p>
-        <nav aria-label="Main navigation" className="flex flex-col gap-3">
-          {sections.map(({ to, label, icon: Icon }) => (
-            <Button key={to} asChild variant={pathname === to ? "navActive" : "nav"}>
-              <Link to={to} aria-current={pathname === to ? "page" : undefined}>
-                <Icon size={22} strokeWidth={1.8} className="!size-[22px]" />
-                <span>{label}</span>
-                {pathname === to && <span className="ml-auto size-2 rounded-full bg-primary" />}
-              </Link>
-            </Button>
-          ))}
-        </nav>
-        <div className="mt-auto border-t border-sidebar-border pt-6">
-          <p className="px-4 text-base text-sidebar-foreground/70">Velu Nagar, Tiruvannamalai</p>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-background">
+      <Sheet>
+        <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-xl">
+          <div className="mx-auto flex min-h-20 max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-8">
+            <Link
+              to="/"
+              className="flex min-w-0 items-center gap-3 text-foreground"
+              aria-label="Arunai Engineering College home"
+            >
+              <span className="grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-card font-display text-sm font-bold text-primary sm:size-14">
+                AEC
+              </span>
+              <span className="min-w-0">
+                <span className="block font-display text-base font-bold tracking-wide sm:text-lg">
+                  ARUNAI <span className="text-primary">/</span>
+                </span>
+                <span className="block truncate text-xs font-medium tracking-[0.12em] text-muted-foreground sm:text-sm">
+                  ENGINEERING COLLEGE (AUTONOMOUS)
+                </span>
+              </span>
+            </Link>
 
-      <div className="flex min-w-0 flex-col">
-        <header className="grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-background/90 px-5 backdrop-blur-xl sm:px-8 lg:min-h-24 lg:px-10">
-          <Link to="/" className="flex min-w-0 items-center gap-3 font-display text-lg font-semibold text-foreground lg:hidden" aria-label="Arunai Engineering College home">
-            <span className="grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-card text-sm font-bold text-primary">AEC</span>
-            <span className="min-w-0"><span className="block truncate">Arunai Engineering College</span><span className="block text-base font-normal text-muted-foreground">KIOSK</span></span>
-          </Link>
-          <div className="hidden min-w-0 lg:block"><p className="text-base text-muted-foreground">Arunai Engineering College (Autonomous)</p><p className="truncate font-display text-lg font-semibold">{current.label}</p></div>
-          <div className="flex min-h-14 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3 text-base font-medium text-muted-foreground sm:px-4">
-            <ShieldCheck size={20} className="shrink-0 text-success" aria-hidden="true" /><span>Demo mode</span>
+            <SheetTrigger asChild>
+              <Button variant="kioskGlass" className="min-h-14 min-w-24 px-5 text-base">
+                Menu
+              </Button>
+            </SheetTrigger>
           </div>
         </header>
-        <main id="main-content" className="flex w-full flex-1 flex-col pb-24 lg:pb-0">
-          <Outlet />
-        </main>
-      </div>
 
-      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto flex max-w-xl items-center justify-between gap-1 sm:gap-2">
-          {mobileSections.map(({ to, label, icon: Icon }) => (
-            <Button key={to} asChild variant={pathname === to ? "navMobileActive" : "navMobile"} className="min-w-0 flex-1">
-              <Link to={to} aria-current={pathname === to ? "page" : undefined}>
-                <Icon size={21} strokeWidth={1.8} className="!size-[21px] shrink-0" />
-                <span className="max-w-full truncate">{label === "Campus Navigation" ? "Campus" : label}</span>
-              </Link>
-            </Button>
-          ))}
-        </div>
-      </nav>
+        <SheetContent
+          side="right"
+          className="flex h-dvh w-screen max-w-none flex-col gap-0 overflow-y-auto border-0 bg-background px-5 py-6 sm:max-w-none sm:px-10 sm:py-8"
+        >
+          <SheetHeader className="mb-8 border-b border-border pb-6 pr-12 text-left">
+            <SheetTitle className="font-display text-2xl font-bold tracking-wide text-foreground">
+              ARUNAI
+            </SheetTitle>
+            <SheetDescription className="text-base text-muted-foreground">
+              Engineering College (Autonomous)
+            </SheetDescription>
+          </SheetHeader>
+
+          <nav aria-label="Main navigation" className="mx-auto flex w-full max-w-2xl flex-col gap-2">
+            {sections.map(({ to, label, icon: Icon }) => (
+              <SheetClose asChild key={to}>
+                <Button
+                  variant={pathname === to ? "navActive" : "nav"}
+                  className="min-h-14 rounded-xl text-base"
+                  asChild
+                >
+                  <a href={to} aria-current={pathname === to ? "page" : undefined}>
+                    <Icon size={22} strokeWidth={1.8} className="!size-[22px]" />
+                    <span>{label}</span>
+                  </a>
+                </Button>
+              </SheetClose>
+            ))}
+          </nav>
+
+          <div className="mx-auto mt-8 w-full max-w-2xl border-t border-border pt-6">
+            <p className="mb-3 px-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+              Portal access
+            </p>
+            <nav aria-label="Portal logins" className="flex flex-col gap-2">
+              {logins.map(({ to, label, icon: Icon }) => (
+                <SheetClose asChild key={to}>
+                  <Button
+                    asChild
+                    variant="kioskGlass"
+                    className="min-h-14 w-full justify-start rounded-xl px-4 text-base"
+                  >
+                    <a href={to}>
+                      <Icon size={22} strokeWidth={1.8} className="!size-[22px]" />
+                      <span>{label}</span>
+                    </a>
+                  </Button>
+                </SheetClose>
+              ))}
+            </nav>
+          </div>
+
+          <div className="mx-auto mt-auto w-full max-w-2xl pt-8">
+            <div className="flex min-h-14 items-center gap-3 rounded-2xl border border-border bg-card px-4 text-base font-medium text-muted-foreground">
+              <ShieldCheck size={20} className="shrink-0 text-success" aria-hidden="true" />
+              <span>Demo mode</span>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <main id="main-content" className="flex w-full flex-col">
+        <Outlet />
+      </main>
     </div>
   );
 }
