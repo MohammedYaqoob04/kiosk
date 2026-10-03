@@ -1,11 +1,45 @@
-{
-  "version": 1,
-  "asset_id": "43af9854-35b2-41f7-8f7b-7eef5f1bde07",
-  "project_id": "5de7e4f3-6255-481f-bff7-d64eed0f209c",
-  "url": "/__l5e/assets-v1/43af9854-35b2-41f7-8f7b-7eef5f1bde07/arunai-campus.png",
-  "r2_key": "a/v1/5de7e4f3-6255-481f-bff7-d64eed0f209c/43af9854-35b2-41f7-8f7b-7eef5f1bde07/arunai-campus.png",
-  "original_filename": "arunai-campus.png",
-  "size": 1436709,
-  "content_type": "image/png",
-  "created_at": "2026-10-03T10:31:09Z"
+import { useState } from "react";
+import heroImg from "@/assets/hero.jpeg"; // local file, bundled by Vite
+import SocialRail from "./SocialRail";
+
+export default function Hero() {
+  const [failed, setFailed] = useState(false); // true if the image can't load
+
+  return (
+    <section className="relative min-h-[60vh] w-full overflow-hidden bg-[#0A0D12]">
+      {/* Background photo, or a gradient fallback (never alt text) */}
+      {failed ? (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0f1a24] via-[#0A0D12] to-[#161433]" />
+      ) : (
+        <img
+          src={heroImg}
+          alt=""
+          aria-hidden="true"
+          onError={() => setFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+
+      {/* Gradient so the photo blends into the page */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-[#0A0D12]" />
+
+      {/* Title, shown once on the page */}
+      <div className="relative z-10 flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
+        <p className="mb-4 text-lg font-semibold uppercase tracking-widest text-[#2EE6C5]">
+          Welcome to your campus
+        </p>
+        <h1
+          className="font-[Sora] text-5xl font-bold text-white md:text-7xl"
+          style={{ textShadow: "0 0 40px rgba(46,230,197,0.35)" }}
+        >
+          ARUNAI
+        </h1>
+        <p className="mt-4 text-xl text-white/80">
+          Engineering College (Autonomous) · Tiruvannamalai
+        </p>
+      </div>
+
+      <SocialRail />
+    </section>
+  );
 }
