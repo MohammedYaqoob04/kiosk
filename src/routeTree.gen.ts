@@ -10,33 +10,180 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as CampusNavigationRouteImport } from './routes/campus-navigation'
+import { Route as CoeRouteImport } from './routes/coe'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as DepartmentsRouteImport } from './routes/departments'
+import { Route as FacilitiesRouteImport } from './routes/facilities'
+import { Route as NoticesRouteImport } from './routes/notices'
+import { Route as ErpLoginRouteImport } from './routes/erp.login'
+import { Route as LoginHodRouteImport } from './routes/login.hod'
+import { Route as LoginStaffRouteImport } from './routes/login.staff'
+import { Route as LoginStudentRouteImport } from './routes/login.student'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampusNavigationRoute = CampusNavigationRouteImport.update({
+  id: '/campus-navigation',
+  path: '/campus-navigation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoeRoute = CoeRouteImport.update({
+  id: '/coe',
+  path: '/coe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepartmentsRoute = DepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacilitiesRoute = FacilitiesRouteImport.update({
+  id: '/facilities',
+  path: '/facilities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoticesRoute = NoticesRouteImport.update({
+  id: '/notices',
+  path: '/notices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErpLoginRoute = ErpLoginRouteImport.update({
+  id: '/erp/login',
+  path: '/erp/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginHodRoute = LoginHodRouteImport.update({
+  id: '/login/hod',
+  path: '/login/hod',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginStaffRoute = LoginStaffRouteImport.update({
+  id: '/login/staff',
+  path: '/login/staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginStudentRoute = LoginStudentRouteImport.update({
+  id: '/login/student',
+  path: '/login/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/campus-navigation': typeof CampusNavigationRoute
+  '/coe': typeof CoeRoute
+  '/contact': typeof ContactRoute
+  '/departments': typeof DepartmentsRoute
+  '/facilities': typeof FacilitiesRoute
+  '/notices': typeof NoticesRoute
+  '/erp/login': typeof ErpLoginRoute
+  '/login/hod': typeof LoginHodRoute
+  '/login/staff': typeof LoginStaffRoute
+  '/login/student': typeof LoginStudentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/campus-navigation': typeof CampusNavigationRoute
+  '/coe': typeof CoeRoute
+  '/contact': typeof ContactRoute
+  '/departments': typeof DepartmentsRoute
+  '/facilities': typeof FacilitiesRoute
+  '/notices': typeof NoticesRoute
+  '/erp/login': typeof ErpLoginRoute
+  '/login/hod': typeof LoginHodRoute
+  '/login/staff': typeof LoginStaffRoute
+  '/login/student': typeof LoginStudentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/campus-navigation': typeof CampusNavigationRoute
+  '/coe': typeof CoeRoute
+  '/contact': typeof ContactRoute
+  '/departments': typeof DepartmentsRoute
+  '/facilities': typeof FacilitiesRoute
+  '/notices': typeof NoticesRoute
+  '/erp/login': typeof ErpLoginRoute
+  '/login/hod': typeof LoginHodRoute
+  '/login/staff': typeof LoginStaffRoute
+  '/login/student': typeof LoginStudentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/campus-navigation'
+    | '/coe'
+    | '/contact'
+    | '/departments'
+    | '/facilities'
+    | '/notices'
+    | '/erp/login'
+    | '/login/hod'
+    | '/login/staff'
+    | '/login/student'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/about'
+    | '/campus-navigation'
+    | '/coe'
+    | '/contact'
+    | '/departments'
+    | '/facilities'
+    | '/notices'
+    | '/erp/login'
+    | '/login/hod'
+    | '/login/staff'
+    | '/login/student'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/campus-navigation'
+    | '/coe'
+    | '/contact'
+    | '/departments'
+    | '/facilities'
+    | '/notices'
+    | '/erp/login'
+    | '/login/hod'
+    | '/login/staff'
+    | '/login/student'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  CampusNavigationRoute: typeof CampusNavigationRoute
+  CoeRoute: typeof CoeRoute
+  ContactRoute: typeof ContactRoute
+  DepartmentsRoute: typeof DepartmentsRoute
+  FacilitiesRoute: typeof FacilitiesRoute
+  NoticesRoute: typeof NoticesRoute
+  ErpLoginRoute: typeof ErpLoginRoute
+  LoginHodRoute: typeof LoginHodRoute
+  LoginStaffRoute: typeof LoginStaffRoute
+  LoginStudentRoute: typeof LoginStudentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +195,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campus-navigation': {
+      id: '/campus-navigation'
+      path: '/campus-navigation'
+      fullPath: '/campus-navigation'
+      preLoaderRoute: typeof CampusNavigationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coe': {
+      id: '/coe'
+      path: '/coe'
+      fullPath: '/coe'
+      preLoaderRoute: typeof CoeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/departments': {
+      id: '/departments'
+      path: '/departments'
+      fullPath: '/departments'
+      preLoaderRoute: typeof DepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/facilities': {
+      id: '/facilities'
+      path: '/facilities'
+      fullPath: '/facilities'
+      preLoaderRoute: typeof FacilitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notices': {
+      id: '/notices'
+      path: '/notices'
+      fullPath: '/notices'
+      preLoaderRoute: typeof NoticesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/erp/login': {
+      id: '/erp/login'
+      path: '/erp/login'
+      fullPath: '/erp/login'
+      preLoaderRoute: typeof ErpLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/hod': {
+      id: '/login/hod'
+      path: '/login/hod'
+      fullPath: '/login/hod'
+      preLoaderRoute: typeof LoginHodRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/staff': {
+      id: '/login/staff'
+      path: '/login/staff'
+      fullPath: '/login/staff'
+      preLoaderRoute: typeof LoginStaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/student': {
+      id: '/login/student'
+      path: '/login/student'
+      fullPath: '/login/student'
+      preLoaderRoute: typeof LoginStudentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  CampusNavigationRoute: CampusNavigationRoute,
+  CoeRoute: CoeRoute,
+  ContactRoute: ContactRoute,
+  DepartmentsRoute: DepartmentsRoute,
+  FacilitiesRoute: FacilitiesRoute,
+  NoticesRoute: NoticesRoute,
+  ErpLoginRoute: ErpLoginRoute,
+  LoginHodRoute: LoginHodRoute,
+  LoginStaffRoute: LoginStaffRoute,
+  LoginStudentRoute: LoginStudentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
