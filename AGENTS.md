@@ -10,4 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Keep shared kiosk navigation in the root shell and each section as its own TanStack route so direct links and page metadata stay independent.
-- Keep KIOSK's palette and touch sizing in semantic CSS tokens and Button variants so navigation stays consistent across kiosk and mobile layouts.
+- Keep KIOSK's palette, typography, glass surfaces, and touch sizing in semantic CSS tokens and Button variants so its kiosk and mobile experiences stay consistent.
