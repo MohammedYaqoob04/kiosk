@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { GraduationCap, Grid2X2, LogOut, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, GraduationCap, Grid2X2, LogOut, UserRound, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -98,7 +98,15 @@ function ErpLayout() {
 
     return (
       <section className="portal-chooser-page">
-        <h1 className="font-display text-3xl font-semibold text-foreground">Choose your portal</h1>
+        <Link
+          to="/"
+          replace
+          className="mb-5 inline-flex min-h-14 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-base font-semibold text-foreground"
+        >
+          <ArrowLeft aria-hidden="true" className="size-5" strokeWidth={1.5} />
+          Back
+        </Link>
+        <h1 className="font-display text-3xl font-semibold text-foreground">ERP Login</h1>
         {user && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
             <p className="text-lg font-medium text-foreground">Signed in as {user.name}</p>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Delete, Eye, EyeOff, RotateCcw } from "lucide-react";
 
 import { KioskKeyboard } from "@/components/KioskKeyboard";
@@ -104,17 +104,7 @@ function ErpLogin() {
     return () => media.removeEventListener("change", updateInputMode);
   }, []);
 
-  const changeRole = (nextRole: LoginRole) => {
-    setActiveField("identifier");
-    setIdentifier("");
-    setCredential("");
-    setError("");
-    void navigate({
-      to: "/erp/login",
-      search: { role: nextRole },
-      replace: true,
-    });
-  };
+  const goBack = () => void navigate({ to: "/erp", replace: true });
 
   const setIdentifierValue = (value: string) => {
     setIdentifier(isStudent ? value : value.toUpperCase());
@@ -155,37 +145,21 @@ function ErpLogin() {
   const canSubmit = Boolean(identifier.trim()) && credential.length > 0;
 
   if (isStudent) {
-    return <StudentLogin changeRole={changeRole} login={login} />;
+    return <StudentLogin onBack={goBack} login={login} />;
   }
 
   return (
     <div className="erp-login-layout is-text-login">
       <section className="erp-login-details">
         <div className="erp-login-topline">
-          <Link
-            to="/erp"
-            onClick={(event) => {
-              event.preventDefault();
-              logout();
-            }}
+          <button
+            type="button"
+            onClick={goBack}
             className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-border bg-card px-4 text-base font-semibold text-foreground active:bg-accent"
           >
             <ArrowLeft aria-hidden="true" className="size-5" />
             Back
-          </Link>
-          <div aria-label="Choose portal" className="erp-login-role-switch">
-            {loginRoles.map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={role === option}
-                onClick={() => changeRole(option)}
-                className={`erp-login-role-option ${role === option ? "is-active" : ""}`}
-              >
-                <span className="erp-login-role-label">{roleDetails[option].label}</span>
-              </button>
-            ))}
-          </div>
+          </button>
         </div>
 
         <div className="erp-login-heading">
@@ -299,10 +273,10 @@ function ErpLogin() {
 }
 
 function StudentLogin({
-  changeRole,
+  onBack,
   login,
 }: {
-  changeRole: (role: LoginRole) => void;
+  onBack: () => void;
   login: ReturnType<typeof useAuth>["login"];
 }) {
   const [activeField, setActiveField] = useState<LoginField>("identifier");
@@ -373,11 +347,19 @@ function StudentLogin({
     <div className="student-login-layout">
       <section className="student-login-intro">
         <div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-border bg-card px-4 text-base font-semibold text-foreground active:bg-accent"
+          >
+            <ArrowLeft aria-hidden="true" className="size-5" />
+            Back
+          </button>
           <p className="text-base font-semibold text-muted-foreground">
             Arunai Engineering College
           </p>
           <h1 className="mt-2 font-display text-4xl font-semibold text-foreground">
-            Arunai ERP Login
+            Student Login
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">Authorized users only • Arunai ERP</p>
         </div>
@@ -392,19 +374,6 @@ function StudentLogin({
             <span>3</span> Sign in
           </li>
         </ol>
-        <div className="erp-login-role-switch" role="group" aria-label="Choose portal">
-          {loginRoles.map((role) => (
-            <button
-              key={role}
-              type="button"
-              aria-pressed={role === "student"}
-              onClick={() => role !== "student" && changeRole(role)}
-              className={`erp-login-role-option ${role === "student" ? "is-active" : ""}`}
-            >
-              <span className="erp-login-role-label">{roleDetails[role].label}</span>
-            </button>
-          ))}
-        </div>
       </section>
 
       <form

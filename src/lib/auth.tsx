@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const expireSession = useCallback(() => {
     clearSession();
-    void navigate({ to: "/", replace: true });
+    void navigate({ to: "/erp", replace: true });
   }, [clearSession, navigate]);
 
   const completePasswordChange = useCallback(() => {

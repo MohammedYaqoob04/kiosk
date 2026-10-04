@@ -53,6 +53,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
   const isMenu = pathname === "/menu";
   const isHome = pathname === "/";
   const isLogin = pathname === "/erp/login";
+  const isErpChooser = pathname === "/erp";
   const isErpWorkspace = pathname.startsWith("/erp/") && !isLogin;
   const isPassword = pathname === "/erp/password";
 
@@ -61,20 +62,14 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
     return () => document.documentElement.classList.remove("idle-warning");
   }, [warningOpen]);
 
-  const goBack = () => {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      void navigate({ to: "/menu" });
-    }
-  };
+  const goBack = () => void navigate({ to: "/", replace: true });
 
   return (
     <AccessibilityPanelContext.Provider value={openAccessibility}>
       <div
         className={`app-shell ${isMenu ? "app-shell-menu" : ""} ${isHome ? "app-shell-home" : ""}`}
       >
-        {!isErpWorkspace && !isHome && (
+        {!isErpWorkspace && !isHome && !isLogin && !isErpChooser && (
           <header className="app-header">
             <div className="app-header-left">
               {leftSlot ??
@@ -91,7 +86,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
                     Back
                   </Link>
                 ) : isMenu ? (
-                  <Link to="/" aria-label="Home" className="header-home-hit">
+                  <Link to="/" replace aria-label="Home" className="header-home-hit">
                     <House aria-hidden="true" className="size-6" strokeWidth={1.5} />
                   </Link>
                 ) : (
@@ -141,7 +136,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
           <Outlet />
         </main>
 
-        {isLogin || isPassword || isErpWorkspace ? null : footer ? (
+        {isLogin || isPassword || isErpWorkspace || isErpChooser ? null : footer ? (
           <footer className="app-footer">{footer}</footer>
         ) : (
           !isHome && (
@@ -150,7 +145,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
                 <ArrowLeft aria-hidden="true" className="size-[22px]" strokeWidth={1.5} />
                 <span>Back</span>
               </button>
-              <Link to="/" reloadDocument className="inner-footer-button">
+              <Link to="/" replace reloadDocument className="inner-footer-button">
                 <House aria-hidden="true" className="size-[22px]" strokeWidth={1.5} />
                 <span>Home</span>
               </Link>

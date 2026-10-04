@@ -31,7 +31,7 @@ export function SiteHeader({ campus = false }: { campus?: boolean }) {
   return (
     <header className={`site-header ${headerSolid ? "is-solid" : ""} ${campus ? "site-header-campus" : ""}`}>
       {campus ? (
-        <Link to="/" className="site-header-back">
+        <Link to="/" replace className="site-header-back">
           <ArrowLeft aria-hidden="true" strokeWidth={1.5} />
           {siteContent.header.backLabel}
         </Link>
