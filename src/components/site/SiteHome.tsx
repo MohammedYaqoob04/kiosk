@@ -26,7 +26,15 @@ import {
 
 import { siteContent } from "@/config/siteContent";
 import { SiteHeader } from "@/components/site/SiteHeader";
-import { HOME_BG_IMAGES, SHOW_PLACEHOLDERS } from "@/config/home";
+import {
+  HERO_IMAGE_STYLE,
+  HERO_IMAGE_CAPTION,
+  HOME_BG_DIM,
+  HOME_BG_IMAGES,
+  HOME_BG_POSITION,
+  HOME_BG_ROTATE_SECONDS,
+  SHOW_PLACEHOLDERS,
+} from "@/config/home";
 
 const galleryImages = Object.values(
   import.meta.glob<string>("/src/assets/site/gallery-*.{jpg,jpeg,png,webp}", {
@@ -257,7 +265,7 @@ export function SiteHome() {
     if (HOME_BG_IMAGES.length < 2) return;
     const interval = window.setInterval(() => {
       setActiveBackground((current) => (current + 1) % HOME_BG_IMAGES.length);
-    }, 14_000);
+    }, HOME_BG_ROTATE_SECONDS * 1000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -271,9 +279,15 @@ export function SiteHome() {
             <path d="M40 720V290C40 128 172 0 334 0s294 128 294 290v430M108 720V294c0-124 102-224 226-224s226 100 226 224v426M176 720V298c0-86 72-156 158-156s158 70 158 156v422" />
             <path d="M75 290h468M143 294h384M211 298h248M40 374h588M40 458h588M40 542h588M40 626h588M40 720h588M690 720V180m68 540V120m68 600V180" />
           </svg>
-          <div className="site-hero-layout">
+          <div
+            className={`site-hero-layout${HERO_IMAGE_STYLE === "framed" ? " site-hero-layout-framed" : ""}`}
+          >
             <div className="site-hero-content">
-              <p className="site-eyebrow site-hero-eyebrow">{siteContent.hero.eyebrow}</p>
+              <p className="site-hero-institution">
+                Arunai Engineering College
+                <span>(Autonomous)</span>
+              </p>
+              <p className="site-hero-location">Velu Nagar, Tiruvannamalai - Estd. 1993</p>
               <div className="site-hero-lockup">
                 <span>{siteContent.hero.wordmark}</span>
                 <p>{siteContent.hero.lockupDescription}</p>
@@ -290,7 +304,15 @@ export function SiteHome() {
                 </a>
               </div>
             </div>
-            <div className="site-hero-image-frame">
+            <div
+              className={`site-hero-image-frame site-hero-image-frame-${HERO_IMAGE_STYLE}${HOME_BG_IMAGES.length ? "" : " site-hero-image-frame-fallback"}`}
+              style={
+                {
+                  "--home-bg-dim": HOME_BG_DIM * 0.5,
+                  "--home-bg-position": HOME_BG_POSITION,
+                } as CSSProperties
+              }
+            >
               <div className="site-hero-image-panel" aria-label={siteContent.hero.imageAlt} role="img">
                 {HOME_BG_IMAGES.map((image, index) => (
                   <img
@@ -301,17 +323,38 @@ export function SiteHome() {
                     fetchPriority={index === 0 ? "high" : "auto"}
                   />
                 ))}
-                {!HOME_BG_IMAGES.length && <span>{siteContent.hero.imageFallback}</span>}
+                {!HOME_BG_IMAGES.length && (
+                  <svg
+                    className="site-hero-fallback-pattern"
+                    viewBox="0 0 900 720"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path d="M40 720V290C40 128 172 0 334 0s294 128 294 290v430M108 720V294c0-124 102-224 226-224s226 100 226 224v426M176 720V298c0-86 72-156 158-156s158 70 158 156v422" />
+                    <path d="M75 290h468M143 294h384M211 298h248M40 374h588M40 458h588M40 542h588M40 626h588M40 720h588M690 720V180m68 540V120m68 600V180" />
+                  </svg>
+                )}
               </div>
-              <span className="site-frame-corner site-frame-corner-top-left" />
-              <span className="site-frame-corner site-frame-corner-top-right" />
-              <span className="site-frame-corner site-frame-corner-bottom-left" />
-              <span className="site-frame-corner site-frame-corner-bottom-right" />
-              <div className="site-hero-service-card">
-                {siteContent.hero.serviceSummary.map((service) => (
-                  <span key={service}>{service}</span>
-                ))}
-              </div>
+              {HERO_IMAGE_STYLE === "framed" &&
+                (HERO_IMAGE_CAPTION || HOME_BG_IMAGES.length > 1) && (
+                  <div className="site-hero-image-caption">
+                    <span>{HERO_IMAGE_CAPTION}</span>
+                    {HOME_BG_IMAGES.length > 1 && (
+                      <div className="site-hero-image-indicators" aria-label="Campus photos">
+                        {HOME_BG_IMAGES.map((image, index) => (
+                          <button
+                            key={image}
+                            type="button"
+                            className={index === activeBackground ? "is-active" : ""}
+                            aria-label={`Show campus photo ${index + 1}`}
+                            aria-current={index === activeBackground ? "true" : undefined}
+                            onClick={() => setActiveBackground(index)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
           </div>
           <a className="site-scroll-cue" href="#about" aria-label={siteContent.hero.scrollLabel}>
