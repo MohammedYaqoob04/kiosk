@@ -1,17 +1,42 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { TouchTextInput } from "@/components/TouchTextInput";
-import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
-import { createLeaveRequest, useLeaveRequests } from "@/lib/leave-store";
+import { getRequestsSnapshot, submitRequest, subscribeToRequests } from "@/lib/leaveStore";
 import { requireAuth } from "@/lib/require-auth";
-import type { LeaveRequestType } from "@/types/leave";
+import type {
+  LeaveCategory,
+  LeaveLetterInput,
+  OdCategory,
+  Request,
+  RequestKind,
+  Status,
+} from "@/types/leave";
 
-const reasonChoices = ["Medical", "Family function", "Other"] as const;
-const timelineStages = ["Submitted", "Counsellor", "HOD", "Final"] as const;
+const leaveCategories: LeaveCategory[] = ["Medical", "Personal", "Family Function", "Other"];
+const odCategories: OdCategory[] = [
+  "Sports",
+  "Hackathon",
+  "Paper Presentation",
+  "Workshop/Training",
+  "Technical Symposium",
+  "Cultural",
+  "NCC/NSS",
+  "Other",
+];
+function isSupportedLetterType(type: string): type is LeaveLetterInput["type"] {
+  return type === "application/pdf" || type === "image/jpeg" || type === "image/png";
+}
+
+const statusLabels: Record<Status, string> = {
+  PENDING_COUNSELLOR: "Pending Counsellor",
+  REJECTED_BY_COUNSELLOR: "Rejected by Counsellor",
+  PENDING_HOD: "Pending HOD",
+  APPROVED: "Approved",
+  REJECTED_BY_HOD: "Rejected by HOD",
+};
 
 export const Route = createFileRoute("/erp/leave")({
   beforeLoad: requireAuth,
@@ -21,231 +46,389 @@ export const Route = createFileRoute("/erp/leave")({
 });
 
 function formatDate(date: string): string {
-  if (!date) return "Awaiting";
   return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(
     new Date(`${date}T00:00:00`),
   );
 }
 
+function rejectionInfo(request: Request): { authority: string; reason: string } | null {
+  if (request.status === "REJECTED_BY_COUNSELLOR") {
+    return {
+      authority: "Counsellor",
+      reason: request.counsellorDecision?.remark ?? "",
+    };
+  }
+  if (request.status === "REJECTED_BY_HOD") {
+    return { authority: "HOD", reason: request.hodDecision?.remark ?? "" };
+  }
+  return null;
+}
+
 function StudentLeavePage() {
   const { user } = useAuth();
-  const requests = useLeaveRequests().filter((request) => request.registerNo === user?.identifier);
-  const [type, setType] = useState<LeaveRequestType>("LEAVE");
+  const allRequests = useSyncExternalStore(
+    subscribeToRequests,
+    getRequestsSnapshot,
+    getRequestsSnapshot,
+  );
+  const requests = allRequests.filter((request) => request.studentRegNo === user?.identifier);
+  const [kind, setKind] = useState<RequestKind>("LEAVE");
+  const [leaveCategory, setLeaveCategory] = useState<LeaveCategory | "">("");
+  const [odCategory, setOdCategory] = useState<OdCategory | "">("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [reasonChoice, setReasonChoice] = useState<(typeof reasonChoices)[number] | "">("");
-  const [otherReason, setOtherReason] = useState("");
-  const [address, setAddress] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [organizer, setOrganizer] = useState("");
+  const [venue, setVenue] = useState("");
+  const [letter, setLetter] = useState<LeaveLetterInput | null>(null);
   const [error, setError] = useState("");
-  const reason = reasonChoice === "Other" ? otherReason.trim() : reasonChoice;
-  const canSubmit = Boolean(
-    user && fromDate && toDate && fromDate <= toDate && reason && address.trim(),
-  );
+  const [sent, setSent] = useState(false);
 
-  const submit = () => {
-    if (!user || !canSubmit) {
-      setError("Complete the date range, reason and residential address.");
+  const onTextChange = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setError("");
+    setSent(false);
+  };
+  const dateRangeValid = Boolean(fromDate && toDate && toDate >= fromDate);
+  const canSubmit =
+    Boolean(user) &&
+    dateRangeValid &&
+    (kind === "LEAVE"
+      ? Boolean(leaveCategory && reason.trim().length >= 10)
+      : Boolean(
+          odCategory &&
+          eventName.trim() &&
+          organizer.trim() &&
+          venue.trim() &&
+          letter &&
+          letter.size > 0 &&
+          letter.size <= 2 * 1024 * 1024,
+        ));
+
+  const uploadLetter = (file: File | undefined) => {
+    if (!file) return;
+    setLetter(null);
+    const letterType = file.type;
+    if (!isSupportedLetterType(letterType)) {
+      setError("OD letter must be a PDF, JPG, or PNG file.");
       return;
     }
-    createLeaveRequest({
-      type,
-      studentName: user.name,
-      registerNo: user.identifier,
-      department: user.department,
-      fromDate,
-      toDate,
-      reason,
-      residentialAddress: address.trim(),
-      assignedCounsellorId: "9999900101",
-    });
-    setFromDate("");
-    setToDate("");
-    setReasonChoice("");
-    setOtherReason("");
-    setAddress("");
-    setError("");
+    if (file.size > 2 * 1024 * 1024) {
+      setError("OD letter must be no larger than 2 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => setError("OD letter could not be read. Please upload it again.");
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        setError("OD letter could not be read. Please upload it again.");
+        return;
+      }
+      setLetter({
+        name: file.name,
+        type: letterType,
+        size: file.size,
+        dataUrl: reader.result,
+      });
+      setError("");
+      setSent(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const submit = () => {
+    if (!user || !canSubmit) return;
+    try {
+      if (kind === "LEAVE") {
+        if (!leaveCategory) return;
+        submitRequest({
+          kind,
+          category: leaveCategory,
+          studentRegNo: user.identifier,
+          studentName: user.name,
+          fromDate,
+          toDate,
+          reason,
+        });
+      } else if (letter && odCategory) {
+        submitRequest({
+          kind,
+          category: odCategory,
+          studentRegNo: user.identifier,
+          studentName: user.name,
+          fromDate,
+          toDate,
+          eventName,
+          organizer,
+          venue,
+          letter,
+        });
+      }
+      setFromDate("");
+      setToDate("");
+      setReason("");
+      setEventName("");
+      setOrganizer("");
+      setVenue("");
+      setLetter(null);
+      setLeaveCategory("");
+      setOdCategory("");
+      setError("");
+      setSent(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Your request could not be submitted.");
+    }
   };
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl space-y-6 px-4 py-6 sm:px-8 sm:py-8">
-      <PageHeader
-        title="Leave / OD requests"
-        description="Submit a request and track its approval stages."
-      />
+    <div className="leave-page-container">
+      <div className="leave-workspace">
+        <section className="leave-form-panel">
+          <div>
+            <h1 className="font-display text-2xl font-semibold text-foreground">Leave / OD</h1>
+            <p className="text-base text-muted-foreground">Submit a request for approval.</p>
+            <span className="mt-2 inline-flex min-h-10 items-center rounded-full border border-border px-3 text-sm font-medium text-foreground">
+              2-tier verification: Counsellor -&gt; HOD
+            </span>
+          </div>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-7">
-        <h2 className="font-display text-2xl font-semibold text-foreground">New request</h2>
-        <div className="mt-5 flex flex-wrap gap-3" role="group" aria-label="Request type">
-          {(["LEAVE", "OD"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setType(option)}
-              aria-pressed={type === option}
-              className={`min-h-14 min-w-32 rounded-xl border px-5 text-lg font-semibold ${
-                type === option
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-secondary text-foreground active:bg-accent"
-              }`}
-            >
-              {option === "LEAVE" ? "Leave" : "On Duty (OD)"}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-lg font-medium text-foreground">
-            From date
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(event) => setFromDate(event.currentTarget.value)}
-              className="min-h-14 rounded-xl border border-input bg-background px-4 text-lg text-foreground [color-scheme:dark]"
-            />
-          </label>
-          <label className="grid gap-2 text-lg font-medium text-foreground">
-            To date
-            <input
-              type="date"
-              min={fromDate || undefined}
-              value={toDate}
-              onChange={(event) => setToDate(event.currentTarget.value)}
-              className="min-h-14 rounded-xl border border-input bg-background px-4 text-lg text-foreground [color-scheme:dark]"
-            />
-          </label>
-        </div>
-
-        <fieldset className="mt-5">
-          <legend className="mb-3 text-lg font-medium text-foreground">Reason</legend>
-          <div className="flex flex-wrap gap-3">
-            {reasonChoices.map((choice) => (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Request type">
+            {(
+              [
+                ["LEAVE", "Apply Leave"],
+                ["OD", "Apply OD"],
+              ] as const
+            ).map(([value, label]) => (
               <button
-                key={choice}
+                key={value}
                 type="button"
+                aria-pressed={kind === value}
                 onClick={() => {
-                  setReasonChoice(choice);
+                  setKind(value);
                   setError("");
+                  setSent(false);
                 }}
-                aria-pressed={reasonChoice === choice}
-                className={`min-h-14 rounded-full border px-5 text-lg font-medium ${
-                  reasonChoice === choice
+                className={`min-h-14 rounded-lg border px-5 text-base font-semibold ${
+                  kind === value
                     ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-secondary text-foreground active:bg-accent"
+                    : "border-border bg-card text-foreground active:bg-secondary"
                 }`}
               >
-                {choice}
+                {label}
               </button>
             ))}
           </div>
-        </fieldset>
-        {reasonChoice === "Other" && (
-          <div className="mt-4">
-            <TouchTextInput
-              label="Other reason"
-              value={otherReason}
-              onChange={setOtherReason}
-              placeholder="Enter a short reason"
-              maxLength={80}
-            />
+
+          {kind === "LEAVE" ? (
+            <fieldset>
+              <legend className="mb-2 font-semibold text-foreground">Leave category</legend>
+              <div className="flex flex-wrap gap-2">
+                {leaveCategories.map((category) => (
+                  <CategoryButton
+                    key={category}
+                    label={category}
+                    selected={leaveCategory === category}
+                    onClick={() => {
+                      setLeaveCategory(category);
+                      setSent(false);
+                    }}
+                  />
+                ))}
+              </div>
+            </fieldset>
+          ) : (
+            <>
+              <fieldset>
+                <legend className="mb-2 font-semibold text-foreground">OD category</legend>
+                <div className="flex flex-wrap gap-2">
+                  {odCategories.map((category) => (
+                    <CategoryButton
+                      key={category}
+                      label={category}
+                      selected={odCategory === category}
+                      onClick={() => {
+                        setOdCategory(category);
+                        setSent(false);
+                      }}
+                    />
+                  ))}
+                </div>
+              </fieldset>
+              {odCategory === "Sports" && (
+                <p className="text-sm text-muted-foreground">
+                  Sports: Attach the sports department/organizer letter
+                </p>
+              )}
+              {odCategory === "Hackathon" && (
+                <p className="text-sm text-muted-foreground">
+                  Hackathon: Attach the organizer&apos;s invitation/registration letter
+                </p>
+              )}
+              <TouchTextInput
+                label="Event name"
+                value={eventName}
+                onChange={onTextChange(setEventName)}
+                placeholder="Tap to enter event name"
+                maxLength={100}
+              />
+              <TouchTextInput
+                label="Organizer"
+                value={organizer}
+                onChange={onTextChange(setOrganizer)}
+                placeholder="Tap to enter organizer"
+                maxLength={100}
+              />
+              <TouchTextInput
+                label="Venue"
+                value={venue}
+                onChange={onTextChange(setVenue)}
+                placeholder="Tap to enter venue"
+                maxLength={100}
+              />
+            </>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-2 font-semibold text-foreground">
+              From
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(event) => onTextChange(setFromDate)(event.currentTarget.value)}
+                className="min-h-14 rounded-lg border border-input bg-background px-4 text-base text-foreground"
+              />
+            </label>
+            <label className="grid gap-2 font-semibold text-foreground">
+              To
+              <input
+                type="date"
+                min={fromDate || undefined}
+                value={toDate}
+                onChange={(event) => onTextChange(setToDate)(event.currentTarget.value)}
+                className="min-h-14 rounded-lg border border-input bg-background px-4 text-base text-foreground"
+              />
+            </label>
           </div>
-        )}
-        <div className="mt-4">
-          <TouchTextInput
-            label="Residential address"
-            value={address}
-            onChange={setAddress}
-            placeholder="Enter your residential address"
-            maxLength={160}
-          />
-        </div>
 
-        {error && (
-          <p role="alert" className="mt-4 text-lg text-destructive">
-            {error}
-          </p>
-        )}
-        <Button
-          type="button"
-          onClick={submit}
-          disabled={!canSubmit}
-          className="mt-5 min-h-14 w-full text-lg font-semibold sm:w-auto sm:px-8"
-        >
-          Submit request
-        </Button>
-      </section>
-
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-7">
-        <h2 className="mb-4 font-display text-2xl font-semibold text-foreground">Your requests</h2>
-        {requests.length === 0 ? (
-          <p className="text-lg text-muted-foreground">No leave or OD requests yet.</p>
-        ) : (
-          <div className="grid gap-3">
-            {requests.map((request) => {
-              const expanded = expandedId === request.id;
-              return (
-                <article key={request.id} className="rounded-xl border border-border bg-background">
+          {kind === "LEAVE" ? (
+            <TouchTextInput
+              label="Reason"
+              value={reason}
+              onChange={onTextChange(setReason)}
+              placeholder="Enter the reason for leave (at least 10 characters)"
+              maxLength={300}
+            />
+          ) : (
+            <div className="grid gap-2">
+              <label htmlFor="od-letter" className="font-semibold text-foreground">
+                Upload official OD letter
+              </label>
+              <input
+                id="od-letter"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                onChange={(event) => uploadLetter(event.currentTarget.files?.[0])}
+                className="min-h-14 w-full rounded-lg border border-border bg-surface px-3 py-3 text-base text-foreground"
+              />
+              {letter && (
+                <div className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3">
+                  <span className="min-w-0 truncate text-sm text-foreground">{letter.name}</span>
                   <button
                     type="button"
-                    aria-expanded={expanded}
-                    onClick={() => setExpandedId(expanded ? null : request.id)}
-                    className="flex min-h-16 w-full items-center justify-between gap-4 p-4 text-left active:bg-secondary"
+                    onClick={() => setLetter(null)}
+                    className="min-h-12 px-3 font-semibold text-foreground underline"
                   >
-                    <span>
-                      <span className="block text-lg font-semibold text-foreground">
-                        {request.type === "LEAVE" ? "Leave" : "On Duty"} · {request.reason}
-                      </span>
-                      <span className="mt-1 block text-lg text-muted-foreground">
-                        {formatDate(request.fromDate)} – {formatDate(request.toDate)}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2 text-lg font-semibold text-primary">
-                      {request.status.replaceAll("_", " ")}
-                      {expanded ? (
-                        <ChevronUp aria-hidden="true" />
-                      ) : (
-                        <ChevronDown aria-hidden="true" />
-                      )}
-                    </span>
+                    Remove
                   </button>
-                  {expanded && (
-                    <div className="border-t border-border p-4">
-                      <p className="text-lg text-muted-foreground">
-                        Residential address:{" "}
-                        <span className="text-foreground">{request.residentialAddress}</span>
-                      </p>
-                      <ol className="mt-4 grid gap-3 sm:grid-cols-4">
-                        {timelineStages.map((stage) => {
-                          const event = request.history.find((entry) => entry.stage === stage);
-                          const isCurrent =
-                            !event &&
-                            ((stage === "Counsellor" && request.status === "PENDING_COUNSELLOR") ||
-                              (stage === "HOD" && request.status === "PENDING_HOD"));
-                          return (
-                            <li
-                              key={stage}
-                              className="min-h-20 rounded-xl border border-border bg-card p-3"
-                            >
-                              <p className="text-lg font-semibold text-foreground">{stage}</p>
-                              <p className="mt-1 text-lg text-muted-foreground">
-                                {event
-                                  ? `${event.decision} · ${formatDate(event.at.slice(0, 10))}`
-                                  : isCurrent
-                                    ? "Pending"
-                                    : "Awaiting"}
-                              </p>
-                            </li>
-                          );
-                        })}
-                      </ol>
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          {sent && (
+            <p role="status" className="font-semibold text-foreground">
+              Sent to Counsellor
+            </p>
+          )}
+          <Button type="button" onClick={submit} disabled={!canSubmit} className="w-full">
+            Submit request
+          </Button>
+        </section>
+
+        <section className="leave-history-panel">
+          <h2 className="shrink-0 font-display text-xl font-semibold text-foreground">
+            My requests
+          </h2>
+          {requests.length === 0 ? (
+            <p className="py-4 text-base text-muted-foreground">No requests submitted yet.</p>
+          ) : (
+            <div className="leave-history-list">
+              {requests.map((request) => {
+                const rejection = rejectionInfo(request);
+                return (
+                  <article
+                    key={request.id}
+                    className="rounded-xl border border-border bg-surface p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {request.kind} · {request.category}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {formatDate(request.fromDate)} – {formatDate(request.toDate)}
+                        </p>
+                      </div>
+                      <span className="inline-flex min-h-10 items-center rounded-full border border-border px-3 text-sm font-medium text-foreground">
+                        {statusLabels[request.status]}
+                      </span>
                     </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                    {request.kind === "OD" && (
+                      <p className="mt-2 text-sm text-muted-foreground">{request.eventName}</p>
+                    )}
+                    {rejection && (
+                      <p className="mt-2 text-sm text-foreground">
+                        Rejected by {rejection.authority}: {rejection.reason}
+                      </p>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
+  );
+}
+
+function CategoryButton({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`min-h-14 rounded-lg border px-4 text-sm font-medium ${
+        selected
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-surface text-foreground active:bg-secondary"
+      }`}
+    >
+      {label}
+    </button>
   );
 }

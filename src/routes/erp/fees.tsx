@@ -1,14 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CreditCard, ReceiptText } from "lucide-react";
-import { useMemo } from "react";
 
-import { api, type FeeSummary, type StudentProfile } from "@/api";
-import { useApi } from "@/api/use-api";
+import type { FeeSummary, StudentProfile } from "@/api";
 import { DataTable } from "@/components/erp/DataTable";
-import { ErrorState } from "@/components/erp/ErrorState";
 import { PageBanner } from "@/components/erp/PageBanner";
-import { Skeleton } from "@/components/erp/Skeleton";
-import { StatusChip } from "@/components/erp/StatusChip";
+import { Button } from "@/components/ui/button";
+import { fakeFees, fakeProfile } from "@/lib/erpData";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/erp/fees")({
@@ -19,128 +16,87 @@ export const Route = createFileRoute("/erp/fees")({
 });
 
 const inr = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
+  minimumIntegerDigits: 1,
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
 function formatFeeType(value: string): string {
-  return value.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const labels: Record<string, string> = {
+    tuition_fee: "Tuition Fee",
+    transport_fee: "Transport Fee",
+    development_fee: "Development Fee",
+  };
+  return (
+    labels[value] ?? value.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
+}
+
+function formatAmount(value: number): string {
+  return `₹ ${inr.format(value)}`;
 }
 
 function FeesPage() {
-  const profile = useApi(["erp", "profile"], api.getProfile);
-  const fees = useApi(["erp", "fees"], api.getFees);
-  const retry = () => {
-    profile.reload();
-    fees.reload();
-  };
-
-  if (profile.loading || fees.loading) {
-    return <Skeleton rows={5} className="flex-1 p-4" />;
-  }
-  if (profile.error || fees.error || !profile.data || !fees.data) {
-    return (
-      <div className="p-4">
-        <ErrorState
-          message={profile.error?.message ?? fees.error?.message ?? "Fee details are unavailable."}
-          onRetry={retry}
-        />
-      </div>
-    );
-  }
-
-  return <FeeDetails fees={fees.data} student={profile.data} />;
+  return <FeeDetails fees={fakeFees} student={fakeProfile} />;
 }
 
 function FeeDetails({ fees, student }: { fees: FeeSummary; student: StudentProfile }) {
-  const totals = useMemo(
-    () =>
-      fees.items.reduce(
-        (sum, item) => ({
-          total: sum.total + item.total,
-          paid: sum.paid + item.paid,
-          balance: sum.balance + item.balance,
-        }),
-        { total: 0, paid: 0, balance: 0 },
-      ),
-    [fees.items],
-  );
-
-  const structureRows = useMemo(
-    () => [
-      ...fees.items.map((item) => ({
-        ...item,
-        feeType: formatFeeType(item.feeType),
-        isTotal: false,
-      })),
-      {
-        feeType: "Total",
-        total: totals.total,
-        paid: totals.paid,
-        balance: totals.balance,
-        isTotal: true,
-      },
-    ],
-    [fees.items, totals],
-  );
-
   const structureColumns = [
     {
       key: "feeType",
-      header: "Fee Type",
-      cell: (row: (typeof structureRows)[number]) => (
-        <span className={row.isTotal ? "font-semibold" : ""}>{row.feeType}</span>
-      ),
+      header: "FEE TYPE",
+      cell: (row: FeeSummary["items"][number]) => formatFeeType(row.feeType),
     },
     {
       key: "total",
-      header: "Total Fee",
-      cell: (row: (typeof structureRows)[number]) => inr.format(row.total),
+      header: "TOTAL FEE",
+      cell: (row: FeeSummary["items"][number]) => formatAmount(row.total),
     },
     {
       key: "paid",
-      header: "Paid",
-      cell: (row: (typeof structureRows)[number]) => inr.format(row.paid),
+      header: "PAID",
+      cell: (row: FeeSummary["items"][number]) => formatAmount(row.paid),
     },
     {
       key: "balance",
-      header: "Balance",
-      cell: (row: (typeof structureRows)[number]) => inr.format(row.balance),
+      header: "BALANCE",
+      cell: (row: FeeSummary["items"][number]) => formatAmount(row.balance),
     },
     {
-      key: "status",
-      header: "Status",
-      cell: (row: (typeof structureRows)[number]) =>
-        row.isTotal ? null : <StatusChip status={row.balance === 0 ? "Paid" : "Due"} />,
+      key: "action",
+      header: "ACTION",
+      cell: () => (
+        <Button type="button" variant="outline" disabled className="min-h-14 whitespace-nowrap">
+          Pay at accounts office
+        </Button>
+      ),
     },
   ];
 
   const paymentColumns = [
     {
       key: "transactionId",
-      header: "Transaction ID",
+      header: "TRANSACTION ID",
       cell: (row: FeeSummary["payments"][number]) => row.transactionId,
     },
     {
       key: "feeType",
-      header: "Fee Type",
+      header: "FEE TYPE",
       cell: (row: FeeSummary["payments"][number]) => formatFeeType(row.feeType),
     },
     {
       key: "amount",
-      header: "Amount",
-      cell: (row: FeeSummary["payments"][number]) => inr.format(row.amount),
+      header: "AMOUNT",
+      cell: (row: FeeSummary["payments"][number]) => formatAmount(row.amount),
     },
     {
       key: "date",
-      header: "Date",
+      header: "DATE",
       cell: (row: FeeSummary["payments"][number]) => row.date,
     },
     {
       key: "receiptNo",
-      header: "Receipt No.",
+      header: "RECEIPT NO.",
       cell: (row: FeeSummary["payments"][number]) => row.receiptNo,
     },
   ];
@@ -151,13 +107,13 @@ function FeeDetails({ fees, student }: { fees: FeeSummary; student: StudentProfi
         title="Student Fee Details"
         subtitle="View your fee structure, payment status and transaction history"
         icon={CreditCard}
-        chip={<span className="text-sm text-muted-foreground">View only</span>}
       />
       <section aria-label="Student details" className="erp-surface grid gap-3 p-4 sm:grid-cols-4">
-        <StudentDetail label="Roll No" value={student.registerNo} />
-        <StudentDetail label="Name" value={student.name} />
-        <StudentDetail label="Academic Year" value={student.academicYear} />
-        <StudentDetail label="Year" value={`Year ${student.year}`} />
+        <h2 className="text-lg font-semibold text-foreground sm:col-span-4">Student Details</h2>
+        <StudentDetail label="ROLL" value={student.registerNo} />
+        <StudentDetail label="NAME" value={student.name} />
+        <StudentDetail label="ACADEMIC YEAR" value={student.academicYear} />
+        <StudentDetail label="YEAR" value={`Year ${student.year}`} />
       </section>
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
         <section className="flex min-h-0 min-w-0 flex-col gap-2">
@@ -165,13 +121,13 @@ function FeeDetails({ fees, student }: { fees: FeeSummary; student: StudentProfi
           <DataTable
             label="Fee structure"
             columns={structureColumns}
-            rows={structureRows}
+            rows={fees.items}
             getRowKey={(row) => row.feeType}
           />
         </section>
         <section className="flex min-h-0 min-w-0 flex-col gap-2">
           <h2 className="flex shrink-0 items-center gap-2 text-lg font-semibold text-foreground">
-            <ReceiptText aria-hidden="true" className="size-5 text-violet-300" strokeWidth={1.5} />
+            <ReceiptText aria-hidden="true" className="size-5 text-accent" strokeWidth={1.5} />
             Payment History
           </h2>
           <DataTable
@@ -183,9 +139,6 @@ function FeeDetails({ fees, student }: { fees: FeeSummary; student: StudentProfi
           />
         </section>
       </div>
-      <p className="erp-surface shrink-0 px-4 py-3 text-sm text-muted-foreground">
-        To pay your fees, please visit the accounts office.
-      </p>
     </div>
   );
 }

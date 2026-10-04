@@ -1,126 +1,114 @@
-import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { CalendarDays } from "lucide-react";
 
-import { PageHeader } from "@/components/PageHeader";
-import { demoTimetable } from "@/mock/erp";
+import { api } from "@/api";
+import { useApi } from "@/api/use-api";
+import { EmptyState } from "@/components/erp/EmptyState";
+import { ErrorState } from "@/components/erp/ErrorState";
+import { PageBanner } from "@/components/erp/PageBanner";
+import { Skeleton } from "@/components/erp/Skeleton";
+import { useAuth } from "@/lib/auth-context";
 import { requireAuth } from "@/lib/require-auth";
-
-const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
-const periods = [1, 2, 3, 4, 5, 6, 7] as const;
 
 export const Route = createFileRoute("/erp/timetable")({
   beforeLoad: requireAuth,
-  shouldReload: true,
   component: TimetablePage,
-  head: () => ({ meta: [{ title: "Timetable | Student ERP" }] }),
+  head: () => ({ meta: [{ title: "Today's Timetable | Student ERP" }] }),
 });
 
 function TimetablePage() {
-  const [selectedDay, setSelectedDay] = useState<(typeof weekdays)[number]>("Monday");
-  const selectedEntries = demoTimetable.filter((entry) => entry.day === selectedDay);
+  const { user } = useAuth();
+  const profile = useApi(["erp", "profile"], api.getProfile);
+  const { data, loading, error, reload } = useApi(["erp", "timetable"], () => api.getTimetable());
+
+  if (profile.loading || loading) return <Skeleton rows={5} className="flex-1 p-4" />;
+  if (profile.error || error || !profile.data || !data) {
+    return (
+      <div className="p-4">
+        <ErrorState
+          message={profile.error?.message ?? error?.message ?? "Timetable is unavailable."}
+          onRetry={() => {
+            profile.reload();
+            reload();
+          }}
+        />
+      </div>
+    );
+  }
+
+  const formattedDate = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${data.date}T00:00:00`));
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-8 sm:py-8">
-      <PageHeader title="Timetable" description="Weekly schedule · Sample data" />
-
-      <section
-        aria-label="Weekly timetable"
-        className="hidden overflow-x-auto rounded-2xl border border-border bg-card p-5 lg:block lg:p-7"
-      >
-        <table className="w-full min-w-[900px] table-fixed border-collapse text-left">
-          <thead>
-            <tr>
-              <th
-                scope="col"
-                className="w-28 border-b border-border p-3 text-lg font-semibold text-muted-foreground"
-              >
-                Day
-              </th>
-              {periods.map((period) => (
-                <th
-                  key={period}
-                  scope="col"
-                  className="border-b border-border p-3 text-lg font-semibold text-foreground"
-                >
-                  Period {period}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weekdays.map((day) => (
-              <tr key={day}>
-                <th
-                  scope="row"
-                  className="border-b border-border p-3 text-lg font-semibold text-foreground"
-                >
-                  {day}
-                </th>
-                {periods.map((period) => {
-                  const entry = demoTimetable.find(
-                    (item) => item.day === day && item.period === period,
-                  );
-                  return (
-                    <td key={period} className="border-b border-border p-3 align-top">
-                      {entry ? (
-                        <div className="min-h-24 rounded-xl border border-border bg-secondary p-3">
-                          <p className="text-lg font-semibold text-foreground">{entry.subject}</p>
-                          <p className="mt-1 text-lg text-muted-foreground">{entry.room}</p>
-                        </div>
-                      ) : (
-                        <span className="text-lg text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+      <PageBanner
+        title="Today's Timetable"
+        subtitle="View your hour-wise class schedule"
+        icon={CalendarDays}
+        chip={
+          <span className="rounded-full border border-border px-3 py-2 text-sm">
+            {data.dayName}
+          </span>
+        }
+      />
+      <section className="erp-surface shrink-0 p-4">
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Student Information</h2>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Info label="STUDENT" value={user?.name ?? profile.data.name} />
+          <Info label="ROLL NO" value={profile.data.registerNo} />
+          <Info label="DEPARTMENT" value={profile.data.department} />
+          <Info label="COURSE" value={profile.data.course} />
+          <Info label="YEAR" value={String(profile.data.year)} />
+          <Info label="SEMESTER" value={String(profile.data.semester)} />
+          <Info label="SECTION" value={profile.data.section} />
+          <Info label="ACADEMIC YEAR" value={profile.data.academicYear} />
+        </dl>
       </section>
-
-      <section className="rounded-2xl border border-border bg-card p-4 lg:hidden sm:p-6">
-        <h2 className="mb-3 font-display text-xl font-semibold text-foreground">Choose a day</h2>
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
-          {weekdays.map((day) => (
-            <button
-              key={day}
-              type="button"
-              onClick={() => setSelectedDay(day)}
-              aria-pressed={selectedDay === day}
-              className={`min-h-14 shrink-0 rounded-xl border px-4 text-lg font-medium ${
-                selectedDay === day
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-secondary text-foreground active:bg-accent"
-              }`}
-            >
-              {day}
-            </button>
-          ))}
+      <section className="erp-surface flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{data.dayName}</h2>
+            <p className="text-sm text-muted-foreground">{formattedDate}</p>
+          </div>
+          <span className="rounded-full border border-border px-3 py-2 text-sm text-foreground">
+            {data.hours.length} Hours
+          </span>
         </div>
-        <h3 className="mb-3 font-display text-xl font-semibold text-foreground">{selectedDay}</h3>
-        <ol className="grid gap-3">
-          {periods.map((period) => {
-            const entry = selectedEntries.find((item) => item.period === period);
-            return (
-              <li
-                key={`${selectedDay}-${period}`}
-                className="flex min-h-24 gap-4 rounded-xl border border-border bg-secondary p-4"
-              >
-                <div className="min-w-28">
-                  <p className="text-lg font-semibold text-foreground">Period {period}</p>
-                </div>
-                <div className="border-l border-border pl-4">
-                  <p className="text-lg font-semibold text-foreground">
-                    {entry?.subject ?? "No class listed"}
-                  </p>
-                  {entry && <p className="mt-1 text-lg text-muted-foreground">{entry.room}</p>}
-                </div>
+        <h3 className="mb-2 text-base font-semibold text-foreground">Hour-wise Schedule</h3>
+        {data.hours.length === 0 ? (
+          <div className="grid flex-1 place-items-center">
+            <EmptyState
+              title="No Classes Scheduled"
+              description="There is no timetable entry for your section today."
+            />
+          </div>
+        ) : (
+          <ol className="grid min-h-0 gap-2 overflow-y-auto sm:grid-cols-2">
+            {data.hours.map((entry) => (
+              <li key={entry.hour} className="rounded-xl border border-border bg-surface p-4">
+                <p className="font-semibold text-muted-foreground">HOUR {entry.hour}</p>
+                <p className="mt-1 text-lg font-semibold text-foreground">{entry.subjectName}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{entry.subjectCode}</p>
+                {entry.staffName && (
+                  <p className="mt-1 text-sm text-muted-foreground">{entry.staffName}</p>
+                )}
               </li>
-            );
-          })}
-        </ol>
+            ))}
+          </ol>
+        )}
       </section>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+      <dd className="truncate font-medium text-foreground">{value}</dd>
     </div>
   );
 }

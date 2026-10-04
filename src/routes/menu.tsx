@@ -10,49 +10,42 @@ const menuItems: Array<{
   description: string;
   to: "/campus" | "/departments" | "/faculty" | "/notices" | "/erp" | "/contact";
   icon: LucideIcon;
-  color: string;
 }> = [
   {
     title: "Explore Campus",
     description: "Map and facilities",
     to: "/campus",
     icon: Map,
-    color: "menu-icon-green",
   },
   {
     title: "Departments",
     description: "Academic departments",
     to: "/departments",
     icon: Building2,
-    color: "menu-icon-orange",
   },
   {
     title: "Faculty Directory",
     description: "Find faculty",
     to: "/faculty",
     icon: UsersRound,
-    color: "menu-icon-purple",
   },
   {
     title: "Notices & Events",
     description: "Updates and events",
     to: "/notices",
     icon: CalendarDays,
-    color: "menu-icon-pink",
   },
   {
     title: "ERP Login",
     description: "Attendance, marks, leave",
     to: "/erp",
     icon: GraduationCap,
-    color: "menu-icon-rose",
   },
   {
     title: "Help & Contact",
     description: "Get help and contact us",
     to: "/contact",
     icon: CircleHelp,
-    color: "menu-icon-green",
   },
 ];
 
@@ -91,9 +84,9 @@ function MenuPage() {
   return (
     <div className="menu-page">
       <div className="menu-grid">
-        {menuItems.map(({ title, description, to, icon: Icon, color }) => (
+        {menuItems.map(({ title, description, to, icon: Icon }) => (
           <Link key={title} to={to} className="menu-tile">
-            <span className={`menu-icon-circle ${color}`}>
+            <span className="menu-icon-circle">
               <Icon aria-hidden="true" className="size-7" strokeWidth={1.5} />
             </span>
             <span className="menu-tile-copy">

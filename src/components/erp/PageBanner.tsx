@@ -11,7 +11,7 @@ interface PageBannerProps {
 export function PageBanner({ title, subtitle, icon: Icon, chip }: PageBannerProps) {
   return (
     <header className="erp-surface flex min-w-0 items-center gap-4 p-4">
-      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-rose-400/10 text-rose-300">
+      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-secondary text-accent">
         <Icon aria-hidden="true" className="size-6" strokeWidth={1.5} />
       </span>
       <div className="min-w-0 flex-1">

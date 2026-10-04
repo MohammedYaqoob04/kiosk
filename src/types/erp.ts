@@ -6,6 +6,7 @@ export interface User {
   role: Role;
   identifier: string;
   department: string;
+  departmentCode?: string;
   year: string;
   mustChangePassword?: boolean;
 }

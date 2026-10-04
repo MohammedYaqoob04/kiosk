@@ -19,14 +19,6 @@ import {
 } from "@/lib/accessibility-panel-context";
 import { useAuth } from "@/lib/auth-context";
 
-const backgrounds = Object.values(
-  import.meta.glob<string>("/src/assets/home/bg-*.{jpg,jpeg,png,webp}", {
-    eager: true,
-    query: "?url",
-    import: "default",
-  }),
-).sort();
-
 interface AppShellProps {
   leftSlot?: ReactNode;
   rightSlot?: ReactNode;
@@ -37,6 +29,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
   const {
     warningOpen,
     staySignedIn,
+    logout,
     largeText,
     highContrast,
     extendedTimeout,
@@ -46,17 +39,8 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
   } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const [activeBackground, setActiveBackground] = useState(0);
   const [accessibilityOpen, setAccessibilityOpen] = useState(false);
   const [time, setTime] = useState<Date | null>(null);
-
-  useEffect(() => {
-    if (backgrounds.length < 2) return;
-    const interval = window.setInterval(() => {
-      setActiveBackground((active) => (active + 1) % backgrounds.length);
-    }, 8000);
-    return () => window.clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const updateTime = () => setTime(new Date());
@@ -69,7 +53,13 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
   const isMenu = pathname === "/menu";
   const isHome = pathname === "/";
   const isLogin = pathname === "/erp/login";
+  const isErpWorkspace = pathname.startsWith("/erp/") && !isLogin;
   const isPassword = pathname === "/erp/password";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("idle-warning", warningOpen);
+    return () => document.documentElement.classList.remove("idle-warning");
+  }, [warningOpen]);
 
   const goBack = () => {
     if (window.history.length > 1) {
@@ -81,84 +71,77 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
 
   return (
     <AccessibilityPanelContext.Provider value={openAccessibility}>
-      <div className={`app-shell ${isMenu ? "app-shell-menu" : ""}`}>
-        <div aria-hidden="true" className={`app-background ${isMenu ? "menu-background" : ""}`}>
-          {backgrounds.length ? (
-            backgrounds.map((image, index) => (
-              <img
-                key={image}
-                src={image}
-                alt=""
-                className={`app-background-image ${index === activeBackground ? "is-visible" : ""}`}
-              />
-            ))
-          ) : (
-            <div className="app-background-fallback" />
-          )}
-        </div>
+      <div
+        className={`app-shell ${isMenu ? "app-shell-menu" : ""} ${isHome ? "app-shell-home" : ""}`}
+      >
+        {!isErpWorkspace && !isHome && (
+          <header className="app-header">
+            <div className="app-header-left">
+              {leftSlot ??
+                (isLogin ? (
+                  <Link
+                    to="/erp"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      logout();
+                    }}
+                    className="login-header-hit login-header-back text-lg font-semibold text-foreground"
+                  >
+                    <ArrowLeft aria-hidden="true" className="size-5" strokeWidth={1.5} />
+                    Back
+                  </Link>
+                ) : isMenu ? (
+                  <Link to="/" aria-label="Home" className="header-home-hit">
+                    <House aria-hidden="true" className="size-6" strokeWidth={1.5} />
+                  </Link>
+                ) : (
+                  <Link to="/erp" className="login-header-hit">
+                    <span className="primary-action inline-flex h-10 items-center gap-2 rounded-full px-4 text-base font-semibold">
+                      <UserRound aria-hidden="true" className="size-5" strokeWidth={1.5} />
+                      Login
+                    </span>
+                  </Link>
+                ))}
+            </div>
 
-        <header className="app-header">
-          <div className="app-header-left">
-            {leftSlot ??
-              (isLogin ? (
-                <Link
-                  to="/erp"
-                  className="login-header-hit login-header-back text-lg font-semibold text-foreground"
-                >
-                  <ArrowLeft aria-hidden="true" className="size-5" strokeWidth={1.5} />
-                  Back
-                </Link>
-              ) : isMenu ? (
-                <Link to="/" aria-label="Home" className="header-home-hit">
-                  <House aria-hidden="true" className="size-6" strokeWidth={1.5} />
-                </Link>
+            <div className="app-header-brand">
+              {isMenu ? (
+                <span className="menu-header-title">How can we help you?</span>
               ) : (
-                <Link to="/erp" className="login-header-hit">
-                  <span className="primary-gradient inline-flex h-10 items-center gap-2 rounded-full px-4 text-base font-semibold">
-                    <UserRound aria-hidden="true" className="size-5" strokeWidth={1.5} />
-                    Login
-                  </span>
-                </Link>
-              ))}
-          </div>
+                <>
+                  <span>ARUNAI ENGINEERING COLLEGE</span>
+                  <span className="app-kiosk-badge">KIOSK</span>
+                </>
+              )}
+            </div>
 
-          <div className="app-header-brand">
-            {isMenu ? (
-              <span className="menu-header-title">How can we help you?</span>
-            ) : (
-              <>
-                <span>ARUNAI ENGINEERING COLLEGE</span>
-                <span className="app-kiosk-badge">KIOSK</span>
-              </>
-            )}
-          </div>
-
-          <div className="app-header-right">
-            {rightSlot ?? (
-              <div className="flex items-center gap-3">
-                <div className="text-right" aria-live="off">
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
-                    {time?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) ??
-                      "--:--"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {time?.toLocaleDateString([], { day: "numeric", month: "short" }) ?? ""}
-                  </p>
+            <div className="app-header-right">
+              {rightSlot ?? (
+                <div className="flex items-center gap-3">
+                  <div className="text-right" aria-live="off">
+                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                      {time?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) ??
+                        "--:--"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {time?.toLocaleDateString([], { day: "numeric", month: "short" }) ?? ""}
+                    </p>
+                  </div>
+                  <LanguageToggle />
                 </div>
-                <LanguageToggle />
-              </div>
-            )}
-          </div>
-        </header>
+              )}
+            </div>
+          </header>
+        )}
 
         <main
           id="main-content"
-          className={`app-main ${isLogin ? "app-main-login" : ""} ${isPassword ? "app-main-password" : ""}`}
+          className={`app-main ${isLogin ? "app-main-login" : ""} ${isPassword ? "app-main-password" : ""} ${isHome ? "app-main-home" : ""}`}
         >
           <Outlet />
         </main>
 
-        {isLogin || isPassword ? null : footer ? (
+        {isLogin || isPassword || isErpWorkspace ? null : footer ? (
           <footer className="app-footer">{footer}</footer>
         ) : (
           !isHome && (
@@ -236,7 +219,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
                   event.preventDefault();
                   staySignedIn();
                 }}
-                className="primary-gradient min-h-14 text-lg"
+                className="primary-action min-h-14 text-lg"
               >
                 Stay signed in
               </AlertDialogAction>

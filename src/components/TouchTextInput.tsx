@@ -7,6 +7,8 @@ interface TouchTextInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   maxLength?: number;
+  multiline?: boolean;
+  masked?: boolean;
 }
 
 const keyboardRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
@@ -17,6 +19,8 @@ export function TouchTextInput({
   onChange,
   placeholder,
   maxLength = 120,
+  multiline = false,
+  masked = false,
 }: TouchTextInputProps) {
   const [open, setOpen] = useState(false);
   const [uppercase, setUppercase] = useState(false);
@@ -25,17 +29,38 @@ export function TouchTextInput({
   };
 
   return (
-    <div>
+    <div className="touch-text-input">
       <span className="mb-2 block text-lg font-medium text-foreground">{label}</span>
-      <button
-        type="button"
-        aria-label={`Edit ${label}`}
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className="min-h-14 w-full rounded-xl border border-input bg-background px-4 text-left text-lg text-foreground active:bg-secondary"
-      >
-        {value || <span className="text-muted-foreground">{placeholder ?? "Tap to enter"}</span>}
-      </button>
+      {multiline ? (
+        <textarea
+          aria-label={label}
+          aria-expanded={open}
+          readOnly
+          rows={3}
+          value={value}
+          placeholder={placeholder ?? "Tap to enter"}
+          onClick={() => setOpen((current) => !current)}
+          className="min-h-24 w-full resize-none rounded-xl border border-input bg-background px-4 py-3 text-left text-lg text-foreground placeholder:text-muted-foreground"
+        />
+      ) : (
+        <button
+          type="button"
+          aria-label={`Edit ${label}`}
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+          className="min-h-14 w-full rounded-xl border border-input bg-background px-4 text-left text-lg text-foreground active:bg-secondary"
+        >
+          {value ? (
+            masked ? (
+              "●".repeat(value.length)
+            ) : (
+              value
+            )
+          ) : (
+            <span className="text-muted-foreground">{placeholder ?? "Tap to enter"}</span>
+          )}
+        </button>
+      )}
       {open && (
         <div
           className="mt-3 rounded-2xl border border-border bg-card p-3"
@@ -47,7 +72,7 @@ export function TouchTextInput({
                 key={character}
                 type="button"
                 onClick={() => append(character)}
-                className="min-h-12 min-w-0 rounded-lg border border-border bg-secondary text-lg font-semibold text-foreground active:bg-accent"
+                className="min-h-14 min-w-0 rounded-lg border border-border bg-secondary text-lg font-semibold text-foreground active:bg-accent"
                 aria-label={`Enter ${character}`}
               >
                 {character}
@@ -63,7 +88,7 @@ export function TouchTextInput({
                     key={character}
                     type="button"
                     onClick={() => append(shownCharacter)}
-                    className="min-h-12 min-w-0 rounded-lg border border-border bg-secondary text-lg font-semibold text-foreground active:bg-accent"
+                    className="min-h-14 min-w-0 rounded-lg border border-border bg-secondary text-lg font-semibold text-foreground active:bg-accent"
                     aria-label={`Enter ${shownCharacter}`}
                   >
                     {shownCharacter}

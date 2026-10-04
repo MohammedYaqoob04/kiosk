@@ -5,6 +5,7 @@ export interface StudentProfile {
   registerNo: string;
   name: string;
   batch: string;
+  departmentCode: string;
   programme: string;
   course: string;
   semester: number;

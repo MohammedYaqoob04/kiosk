@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -8,9 +8,14 @@ import {
   setAuthToken,
   setCurrentUser,
 } from "@/lib/auth-session";
-import { resetLeaveRequests } from "@/lib/leave-store";
 import { getDemoUser } from "@/mock/erp";
 import type { Role, User } from "@/types/erp";
+import { clearKioskSessionData } from "@/lib/privacy";
+import {
+  clearStudentLoginAttempts,
+  getStudentLoginLockRemainingSeconds,
+  recordStudentLoginFailure,
+} from "@/lib/student-login-lock";
 
 const STANDARD_IDLE_LIMIT_MS = 2 * 60_000;
 const EXTENDED_IDLE_LIMIT_MS = 10 * 60_000;
@@ -31,13 +36,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [extendedTimeout, setExtendedTimeout] = useState(() =>
     readSessionSetting("kiosk-extended-timeout"),
   );
+  const [sessionResetVersion, setSessionResetVersion] = useState(0);
+  const skipSessionSettingsPersistence = useRef(false);
 
   const clearSession = useCallback(() => {
+    clearKioskSessionData();
+    skipSessionSettingsPersistence.current = true;
     setCurrentUser(null);
     setUser(null);
     setWarningOpen(false);
+    setLargeText(false);
+    setHighContrast(false);
+    setExtendedTimeout(false);
+    setSessionResetVersion((version) => version + 1);
+    document.documentElement.classList.remove("large-text", "high-contrast", "extended-timeout");
     queryClient.clear();
-    resetLeaveRequests();
   }, [queryClient]);
 
   const logout = useCallback(() => {
@@ -57,9 +70,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     (role: Role, identifier: string, pin: string) => {
-      if (!identifier.trim()) throw new Error("Enter your ID to sign in.");
-      if (role === "STUDENT" && !/^\d{4}$/.test(pin)) {
-        throw new Error("Enter a four-digit PIN to sign in.");
+      if (role === "STUDENT") {
+        if (!/^5104\d{8}$/.test(identifier)) {
+          throw new Error("Register number must be 12 digits starting with 5104");
+        }
+        if (!/^\d{4}$/.test(pin)) {
+          throw new Error("Password must be 4 digits (DDMM)");
+        }
+        const remainingLock = getStudentLoginLockRemainingSeconds(identifier);
+        if (remainingLock > 0) {
+          throw new Error(`Too many attempts. Try again in ${remainingLock} seconds.`);
+        }
+        if (identifier !== "510423243001" || pin !== "0101") {
+          const lockSeconds = recordStudentLoginFailure(identifier);
+          if (lockSeconds > 0)
+            throw new Error(`Too many attempts. Try again in ${lockSeconds} seconds.`);
+          throw new Error("Incorrect register number or password");
+        }
+        clearStudentLoginAttempts(identifier);
+      } else if (!identifier.trim()) {
+        throw new Error("Enter your ID to sign in.");
       }
       if (role !== "STUDENT" && !pin.trim()) {
         throw new Error("Enter your password to sign in.");
@@ -127,19 +157,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [extendedTimeout, lastActivity, expireSession, user]);
 
   useEffect(() => {
-    window.sessionStorage.setItem("kiosk-large-text", String(largeText));
+    if (!skipSessionSettingsPersistence.current) {
+      window.sessionStorage.setItem("kiosk-large-text", String(largeText));
+    }
     document.documentElement.classList.toggle("large-text", largeText);
   }, [largeText]);
 
   useEffect(() => {
-    window.sessionStorage.setItem("kiosk-high-contrast", String(highContrast));
+    if (!skipSessionSettingsPersistence.current) {
+      window.sessionStorage.setItem("kiosk-high-contrast", String(highContrast));
+    }
     document.documentElement.classList.toggle("high-contrast", highContrast);
   }, [highContrast]);
 
   useEffect(() => {
-    window.sessionStorage.setItem("kiosk-extended-timeout", String(extendedTimeout));
+    if (!skipSessionSettingsPersistence.current) {
+      window.sessionStorage.setItem("kiosk-extended-timeout", String(extendedTimeout));
+    }
     document.documentElement.classList.toggle("extended-timeout", extendedTimeout);
   }, [extendedTimeout]);
+
+  useEffect(() => {
+    skipSessionSettingsPersistence.current = false;
+  }, [highContrast, extendedTimeout, largeText, sessionResetVersion]);
 
   const value = useMemo(
     () => ({

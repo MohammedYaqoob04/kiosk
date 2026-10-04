@@ -108,8 +108,8 @@ function ResultsPage() {
             onClick={() => setSelectedSemester(semester.semester)}
             className={`min-h-14 min-w-24 rounded-xl border px-5 text-base font-semibold ${
               activeSemester.semester === semester.semester
-                ? "border-rose-300/30 bg-rose-400/15 text-rose-200"
-                : "border-white/10 bg-white/[0.04] text-muted-foreground active:bg-white/10"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-surface text-muted-foreground active:bg-secondary"
             }`}
           >
             Semester {semester.semester}
@@ -122,7 +122,6 @@ function ResultsPage() {
           value={activeSemester.gpa.toFixed(2)}
           detail="Grade point average"
           icon={Award}
-          accent="violet"
         />
       )}
       <section className="flex min-h-0 flex-1 flex-col gap-2">

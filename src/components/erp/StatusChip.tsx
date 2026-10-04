@@ -1,13 +1,13 @@
 type Status = "Present" | "Absent" | "OD" | "Paid" | "Due" | "Eligible" | "Low";
 
 const colors: Record<Status, string> = {
-  Present: "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
-  Absent: "border-rose-400/20 bg-rose-400/10 text-rose-300",
-  OD: "border-violet-400/20 bg-violet-400/10 text-violet-300",
-  Paid: "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
-  Due: "border-orange-400/20 bg-orange-400/10 text-orange-300",
-  Eligible: "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
-  Low: "border-rose-400/20 bg-rose-400/10 text-rose-300",
+  Present: "border-ok/20 bg-ok/10 text-ok",
+  Absent: "border-danger/20 bg-danger/10 text-danger",
+  OD: "border-border bg-surface text-foreground",
+  Paid: "border-ok/20 bg-ok/10 text-ok",
+  Due: "border-border bg-surface text-foreground",
+  Eligible: "border-ok/20 bg-ok/10 text-ok",
+  Low: "border-danger/20 bg-danger/10 text-danger",
 };
 
 export function StatusChip({ status }: { status: Status }) {

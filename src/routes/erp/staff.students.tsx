@@ -87,7 +87,7 @@ function MyStudents() {
               type="button"
               key={student.registerNo}
               onClick={() => setSelectedRegisterNo(student.registerNo)}
-              className="erp-surface staff-student-row text-left active:bg-white/[0.08]"
+              className="erp-surface staff-student-row text-left active:bg-secondary"
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-lg font-semibold text-foreground">
@@ -105,7 +105,7 @@ function MyStudents() {
               </span>
               <span className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Pending</span>
-                <span className="grid size-9 place-items-center rounded-full bg-orange-400/10 text-sm font-semibold text-orange-200">
+                <span className="grid size-9 place-items-center rounded-full border border-border bg-surface-2 text-sm font-semibold text-foreground">
                   {pendingCounts.get(student.registerNo) ?? 0}
                 </span>
               </span>
@@ -119,7 +119,7 @@ function MyStudents() {
       >
         <SheetContent
           side="bottom"
-          className="mx-auto grid max-h-[85svh] w-full max-w-3xl gap-4 overflow-y-auto rounded-t-3xl border-white/10 bg-[#1A1024] p-5 pb-8 text-foreground"
+          className="mx-auto grid max-h-[85svh] w-full max-w-3xl gap-4 overflow-y-auto rounded-t-3xl border-border bg-surface p-5 pb-8 text-foreground"
         >
           {selectedStudent && (
             <>

@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, Camera, LockKeyhole, Mail, MapPin, Phone, UserRound } from "lucide-react";
+import { CalendarDays, LockKeyhole, Mail, MapPin, Phone, UserRound } from "lucide-react";
 
-import { api } from "@/api";
-import { useApi } from "@/api/use-api";
-import { ErrorState } from "@/components/erp/ErrorState";
 import { PageBanner } from "@/components/erp/PageBanner";
-import { Skeleton } from "@/components/erp/Skeleton";
+import { fakeProfile } from "@/lib/erpData";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/erp/profile")({
@@ -19,7 +16,7 @@ export const Route = createFileRoute("/erp/profile")({
 type PrivateField = "dateOfBirth" | "mobile" | "email";
 
 function StudentProfile() {
-  const { data: profile, loading, error, reload } = useApi(["erp", "profile"], api.getProfile);
+  const profile = fakeProfile;
   const [revealed, setRevealed] = useState<Partial<Record<PrivateField, boolean>>>({});
   const timers = useRef<Partial<Record<PrivateField, number>>>({});
 
@@ -35,25 +32,12 @@ function StudentProfile() {
     timers.current[field] = window.setTimeout(() => {
       setRevealed((current) => ({ ...current, [field]: false }));
       delete timers.current[field];
-    }, 10_000);
+    }, 15_000);
   };
 
-  if (loading) return <Skeleton rows={4} className="flex-1 p-4" />;
-  if (error || !profile) {
-    return (
-      <div className="p-4">
-        <ErrorState
-          message={error?.message ?? "Profile details are unavailable."}
-          onRetry={reload}
-        />
-      </div>
-    );
-  }
-
-  const lastLogin = profile.lastLoginAt
-    ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
-        new Date(profile.lastLoginAt),
-      )
+  const lastLoginDate = profile.lastLoginAt ? new Date(profile.lastLoginAt) : null;
+  const lastLogin = lastLoginDate
+    ? `${String(lastLoginDate.getDate()).padStart(2, "0")}-${String(lastLoginDate.getMonth() + 1).padStart(2, "0")}-${lastLoginDate.getFullYear()} ${String(lastLoginDate.getHours()).padStart(2, "0")}:${String(lastLoginDate.getMinutes()).padStart(2, "0")}`
     : "--";
   const details: {
     label: string;
@@ -74,31 +58,36 @@ function StudentProfile() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4 lg:overflow-hidden">
-      <PageBanner
-        title="Student Profile"
-        subtitle="Personal and academic details"
-        icon={UserRound}
-      />
+      <div className="flex shrink-0 items-center justify-between gap-3">
+        <PageBanner title="PROFILE" icon={UserRound} />
+        <Link
+          to="/erp/dashboard"
+          className="inline-flex min-h-14 items-center rounded-lg border border-border bg-surface px-5 text-base font-semibold text-foreground"
+        >
+          Home
+        </Link>
+      </div>
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(250px,0.8fr)_minmax(0,2fr)]">
         <section className="erp-surface flex flex-col items-center justify-center gap-3 p-5 text-center">
-          {profile.photoUrl ? (
-            <img
-              src={profile.photoUrl}
-              alt={`${profile.name} profile`}
-              className="size-28 rounded-full border border-white/10 object-cover"
-            />
-          ) : (
-            <div className="grid size-28 place-items-center rounded-full border border-white/10 bg-violet-400/10 text-violet-200">
-              <Camera aria-hidden="true" className="size-10" strokeWidth={1.5} />
-            </div>
-          )}
+          <div
+            aria-label={`${profile.name} initials`}
+            className="grid size-28 place-items-center rounded-full border border-border bg-secondary text-2xl font-semibold text-accent"
+          >
+            {profile.name
+              .split(/\s+/)
+              .slice(0, 2)
+              .map((part) => part[0])
+              .join("")
+              .toUpperCase()}
+          </div>
           <div>
             <h2 className="font-display text-xl font-semibold text-foreground">{profile.name}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Last login: {lastLogin}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Welcome {profile.name}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Last Login Time : {lastLogin}</p>
           </div>
           <Link
             to="/erp/password"
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-5 text-base font-semibold text-foreground active:bg-white/10"
+            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-5 text-base font-semibold text-foreground active:bg-secondary"
           >
             <LockKeyhole aria-hidden="true" className="size-5" strokeWidth={1.5} />
             Change Password
@@ -110,9 +99,9 @@ function StudentProfile() {
             {details.map(({ label, value, privateField }) => (
               <div
                 key={label}
-                className="flex min-h-[76px] min-w-0 items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2"
+                className="flex min-h-[76px] min-w-0 items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2"
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-rose-400/10 text-rose-300">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-accent">
                   {privateField === "mobile" ? (
                     <Phone aria-hidden="true" className="size-4" strokeWidth={1.5} />
                   ) : privateField === "email" ? (
@@ -135,9 +124,9 @@ function StudentProfile() {
                   <button
                     type="button"
                     onClick={() => reveal(privateField)}
-                    className="min-h-14 shrink-0 rounded-lg px-2 text-sm font-medium text-rose-200 active:bg-white/5"
+                    className="min-h-14 shrink-0 rounded-lg px-2 text-sm font-medium text-foreground active:bg-secondary"
                   >
-                    {revealed[privateField] ? "Shown" : "Tap to reveal"}
+                    Show
                   </button>
                 )}
               </div>
@@ -145,14 +134,22 @@ function StudentProfile() {
           </dl>
         </section>
       </div>
-      <p className="erp-surface shrink-0 border-rose-300/20 px-4 py-3 text-base text-rose-200">
-        If there is any correction in your personal details, please contact the office.
+      <p className="erp-surface shrink-0 px-4 py-3 text-base text-muted-foreground">
+        <span className="text-danger">
+          If there is any correction in your personal details, Please contact the office.
+        </span>
       </p>
     </div>
   );
 }
 
 function maskPrivateValue(field: PrivateField, value: string): string {
-  if (field === "email") return "••• ••• •••";
-  return `••• ••• ${value.slice(-4)}`;
+  if (field === "email") {
+    const [name, domain] = value.split("@");
+    return name && domain ? `${name.slice(0, 1)}•••@${domain}` : "••••••••";
+  }
+  if (field === "dateOfBirth") return "0X-0X-20XX";
+  return value.startsWith("98")
+    ? `98XXXXXX${value.slice(-2)}`
+    : `${value.slice(0, 2)}XXXXXX${value.slice(-2)}`;
 }

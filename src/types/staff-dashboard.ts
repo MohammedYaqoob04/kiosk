@@ -2,6 +2,7 @@ export interface AssignedStudent {
   name: string;
   registerNo: string;
   department: string;
+  departmentCode: string;
   attendancePercentage: number;
   assignedCounsellorId: string;
   batch: string;
@@ -20,4 +21,5 @@ export interface DepartmentCounsellor {
   name: string;
   staffId: string;
   department: string;
+  departmentCode: string;
 }

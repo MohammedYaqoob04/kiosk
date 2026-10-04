@@ -11,15 +11,17 @@ import type {
   TimetableEntry,
   User,
 } from "@/types/erp";
+import { department } from "@/config/department";
 
 export const demoStudent: Student = {
   id: "demo-student",
-  name: "Sample Student",
+  name: "Test Student",
   role: "STUDENT",
-  identifier: "510000000001",
-  registerNumber: "510000000001",
-  department: "Computer Science and Engineering",
-  year: "2023-2027",
+  identifier: "510423243001",
+  registerNumber: "510423243001",
+  department: department.name,
+  departmentCode: department.code,
+  year: department.batch,
 };
 
 export const demoUsers: Record<Exclude<Role, "STUDENT">, User> = {
@@ -29,6 +31,7 @@ export const demoUsers: Record<Exclude<Role, "STUDENT">, User> = {
     role: "COUNSELLOR",
     identifier: "9999900101",
     department: "Academic Office · Demo",
+    departmentCode: department.code,
     year: "Staff",
   },
   HOD: {
@@ -36,7 +39,8 @@ export const demoUsers: Record<Exclude<Role, "STUDENT">, User> = {
     name: "HOD Demo",
     role: "HOD",
     identifier: "9999900102",
-    department: "AIDS / A",
+    department: department.name,
+    departmentCode: department.code,
     year: "Staff",
   },
   ADMIN: {
@@ -56,8 +60,8 @@ export const demoAttendanceSummary: AttendanceSummary = {
 };
 
 export const demoStudentDashboardDetails = {
-  batch: "2023-2027",
-  department: "AIDS / A",
+  batch: department.batch,
+  department: department.name,
   attendancePercentage: "93.73%",
   attendanceStatus: "Eligible",
   attendanceDate: "03-10-2026",

@@ -6,121 +6,80 @@ import type {
   LeaveRequest,
   LeaveRequestStatus,
   LeaveRequestType,
+  Request,
 } from "@/types/leave";
+import { department } from "@/config/department";
 import { demoAssignedStudents } from "@/mock/staff-dashboard";
 import type { AssignedStudent } from "@/types/staff-dashboard";
+import {
+  counsellorApprove,
+  counsellorReject,
+  getRequestsSnapshot,
+  hodApprove,
+  hodReject,
+  listForCounsellor,
+  resetRequests,
+  subscribeToRequests,
+  submitRequest,
+} from "@/lib/leaveStore";
 
-type Listener = () => void;
-const listeners = new Set<Listener>();
-const timestamp = "2026-10-03T09:00:00.000Z";
-
-function history(
-  submittedAt: string,
-  counsellor?: LeaveHistoryEntry["decision"],
-  hod?: LeaveHistoryEntry["decision"],
-): LeaveHistoryEntry[] {
+function toLegacyRequest(request: Request): LeaveRequest {
   const events: LeaveHistoryEntry[] = [
-    { stage: "Submitted", decision: "SUBMITTED", at: submittedAt },
+    { stage: "Submitted", decision: "SUBMITTED", at: request.createdAt },
   ];
-  if (counsellor) {
-    events.push({ stage: "Counsellor", decision: counsellor, at: submittedAt });
+  if (request.counsellorDecision) {
+    const rejected = request.status === "REJECTED_BY_COUNSELLOR";
+    events.push({
+      stage: "Counsellor",
+      decision: rejected ? "REJECTED" : "APPROVED",
+      at: request.counsellorDecision.at,
+      ...(request.counsellorDecision.remark ? { remark: request.counsellorDecision.remark } : {}),
+    });
   }
-  if (hod) {
-    events.push({ stage: "HOD", decision: hod, at: submittedAt });
+  if (request.hodDecision) {
+    const rejected = request.status === "REJECTED_BY_HOD";
+    events.push({
+      stage: "HOD",
+      decision: rejected ? "REJECTED" : "APPROVED",
+      at: request.hodDecision.at,
+      ...(request.hodDecision.remark ? { remark: request.hodDecision.remark } : {}),
+    });
   }
-  if (counsellor === "REJECTED" || hod === "REJECTED" || hod === "APPROVED") {
-    const decision = counsellor === "REJECTED" || hod === "REJECTED" ? "REJECTED" : "APPROVED";
-    events.push({ stage: "Final", decision, at: submittedAt });
+  if (
+    request.status === "APPROVED" ||
+    request.status === "REJECTED_BY_COUNSELLOR" ||
+    request.status === "REJECTED_BY_HOD"
+  ) {
+    events.push({
+      stage: "Final",
+      decision: request.status === "APPROVED" ? "APPROVED" : "REJECTED",
+      at: request.hodDecision?.at ?? request.counsellorDecision?.at ?? request.createdAt,
+    });
   }
-  return events;
-}
-
-const initialRequests: LeaveRequest[] = [
-  {
-    id: "leave-demo-1",
-    type: "LEAVE",
-    studentName: "Sample Student",
-    registerNo: "510000000001",
-    department: "AIDS / A",
-    fromDate: "2026-10-06",
-    toDate: "2026-10-07",
-    reason: "Medical",
-    residentialAddress: "Sample address · Demo",
-    status: "PENDING_COUNSELLOR",
-    history: history(timestamp),
-    assignedCounsellorId: "STAFF-AI-104",
-    submittedAt: timestamp,
-  },
-  {
-    id: "leave-demo-2",
-    type: "OD",
-    studentName: "Sample Student",
-    registerNo: "510000000002",
-    department: "AIDS / A",
-    fromDate: "2026-10-08",
-    toDate: "2026-10-08",
-    reason: "Academic event",
-    residentialAddress: "Sample address · Demo",
-    status: "PENDING_HOD",
-    history: history(timestamp, "APPROVED"),
-    assignedCounsellorId: "STAFF-AI-104",
-    submittedAt: timestamp,
-  },
-  {
-    id: "leave-demo-3",
-    type: "LEAVE",
-    studentName: "Sample Student",
-    registerNo: "510000000003",
-    department: "AIDS / A",
-    fromDate: "2026-09-30",
-    toDate: "2026-10-01",
-    reason: "Family function",
-    residentialAddress: "Sample address · Demo",
-    status: "APPROVED",
-    history: history(timestamp, "APPROVED", "APPROVED"),
-    assignedCounsellorId: "STAFF-AI-104",
-    submittedAt: timestamp,
-  },
-  {
-    id: "leave-demo-4",
-    type: "OD",
-    studentName: "Sample Student",
-    registerNo: "510000000004",
-    department: "AIDS / A",
-    fromDate: "2026-09-25",
-    toDate: "2026-09-25",
-    reason: "Department activity",
-    residentialAddress: "Sample address · Demo",
-    status: "REJECTED",
-    history: history(timestamp, "REJECTED"),
-    assignedCounsellorId: "STAFF-AI-104",
-    submittedAt: timestamp,
-  },
-  {
-    id: "leave-demo-5",
-    type: "LEAVE",
-    studentName: "Sample Student",
-    registerNo: "510000000005",
-    department: "AIDS / A",
-    fromDate: "2026-10-10",
-    toDate: "2026-10-11",
-    reason: "Other",
-    residentialAddress: "Sample address · Demo",
-    status: "PENDING_COUNSELLOR",
-    history: history(timestamp),
-    assignedCounsellorId: "STAFF-AI-104",
-    submittedAt: timestamp,
-  },
-];
-let requests: LeaveRequest[] = [...initialRequests];
-
-function emitChange() {
-  listeners.forEach((listener) => listener());
+  const status: LeaveRequestStatus =
+    request.status === "REJECTED_BY_COUNSELLOR" || request.status === "REJECTED_BY_HOD"
+      ? "REJECTED"
+      : request.status;
+  return {
+    id: request.id,
+    type: request.kind,
+    studentName: request.studentName,
+    registerNo: request.studentRegNo,
+    department: department.name,
+    fromDate: request.fromDate,
+    toDate: request.toDate,
+    reason:
+      request.kind === "LEAVE" ? request.reason : `${request.eventName} · ${request.category}`,
+    residentialAddress: "",
+    status,
+    history: events,
+    assignedCounsellorId: "9999900101",
+    submittedAt: request.createdAt,
+  };
 }
 
 export function resetLeaveRequests(): void {
-  requests = [...initialRequests];
-  emitChange();
+  resetRequests();
 }
 
 export function nextStatus(
@@ -132,26 +91,17 @@ export function nextStatus(
   return current === "PENDING_COUNSELLOR" ? "PENDING_HOD" : "APPROVED";
 }
 
-/*
- * Example calls:
- * nextStatus("PENDING_COUNSELLOR", "APPROVE") === "PENDING_HOD"
- * nextStatus("PENDING_HOD", "APPROVE") === "APPROVED"
- * nextStatus("PENDING_COUNSELLOR", "REJECT") === "REJECTED"
- * nextStatus("APPROVED", "REJECT") === "APPROVED"
- */
 export function useLeaveRequests(): LeaveRequest[] {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => requests,
-    () => requests,
+  const requests = useSyncExternalStore(
+    subscribeToRequests,
+    getRequestsSnapshot,
+    getRequestsSnapshot,
   );
+  return requests.map(toLegacyRequest);
 }
 
 export function getLeaveRequestsSnapshot(): LeaveRequest[] {
-  return requests;
+  return getRequestsSnapshot().map(toLegacyRequest);
 }
 
 export function getAssignedStudents(counsellorId: string): AssignedStudent[] {
@@ -159,17 +109,9 @@ export function getAssignedStudents(counsellorId: string): AssignedStudent[] {
 }
 
 export function getCounsellorLeaveQueue(counsellorId: string): LeaveRequest[] {
-  return requests
-    .filter(
-      (request) =>
-        request.assignedCounsellorId === counsellorId &&
-        request.status === "PENDING_COUNSELLOR",
-    )
-    .sort((a, b) =>
-      (a.submittedAt ?? a.history[0]?.at ?? "").localeCompare(
-        b.submittedAt ?? b.history[0]?.at ?? "",
-      ),
-    );
+  return listForCounsellor()
+    .map(toLegacyRequest)
+    .filter((request) => request.assignedCounsellorId === counsellorId);
 }
 
 export function createLeaveRequest(input: {
@@ -183,16 +125,27 @@ export function createLeaveRequest(input: {
   residentialAddress: string;
   assignedCounsellorId: string;
 }): LeaveRequest {
-  const request: LeaveRequest = {
-    ...input,
-    id: `leave-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    status: "PENDING_COUNSELLOR",
-    history: [{ stage: "Submitted", decision: "SUBMITTED", at: new Date().toISOString() }],
-    submittedAt: new Date().toISOString(),
-  };
-  requests = [request, ...requests];
-  emitChange();
-  return request;
+  if (input.type === "OD") {
+    throw new Error("OD requests require an event and an uploaded official letter.");
+  }
+  const category =
+    input.reason === "Medical" ||
+    input.reason === "Personal" ||
+    input.reason === "Family Function" ||
+    input.reason === "Other"
+      ? input.reason
+      : "Other";
+  return toLegacyRequest(
+    submitRequest({
+      kind: "LEAVE",
+      category,
+      studentRegNo: input.registerNo,
+      studentName: input.studentName,
+      fromDate: input.fromDate,
+      toDate: input.toDate,
+      reason: input.reason,
+    }),
+  );
 }
 
 export function decideLeaveRequest(
@@ -200,33 +153,18 @@ export function decideLeaveRequest(
   decision: LeaveDecision,
   remark?: string,
 ): LeaveRequest | undefined {
-  const index = requests.findIndex((request) => request.id === id);
-  if (index < 0) return undefined;
-  const request = requests[index];
-  if (!request || (request.status !== "PENDING_COUNSELLOR" && request.status !== "PENDING_HOD")) {
-    return undefined;
-  }
-  const stage = request.status === "PENDING_COUNSELLOR" ? "Counsellor" : "HOD";
-  const action = decision === "APPROVE" ? "APPROVED" : "REJECTED";
-  const status = nextStatus(request.status, decision);
-  const updated: LeaveRequest = {
-    ...request,
-    status,
-    history: [
-      ...request.history,
-      { stage, decision: action, at: new Date().toISOString(), ...(remark ? { remark } : {}) },
-      ...(status === "APPROVED" || status === "REJECTED"
-        ? [
-            {
-              stage: "Final" as const,
-              decision: status,
-              at: new Date().toISOString(),
-            },
-          ]
-        : []),
-    ],
-  };
-  requests = requests.map((item) => (item.id === id ? updated : item));
-  emitChange();
-  return updated;
+  const request = getRequestsSnapshot().find((item) => item.id === id);
+  if (!request) return undefined;
+  const by = request.status === "PENDING_COUNSELLOR" ? "Counsellor Demo" : "HOD Demo";
+  const updated =
+    request.status === "PENDING_COUNSELLOR"
+      ? decision === "APPROVE"
+        ? counsellorApprove(id, by)
+        : counsellorReject(id, by, remark ?? "")
+      : request.status === "PENDING_HOD"
+        ? decision === "APPROVE"
+          ? hodApprove(id, by)
+          : hodReject(id, by, remark ?? "")
+        : undefined;
+  return updated ? toLegacyRequest(updated) : undefined;
 }

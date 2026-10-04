@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FileText, Printer } from "lucide-react";
+import { FileText } from "lucide-react";
 
-import { api, isMockApi } from "@/api";
-import { useApi } from "@/api/use-api";
-import { ErrorState } from "@/components/erp/ErrorState";
 import { PageBanner } from "@/components/erp/PageBanner";
-import { Skeleton } from "@/components/erp/Skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { requireAuth } from "@/lib/require-auth";
+import { fakeAssignmentOptions, fakeProfile } from "@/lib/erpData";
 
 export const Route = createFileRoute("/erp/assignment")({
   beforeLoad: requireAuth,
@@ -18,170 +22,93 @@ export const Route = createFileRoute("/erp/assignment")({
 });
 
 function AssignmentFrontPage() {
-  const profile = useApi(["erp", "profile"], api.getProfile);
-  const options = useApi(["erp", "assignment-options"], api.getAssignmentOptions);
   const [subjectCode, setSubjectCode] = useState("");
   const [assignmentNumber, setAssignmentNumber] = useState<number | null>(null);
-  const [generated, setGenerated] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  const generate = async () => {
-    if (!subjectCode || assignmentNumber === null) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await api.createAssignmentFrontPage(subjectCode, assignmentNumber);
-      setGenerated(true);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not generate the front page.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (profile.loading || options.loading) return <Skeleton rows={4} className="flex-1 p-4" />;
-  if (profile.error || options.error || !profile.data || !options.data) {
-    return (
-      <div className="p-4">
-        <ErrorState
-          message={
-            profile.error?.message ??
-            options.error?.message ??
-            "Assignment options are unavailable."
-          }
-          onRetry={() => {
-            profile.reload();
-            options.reload();
-          }}
-        />
-      </div>
-    );
-  }
-
-  const selectedSubject = options.data.subjects.find((subject) => subject.code === subjectCode);
+  const selectedSubject = fakeAssignmentOptions.subjects.find(
+    (subject) => subject.code === subjectCode,
+  );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4 lg:overflow-hidden">
       <PageBanner
         title="Assignment Front Page"
         subtitle="Select your subject and assignment to generate the PDF"
         icon={FileText}
       />
       <section className="erp-surface grid gap-5 p-4 lg:grid-cols-2">
-        <fieldset className="min-w-0">
-          <legend className="mb-3 text-lg font-semibold text-foreground">Subject</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {options.data.subjects.map((subject) => (
-              <button
-                key={subject.code}
-                type="button"
-                aria-pressed={subject.code === subjectCode}
-                onClick={() => {
-                  setSubjectCode(subject.code);
-                  setGenerated(false);
-                }}
-                className={`flex min-h-16 items-center gap-3 rounded-xl border px-4 text-left active:bg-white/10 ${
-                  subject.code === subjectCode
-                    ? "border-rose-300/40 bg-rose-400/10"
-                    : "border-white/10 bg-white/[0.03]"
-                }`}
-              >
-                <span className="shrink-0 text-base font-semibold text-rose-200">
-                  {subject.code}
-                </span>
-                <span className="text-sm text-foreground">{subject.name}</span>
-              </button>
+        <label className="grid gap-2 text-base font-semibold text-foreground">
+          Select Subject
+          <select
+            value={subjectCode}
+            onChange={(event) => setSubjectCode(event.currentTarget.value)}
+            className="min-h-14 rounded-lg border border-border bg-surface px-4 text-base font-normal text-foreground"
+          >
+            <option value="">-- Select Subject --</option>
+            {fakeAssignmentOptions.subjects.map((subject) => (
+              <option key={subject.code} value={subject.code}>
+                {subject.code} · {subject.name}
+              </option>
             ))}
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend className="mb-3 text-lg font-semibold text-foreground">Assignment Number</legend>
-          <div className="flex flex-wrap gap-2">
-            {options.data.assignmentNumbers.map((number) => (
-              <button
-                key={number}
-                type="button"
-                aria-pressed={number === assignmentNumber}
-                onClick={() => {
-                  setAssignmentNumber(number);
-                  setGenerated(false);
-                }}
-                className={`min-h-14 min-w-16 rounded-xl border px-5 text-base font-semibold active:bg-white/10 ${
-                  number === assignmentNumber
-                    ? "border-violet-300/40 bg-violet-400/10 text-violet-200"
-                    : "border-white/10 bg-white/[0.03] text-foreground"
-                }`}
-              >
+          </select>
+        </label>
+        <label className="grid gap-2 text-base font-semibold text-foreground">
+          Select Assignment Number
+          <select
+            value={assignmentNumber ?? ""}
+            onChange={(event) =>
+              setAssignmentNumber(
+                event.currentTarget.value ? Number(event.currentTarget.value) : null,
+              )
+            }
+            className="min-h-14 rounded-lg border border-border bg-surface px-4 text-base font-normal text-foreground"
+          >
+            <option value="">-- Select Assignment --</option>
+            {fakeAssignmentOptions.assignmentNumbers.map((number) => (
+              <option key={number} value={number}>
                 {number}
-              </button>
+              </option>
             ))}
-          </div>
-        </fieldset>
+          </select>
+        </label>
       </section>
       <p className="erp-surface text-sm text-muted-foreground p-4">
-        Select the required subject and assignment number, then tap Generate PDF to create your
+        Select the required subject and assignment number, then click Generate PDF to create your
         assignment front page.
       </p>
-      {error && (
-        <p role="alert" className="text-base text-rose-200">
-          {error}
-        </p>
-      )}
       <div className="flex flex-wrap gap-3">
         <Button
           type="button"
-          disabled={!subjectCode || assignmentNumber === null || submitting}
-          onClick={() => void generate()}
+          disabled={!subjectCode || assignmentNumber === null}
+          onClick={() => setPreviewOpen(true)}
           className="min-h-14 px-6 text-base font-semibold"
         >
-          {submitting ? "Generating…" : "Generate PDF"}
+          Generate PDF
         </Button>
-        {generated && isMockApi && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => window.print()}
-            className="min-h-14 gap-2 px-5 text-base"
-          >
-            <Printer aria-hidden="true" className="size-5" />
-            Print or Save PDF
-          </Button>
-        )}
       </div>
-      {generated && isMockApi && selectedSubject && assignmentNumber !== null && (
-        <article className="assignment-print-page mx-auto flex min-h-[680px] w-full max-w-[560px] flex-col items-center border border-white/10 bg-white p-10 text-center text-black shadow-xl">
-          <p className="mt-8 text-xl font-bold uppercase tracking-wide">
-            Arunai Engineering College
-          </p>
-          <p className="mt-2 text-base">Assignment Front Page</p>
-          <div className="my-16 w-full border-y border-black/20 py-12">
-            <p className="text-lg font-semibold">{selectedSubject.code}</p>
-            <h2 className="mt-3 text-2xl font-bold">{selectedSubject.name}</h2>
-            <p className="mt-8 text-lg">Assignment Number {assignmentNumber}</p>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[90svh] overflow-y-auto border-border bg-surface text-foreground">
+          <DialogHeader>
+            <DialogTitle>PDF Preview</DialogTitle>
+            <DialogDescription>Assignment Front Page · Preview only</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 rounded-xl border border-border bg-surface p-6 text-center">
+            <p className="font-semibold">Arunai Engineering College (Autonomous)</p>
+            <h2 className="text-xl font-semibold">Assignment Front Page</h2>
+            <p>
+              {selectedSubject?.code} · {selectedSubject?.name}
+            </p>
+            <p>Assignment Number {assignmentNumber}</p>
+            <p>
+              {fakeProfile.name} · {fakeProfile.registerNo}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              No printer or file destination is configured. This is a mock preview only.
+            </p>
           </div>
-          <dl className="mt-auto grid w-full gap-4 text-left text-base">
-            <div>
-              <dt className="font-semibold">Student Name</dt>
-              <dd>{profile.data.name}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Register No.</dt>
-              <dd>{profile.data.registerNo}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Department</dt>
-              <dd>{profile.data.department}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Semester</dt>
-              <dd>{profile.data.semester}</dd>
-            </div>
-          </dl>
-          <p className="mt-12 text-sm">Sample layout — official format to be confirmed.</p>
-        </article>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { GraduationCap, LogOut, UserRound, UsersRound } from "lucide-react";
+import { GraduationCap, Grid2X2, LogOut, UserRound, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/erp")({
@@ -12,11 +13,12 @@ export const Route = createFileRoute("/erp")({
 const studentNavigation = [
   { label: "Dashboard", to: "/erp/dashboard" },
   { label: "Timetable", to: "/erp/timetable" },
-  { label: "Assignment", to: "/erp/assignment" },
-  { label: "Results", to: "/erp/results" },
+  { label: "Leave & OD", to: "/erp/leave" },
+  { label: "Assignment Front Page", to: "/erp/assignment" },
   { label: "Fees", to: "/erp/fees" },
-  { label: "Leave", to: "/erp/leave" },
+  { label: "Results", to: "/erp/results" },
   { label: "Profile", to: "/erp/profile" },
+  { label: "Change Password", to: "/erp/password" },
 ] as const;
 
 const studentOnlyPaths = new Set([
@@ -31,6 +33,15 @@ const studentOnlyPaths = new Set([
 ]);
 
 const staffOnlyPaths = new Set(["/erp/leave-requests"]);
+const fixedPagePaths = new Set([
+  "/erp/dashboard",
+  "/erp/timetable",
+  "/erp/assignment",
+  "/erp/fees",
+  "/erp/results",
+  "/erp/profile",
+  "/erp/password",
+]);
 
 function ErpRoute() {
   return <ErpLayout />;
@@ -38,6 +49,7 @@ function ErpRoute() {
 
 function ErpLayout() {
   const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const isLogin = location.pathname === "/erp/login";
@@ -66,7 +78,7 @@ function ErpLayout() {
   if (location.pathname === "/erp") return <PortalChooser />;
   if (!user) {
     return (
-      <div className="grid min-h-[60vh] place-items-center px-5 text-lg text-muted-foreground">
+      <div className="grid min-h-[60svh] place-items-center px-5 text-lg text-muted-foreground">
         Opening secure demo portal…
       </div>
     );
@@ -79,21 +91,18 @@ function ErpLayout() {
         label: "Student",
         description: "Attendance, marks and more",
         icon: UserRound,
-        color: "portal-student",
       },
       {
         role: "staff",
         label: "Staff",
         description: "Student requests and tools",
         icon: UsersRound,
-        color: "portal-staff",
       },
       {
         role: "hod",
         label: "HOD",
         description: "Department approvals",
         icon: GraduationCap,
-        color: "portal-hod",
       },
     ] as const;
 
@@ -122,13 +131,8 @@ function ErpLayout() {
           </div>
         )}
         <div className="portal-chooser-grid">
-          {portals.map(({ role, label, description, icon: Icon, color }) => (
-            <Link
-              key={role}
-              to="/erp/login"
-              search={{ role }}
-              className={`portal-chooser-card ${color}`}
-            >
+          {portals.map(({ role, label, description, icon: Icon }) => (
+            <Link key={role} to="/erp/login" search={{ role }} className="portal-chooser-card">
               <Icon aria-hidden="true" className="size-12" strokeWidth={1.5} />
               <span className="mt-3 font-display text-[22px] font-semibold">{label}</span>
               <span className="mt-2 text-center text-sm text-muted-foreground">{description}</span>
@@ -144,7 +148,7 @@ function ErpLayout() {
     (isStudentOnlyRoute && user.role !== "STUDENT")
   ) {
     return (
-      <div className="grid min-h-[60vh] place-items-center px-5 text-lg text-muted-foreground">
+      <div className="grid min-h-[60svh] place-items-center px-5 text-lg text-muted-foreground">
         Opening your dashboard…
       </div>
     );
@@ -157,26 +161,33 @@ function ErpLayout() {
         ? ([
             { label: "Approvals", to: "/erp/staff" },
             { label: "My Students", to: "/erp/staff/students" },
-            { label: "History", to: "/erp/staff/history" },
           ] as const)
-        : ([
-            { label: "Dashboard", to: "/erp/hod" },
-            { label: "Leave", to: "/erp/staff/leave" },
-          ] as const);
+        : ([{ label: "HOD Office", to: "/erp/hod" }] as const);
+  const isFixedPage = fixedPagePaths.has(location.pathname);
 
   return (
-    <div className="erp-app-shell">
+    <div className={`erp-app-shell ${isFixedPage ? "is-fixed-page" : ""}`}>
+      <div className="erp-brand-heading">
+        <div>
+          <p className="font-semibold text-foreground">Arunai Engineering College (Autonomous)</p>
+          <p className="text-sm text-muted-foreground">Velunagar - Tiruvannamalai - 606603</p>
+        </div>
+        <p className="text-lg font-semibold text-foreground">Arunai ERP</p>
+      </div>
       <header className="erp-topbar">
-        <nav aria-label="ERP sections" className="erp-tabbar">
-          {!user.mustChangePassword &&
-            navigation.map(({ label, to }) => (
-              <Link key={to} to={to} activeProps={{ className: "is-active" }} className="erp-tab">
-                {label}
-              </Link>
-            ))}
-        </nav>
+        {!user.mustChangePassword && (
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-haspopup="dialog"
+            className="erp-menu-trigger"
+          >
+            <Grid2X2 aria-hidden="true" className="size-5" strokeWidth={1.5} />
+            <span>Menu</span>
+          </button>
+        )}
         <div className="erp-user-actions">
-          {!user.mustChangePassword && (
+          {!user.mustChangePassword && user.role !== "STUDENT" && (
             <>
               <span className="erp-user-name" title={user.name}>
                 {user.name}
@@ -185,7 +196,7 @@ function ErpLayout() {
                 type="button"
                 variant="outline"
                 onClick={logout}
-                className="min-h-11 gap-2 px-4 text-base"
+                className="min-h-14 gap-2 px-4 text-base"
               >
                 <LogOut aria-hidden="true" className="size-4" strokeWidth={1.5} />
                 Logout
@@ -194,9 +205,37 @@ function ErpLayout() {
           )}
         </div>
       </header>
-      <main className="erp-route-content">
+      <main className={`erp-route-content ${isFixedPage ? "is-fixed-page" : ""}`}>
         <Outlet />
       </main>
+      <footer className="erp-brand-footer">
+        <span>© 2026 Arunai Engineering College (Autonomous)</span>
+        <span>ERP Student Module</span>
+      </footer>
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent
+          side="left"
+          className="h-full w-[min(88vw,24rem)] overflow-y-auto border-r border-border bg-surface p-5"
+        >
+          <SheetTitle className="mb-5 pr-14 text-xl text-foreground">Arunai ERP Menu</SheetTitle>
+          <nav aria-label="ERP sections" className="grid gap-2">
+            {navigation.map(({ label, to }) => (
+              <Link
+                key={to}
+                to={to}
+                onClick={() => setMenuOpen(false)}
+                activeProps={{ className: "is-active" }}
+                className="erp-menu-item"
+              >
+                {label}
+              </Link>
+            ))}
+            <button type="button" onClick={logout} className="erp-menu-item text-left">
+              Logout
+            </button>
+          </nav>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

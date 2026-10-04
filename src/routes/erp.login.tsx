@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Delete, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Delete, Eye, EyeOff, RotateCcw } from "lucide-react";
 
 import { KioskKeyboard } from "@/components/KioskKeyboard";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { getCurrentUser } from "@/lib/auth-session";
+import { getStudentLoginLockRemainingSeconds } from "@/lib/student-login-lock";
 
 const loginRoles = ["student", "staff", "hod"] as const;
 type LoginRole = (typeof loginRoles)[number];
@@ -39,27 +40,24 @@ const roleDetails = {
     identifierLabel: "Register number",
     credentialLabel: "4-digit PIN",
     authRole: "STUDENT",
-    accentClass: "login-role-student",
   },
   staff: {
     label: "Staff",
     identifierLabel: "Staff ID",
     credentialLabel: "Password",
     authRole: "COUNSELLOR",
-    accentClass: "login-role-staff",
   },
   hod: {
     label: "HOD",
     identifierLabel: "HOD ID",
     credentialLabel: "Password",
     authRole: "HOD",
-    accentClass: "login-role-hod",
   },
 } as const;
 
 function ErpLogin() {
   const { role } = Route.useSearch();
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
   const [activeField, setActiveField] = useState<LoginField>("identifier");
   const [identifier, setIdentifier] = useState("");
@@ -71,6 +69,24 @@ function ErpLogin() {
   );
   const details = roleDetails[role];
   const isStudent = role === "student";
+
+  useEffect(() => {
+    let timeout: number;
+    const resetIdleTimeout = () => {
+      window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        logout();
+      }, 60_000);
+    };
+    resetIdleTimeout();
+    window.addEventListener("pointerdown", resetIdleTimeout, { passive: true });
+    window.addEventListener("keydown", resetIdleTimeout);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("pointerdown", resetIdleTimeout);
+      window.removeEventListener("keydown", resetIdleTimeout);
+    };
+  }, [logout]);
 
   useEffect(() => {
     setActiveField("identifier");
@@ -136,23 +152,22 @@ function ErpLogin() {
     else setCredentialValue("");
   };
 
-  const appendDigit = (digit: string) => {
-    if (activeField === "identifier") {
-      if (identifier.length < 16) setIdentifierValue(`${identifier}${digit}`);
-    } else if (credential.length < 4) {
-      setCredentialValue(`${credential}${digit}`);
-    }
-  };
+  const canSubmit = Boolean(identifier.trim()) && credential.length > 0;
 
-  const canSubmit =
-    Boolean(identifier.trim()) && (isStudent ? credential.length === 4 : credential.length > 0);
+  if (isStudent) {
+    return <StudentLogin changeRole={changeRole} login={login} />;
+  }
 
   return (
-    <div className={`erp-login-layout ${isStudent ? "" : "is-text-login"} ${details.accentClass}`}>
+    <div className="erp-login-layout is-text-login">
       <section className="erp-login-details">
         <div className="erp-login-topline">
           <Link
             to="/erp"
+            onClick={(event) => {
+              event.preventDefault();
+              logout();
+            }}
             className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-border bg-card px-4 text-base font-semibold text-foreground active:bg-accent"
           >
             <ArrowLeft aria-hidden="true" className="size-5" />
@@ -215,7 +230,12 @@ function ErpLogin() {
                   type="text"
                   inputMode={nativeTextInput ? "text" : "none"}
                   autoCapitalize="characters"
-                  autoComplete="username"
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  name="kiosk-identifier"
                   readOnly={!nativeTextInput}
                   value={identifier}
                   onClick={() => setActiveField("identifier")}
@@ -229,7 +249,12 @@ function ErpLogin() {
                   className={`erp-login-input kiosk-text-input ${activeField === "pin" ? "is-selected" : ""}`}
                   type="password"
                   inputMode={nativeTextInput ? "text" : "none"}
-                  autoComplete="current-password"
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  name="kiosk-credential"
                   readOnly={!nativeTextInput}
                   value={credential}
                   onClick={() => setActiveField("pin")}
@@ -243,62 +268,21 @@ function ErpLogin() {
 
       <form
         className="erp-login-keypad-panel"
+        autoComplete="off"
         onSubmit={(event) => {
           event.preventDefault();
           submit();
         }}
       >
-        {isStudent ? (
-          <div className="erp-login-keypad" aria-label="Numeric keypad">
-            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
-              <button
-                key={digit}
-                type="button"
-                className="erp-login-key"
-                onClick={() => appendDigit(digit)}
-                aria-label={`Enter ${digit}`}
-              >
-                {digit}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="erp-login-key erp-login-key-action"
-              onClick={clearActive}
-              aria-label="Clear selected field"
-            >
-              <RotateCcw aria-hidden="true" className="size-5" />
-              Clear
-            </button>
-            <button
-              type="button"
-              className="erp-login-key"
-              onClick={() => appendDigit("0")}
-              aria-label="Enter 0"
-            >
-              0
-            </button>
-            <button
-              type="button"
-              className="erp-login-key erp-login-key-action"
-              onClick={backspace}
-              aria-label="Delete last digit"
-            >
-              <Delete aria-hidden="true" className="size-5" />
-              Backspace
-            </button>
-          </div>
-        ) : (
-          <div className="kiosk-keyboard-desktop">
-            <KioskKeyboard
-              shift={shift}
-              onShift={() => setShift((current) => !current)}
-              onCharacter={appendText}
-              onBackspace={backspace}
-              onClear={clearActive}
-            />
-          </div>
-        )}
+        <div className="kiosk-keyboard-desktop">
+          <KioskKeyboard
+            shift={shift}
+            onShift={() => setShift((current) => !current)}
+            onCharacter={appendText}
+            onBackspace={backspace}
+            onClear={clearActive}
+          />
+        </div>
         <Button
           type="submit"
           disabled={!canSubmit}
@@ -308,6 +292,239 @@ function ErpLogin() {
         </Button>
         <p role="alert" className="erp-login-error">
           {error}
+        </p>
+      </form>
+    </div>
+  );
+}
+
+function StudentLogin({
+  changeRole,
+  login,
+}: {
+  changeRole: (role: LoginRole) => void;
+  login: ReturnType<typeof useAuth>["login"];
+}) {
+  const [activeField, setActiveField] = useState<LoginField>("identifier");
+  const [registerSuffix, setRegisterSuffix] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [error, setError] = useState("");
+  const [attempted, setAttempted] = useState(false);
+  const [, refreshLock] = useState(0);
+  const registerNumber = `5104${registerSuffix}`;
+  const lockRemaining = getStudentLoginLockRemainingSeconds(registerNumber);
+
+  useEffect(() => {
+    if (lockRemaining === 0) return;
+    const interval = window.setInterval(() => {
+      refreshLock((current) => current + 1);
+      if (getStudentLoginLockRemainingSeconds(registerNumber) === 0) {
+        window.clearInterval(interval);
+      }
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [lockRemaining, registerNumber]);
+
+  useEffect(() => {
+    if (lockRemaining === 0 && error.startsWith("Too many attempts.")) setError("");
+  }, [error, lockRemaining]);
+  const setField = (field: LoginField) => {
+    setActiveField(field);
+  };
+  const clear = () => {
+    if (activeField === "identifier") setRegisterSuffix("");
+    else setPassword("");
+    setError("");
+  };
+  const backspace = () => {
+    if (activeField === "identifier") setRegisterSuffix((value) => value.slice(0, -1));
+    else setPassword((value) => value.slice(0, -1));
+    setError("");
+  };
+  const appendDigit = (digit: string) => {
+    if (activeField === "identifier") {
+      setRegisterSuffix((value) => (value.length < 8 ? `${value}${digit}` : value));
+    } else {
+      setPassword((value) => (value.length < 4 ? `${value}${digit}` : value));
+    }
+    setError("");
+  };
+  const canSubmit = registerSuffix.length === 8 && /^\d{4}$/.test(password) && lockRemaining === 0;
+
+  const submit = () => {
+    setAttempted(true);
+    if (!/^5104\d{8}$/.test(`5104${registerSuffix}`)) {
+      setError("Register number must be 12 digits starting with 5104");
+      return;
+    }
+    if (!/^\d{4}$/.test(password)) {
+      setError("Password must be 4 digits (DDMM)");
+      return;
+    }
+    try {
+      login("STUDENT", `5104${registerSuffix}`, password);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Incorrect register number or password");
+    }
+  };
+
+  return (
+    <div className="student-login-layout">
+      <section className="student-login-intro">
+        <div>
+          <p className="text-base font-semibold text-muted-foreground">
+            Arunai Engineering College
+          </p>
+          <h1 className="mt-2 font-display text-4xl font-semibold text-foreground">
+            Arunai ERP Login
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">Authorized users only • Arunai ERP</p>
+        </div>
+        <ol className="student-login-steps">
+          <li>
+            <span>1</span> Enter register number
+          </li>
+          <li>
+            <span>2</span> Enter DOB as DDMM
+          </li>
+          <li>
+            <span>3</span> Sign in
+          </li>
+        </ol>
+        <div className="erp-login-role-switch" role="group" aria-label="Choose portal">
+          {loginRoles.map((role) => (
+            <button
+              key={role}
+              type="button"
+              aria-pressed={role === "student"}
+              onClick={() => role !== "student" && changeRole(role)}
+              className={`erp-login-role-option ${role === "student" ? "is-active" : ""}`}
+            >
+              <span className="erp-login-role-label">{roleDetails[role].label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <form
+        className="student-login-card"
+        autoComplete="off"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <div className="student-login-field student-register-field">
+          <span className="font-semibold text-foreground">Register number</span>
+          <button
+            type="button"
+            aria-label={`Register number: 5104${registerSuffix || " locked prefix, enter 8 digits"}`}
+            aria-pressed={activeField === "identifier"}
+            onClick={() => setField("identifier")}
+            className={`student-register-input ${activeField === "identifier" ? "is-selected" : ""}`}
+          >
+            <span className="student-prefix">5104</span>
+            <span className="student-suffix">
+              {registerSuffix || <span className="text-muted-foreground">23243001</span>}
+            </span>
+            <span className="student-counter">{registerSuffix.length}/8</span>
+          </button>
+          <span className="text-sm text-muted-foreground">Example: 510423243001</span>
+          {attempted && registerSuffix.length !== 8 && (
+            <span className="text-sm text-destructive">
+              Register number must be 12 digits starting with 5104
+            </span>
+          )}
+        </div>
+
+        <div className="student-login-field student-password-field">
+          <label htmlFor="student-password" className="font-semibold text-foreground">
+            Password = birth date and month, e.g. 0105
+          </label>
+          <div className="student-password-box">
+            <button
+              id="student-password"
+              type="button"
+              onClick={() => setField("pin")}
+              aria-label="Password, 4 digits"
+              aria-pressed={activeField === "pin"}
+              className={`student-password-cells ${activeField === "pin" ? "is-selected" : ""}`}
+            >
+              {Array.from({ length: 4 }, (_, index) => (
+                <span key={index} className="student-password-cell">
+                  {passwordVisible ? (password[index] ?? "") : password[index] ? "●" : ""}
+                </span>
+              ))}
+              {!password && <span className="student-password-hint">DDMM</span>}
+            </button>
+            <button
+              type="button"
+              aria-label={passwordVisible ? "Hide password" : "Show password"}
+              aria-pressed={passwordVisible}
+              onClick={() => setPasswordVisible((visible) => !visible)}
+              className="student-password-toggle"
+            >
+              {passwordVisible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+            </button>
+          </div>
+          {attempted && password.length !== 4 && (
+            <span className="text-sm text-destructive">Password must be 4 digits (DDMM)</span>
+          )}
+        </div>
+
+        <div className="student-login-keypad" aria-label="Numeric keypad">
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
+            <button
+              key={digit}
+              type="button"
+              className="erp-login-key"
+              onClick={() => {
+                appendDigit(digit);
+                if (activeField === "identifier" && registerSuffix.length === 7)
+                  setActiveField("pin");
+              }}
+              aria-label={`Enter ${digit}`}
+            >
+              {digit}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="erp-login-key erp-login-key-action"
+            onClick={clear}
+            aria-label="Clear selected field"
+          >
+            <RotateCcw aria-hidden="true" className="size-5" />
+            <span className="student-key-label">Clear</span>
+          </button>
+          <button
+            type="button"
+            className="erp-login-key"
+            onClick={() => {
+              appendDigit("0");
+              if (activeField === "identifier" && registerSuffix.length === 7)
+                setActiveField("pin");
+            }}
+            aria-label="Enter 0"
+          >
+            0
+          </button>
+          <button
+            type="button"
+            className="erp-login-key erp-login-key-action"
+            onClick={backspace}
+            aria-label="Delete last digit"
+          >
+            <Delete aria-hidden="true" className="size-5" />
+            <span className="student-key-label">Backspace</span>
+          </button>
+        </div>
+        <Button type="submit" disabled={!canSubmit} className="student-login-submit">
+          Sign in <ArrowRight aria-hidden="true" />
+        </Button>
+        <p role="alert" className="erp-login-error">
+          {lockRemaining > 0 ? `Too many attempts. Try again in ${lockRemaining} seconds.` : error}
         </p>
       </form>
     </div>
