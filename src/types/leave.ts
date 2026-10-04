@@ -32,6 +32,7 @@ interface RequestBase {
   toDate: string;
   status: Status;
   createdAt: string;
+  counsellorId?: string;
   counsellorDecision?: Decision;
   hodDecision?: Decision;
 }

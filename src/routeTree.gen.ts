@@ -33,6 +33,7 @@ import { Route as ErpHodRouteImport } from './routes/erp/hod'
 import { Route as ErpLeaveRouteImport } from './routes/erp/leave'
 import { Route as ErpLeaveRequestsRouteImport } from './routes/erp/leave-requests'
 import { Route as ErpLoginRouteImport } from './routes/erp.login'
+import { Route as ErpNoticesRouteImport } from './routes/erp/notices'
 import { Route as ErpPasswordRouteImport } from './routes/erp/password'
 import { Route as ErpProfileRouteImport } from './routes/erp/profile'
 import { Route as ErpResultsRouteImport } from './routes/erp/results'
@@ -41,6 +42,11 @@ import { Route as ErpTimetableRouteImport } from './routes/erp/timetable'
 import { Route as LoginHodRouteImport } from './routes/login.hod'
 import { Route as LoginStaffRouteImport } from './routes/login.staff'
 import { Route as LoginStudentRouteImport } from './routes/login.student'
+import { Route as ErpHodActivityRouteImport } from './routes/erp/hod.activity'
+import { Route as ErpHodApprovalsRouteImport } from './routes/erp/hod.approvals'
+import { Route as ErpHodReportsRouteImport } from './routes/erp/hod.reports'
+import { Route as ErpHodStudentsRouteImport } from './routes/erp/hod.students'
+import { Route as ErpStaffAnnouncementsRouteImport } from './routes/erp/staff.announcements'
 import { Route as ErpStaffHistoryRouteImport } from './routes/erp/staff.history'
 import { Route as ErpStaffLeaveRouteImport } from './routes/erp/staff.leave'
 import { Route as ErpStaffStudentsRouteImport } from './routes/erp/staff.students'
@@ -165,6 +171,11 @@ const ErpLoginRoute = ErpLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => ErpRouteRoute,
 } as any)
+const ErpNoticesRoute = ErpNoticesRouteImport.update({
+  id: '/notices',
+  path: '/notices',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
 const ErpPasswordRoute = ErpPasswordRouteImport.update({
   id: '/password',
   path: '/password',
@@ -205,6 +216,31 @@ const LoginStudentRoute = LoginStudentRouteImport.update({
   path: '/login/student',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErpHodActivityRoute = ErpHodActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => ErpHodRoute,
+} as any)
+const ErpHodApprovalsRoute = ErpHodApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => ErpHodRoute,
+} as any)
+const ErpHodReportsRoute = ErpHodReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => ErpHodRoute,
+} as any)
+const ErpHodStudentsRoute = ErpHodStudentsRouteImport.update({
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => ErpHodRoute,
+} as any)
+const ErpStaffAnnouncementsRoute = ErpStaffAnnouncementsRouteImport.update({
+  id: '/announcements',
+  path: '/announcements',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
 const ErpStaffHistoryRoute = ErpStaffHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -242,10 +278,11 @@ export interface FileRoutesByFullPath {
   '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/fees': typeof ErpFeesRoute
-  '/erp/hod': typeof ErpHodRoute
+  '/erp/hod': typeof ErpHodRouteWithChildren
   '/erp/leave': typeof ErpLeaveRoute
   '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/notices': typeof ErpNoticesRoute
   '/erp/password': typeof ErpPasswordRoute
   '/erp/profile': typeof ErpProfileRoute
   '/erp/results': typeof ErpResultsRoute
@@ -254,6 +291,11 @@ export interface FileRoutesByFullPath {
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/hod/activity': typeof ErpHodActivityRoute
+  '/erp/hod/approvals': typeof ErpHodApprovalsRoute
+  '/erp/hod/reports': typeof ErpHodReportsRoute
+  '/erp/hod/students': typeof ErpHodStudentsRoute
+  '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
@@ -279,10 +321,11 @@ export interface FileRoutesByTo {
   '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/fees': typeof ErpFeesRoute
-  '/erp/hod': typeof ErpHodRoute
+  '/erp/hod': typeof ErpHodRouteWithChildren
   '/erp/leave': typeof ErpLeaveRoute
   '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/notices': typeof ErpNoticesRoute
   '/erp/password': typeof ErpPasswordRoute
   '/erp/profile': typeof ErpProfileRoute
   '/erp/results': typeof ErpResultsRoute
@@ -291,6 +334,11 @@ export interface FileRoutesByTo {
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/hod/activity': typeof ErpHodActivityRoute
+  '/erp/hod/approvals': typeof ErpHodApprovalsRoute
+  '/erp/hod/reports': typeof ErpHodReportsRoute
+  '/erp/hod/students': typeof ErpHodStudentsRoute
+  '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
@@ -317,10 +365,11 @@ export interface FileRoutesById {
   '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/fees': typeof ErpFeesRoute
-  '/erp/hod': typeof ErpHodRoute
+  '/erp/hod': typeof ErpHodRouteWithChildren
   '/erp/leave': typeof ErpLeaveRoute
   '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/notices': typeof ErpNoticesRoute
   '/erp/password': typeof ErpPasswordRoute
   '/erp/profile': typeof ErpProfileRoute
   '/erp/results': typeof ErpResultsRoute
@@ -329,6 +378,11 @@ export interface FileRoutesById {
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/hod/activity': typeof ErpHodActivityRoute
+  '/erp/hod/approvals': typeof ErpHodApprovalsRoute
+  '/erp/hod/reports': typeof ErpHodReportsRoute
+  '/erp/hod/students': typeof ErpHodStudentsRoute
+  '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
@@ -360,6 +414,7 @@ export interface FileRouteTypes {
     | '/erp/leave'
     | '/erp/leave-requests'
     | '/erp/login'
+    | '/erp/notices'
     | '/erp/password'
     | '/erp/profile'
     | '/erp/results'
@@ -368,6 +423,11 @@ export interface FileRouteTypes {
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/hod/activity'
+    | '/erp/hod/approvals'
+    | '/erp/hod/reports'
+    | '/erp/hod/students'
+    | '/erp/staff/announcements'
     | '/erp/staff/history'
     | '/erp/staff/leave'
     | '/erp/staff/students'
@@ -397,6 +457,7 @@ export interface FileRouteTypes {
     | '/erp/leave'
     | '/erp/leave-requests'
     | '/erp/login'
+    | '/erp/notices'
     | '/erp/password'
     | '/erp/profile'
     | '/erp/results'
@@ -405,6 +466,11 @@ export interface FileRouteTypes {
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/hod/activity'
+    | '/erp/hod/approvals'
+    | '/erp/hod/reports'
+    | '/erp/hod/students'
+    | '/erp/staff/announcements'
     | '/erp/staff/history'
     | '/erp/staff/leave'
     | '/erp/staff/students'
@@ -434,6 +500,7 @@ export interface FileRouteTypes {
     | '/erp/leave'
     | '/erp/leave-requests'
     | '/erp/login'
+    | '/erp/notices'
     | '/erp/password'
     | '/erp/profile'
     | '/erp/results'
@@ -442,6 +509,11 @@ export interface FileRouteTypes {
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/hod/activity'
+    | '/erp/hod/approvals'
+    | '/erp/hod/reports'
+    | '/erp/hod/students'
+    | '/erp/staff/announcements'
     | '/erp/staff/history'
     | '/erp/staff/leave'
     | '/erp/staff/students'
@@ -636,6 +708,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpLoginRouteImport
       parentRoute: typeof ErpRouteRoute
     }
+    '/erp/notices': {
+      id: '/erp/notices'
+      path: '/notices'
+      fullPath: '/erp/notices'
+      preLoaderRoute: typeof ErpNoticesRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
     '/erp/password': {
       id: '/erp/password'
       path: '/password'
@@ -692,6 +771,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginStudentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/erp/hod/activity': {
+      id: '/erp/hod/activity'
+      path: '/activity'
+      fullPath: '/erp/hod/activity'
+      preLoaderRoute: typeof ErpHodActivityRouteImport
+      parentRoute: typeof ErpHodRoute
+    }
+    '/erp/hod/approvals': {
+      id: '/erp/hod/approvals'
+      path: '/approvals'
+      fullPath: '/erp/hod/approvals'
+      preLoaderRoute: typeof ErpHodApprovalsRouteImport
+      parentRoute: typeof ErpHodRoute
+    }
+    '/erp/hod/reports': {
+      id: '/erp/hod/reports'
+      path: '/reports'
+      fullPath: '/erp/hod/reports'
+      preLoaderRoute: typeof ErpHodReportsRouteImport
+      parentRoute: typeof ErpHodRoute
+    }
+    '/erp/hod/students': {
+      id: '/erp/hod/students'
+      path: '/students'
+      fullPath: '/erp/hod/students'
+      preLoaderRoute: typeof ErpHodStudentsRouteImport
+      parentRoute: typeof ErpHodRoute
+    }
+    '/erp/staff/announcements': {
+      id: '/erp/staff/announcements'
+      path: '/announcements'
+      fullPath: '/erp/staff/announcements'
+      preLoaderRoute: typeof ErpStaffAnnouncementsRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
     '/erp/staff/history': {
       id: '/erp/staff/history'
       path: '/history'
@@ -716,13 +830,32 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ErpHodRouteChildren {
+  ErpHodActivityRoute: typeof ErpHodActivityRoute
+  ErpHodApprovalsRoute: typeof ErpHodApprovalsRoute
+  ErpHodReportsRoute: typeof ErpHodReportsRoute
+  ErpHodStudentsRoute: typeof ErpHodStudentsRoute
+}
+
+const ErpHodRouteChildren: ErpHodRouteChildren = {
+  ErpHodActivityRoute: ErpHodActivityRoute,
+  ErpHodApprovalsRoute: ErpHodApprovalsRoute,
+  ErpHodReportsRoute: ErpHodReportsRoute,
+  ErpHodStudentsRoute: ErpHodStudentsRoute,
+}
+
+const ErpHodRouteWithChildren =
+  ErpHodRoute._addFileChildren(ErpHodRouteChildren)
+
 interface ErpStaffRouteChildren {
+  ErpStaffAnnouncementsRoute: typeof ErpStaffAnnouncementsRoute
   ErpStaffHistoryRoute: typeof ErpStaffHistoryRoute
   ErpStaffLeaveRoute: typeof ErpStaffLeaveRoute
   ErpStaffStudentsRoute: typeof ErpStaffStudentsRoute
 }
 
 const ErpStaffRouteChildren: ErpStaffRouteChildren = {
+  ErpStaffAnnouncementsRoute: ErpStaffAnnouncementsRoute,
   ErpStaffHistoryRoute: ErpStaffHistoryRoute,
   ErpStaffLeaveRoute: ErpStaffLeaveRoute,
   ErpStaffStudentsRoute: ErpStaffStudentsRoute,
@@ -737,10 +870,11 @@ interface ErpRouteRouteChildren {
   ErpBookVerificationFormRoute: typeof ErpBookVerificationFormRoute
   ErpDashboardRoute: typeof ErpDashboardRoute
   ErpFeesRoute: typeof ErpFeesRoute
-  ErpHodRoute: typeof ErpHodRoute
+  ErpHodRoute: typeof ErpHodRouteWithChildren
   ErpLeaveRoute: typeof ErpLeaveRoute
   ErpLeaveRequestsRoute: typeof ErpLeaveRequestsRoute
   ErpLoginRoute: typeof ErpLoginRoute
+  ErpNoticesRoute: typeof ErpNoticesRoute
   ErpPasswordRoute: typeof ErpPasswordRoute
   ErpProfileRoute: typeof ErpProfileRoute
   ErpResultsRoute: typeof ErpResultsRoute
@@ -753,10 +887,11 @@ const ErpRouteRouteChildren: ErpRouteRouteChildren = {
   ErpBookVerificationFormRoute: ErpBookVerificationFormRoute,
   ErpDashboardRoute: ErpDashboardRoute,
   ErpFeesRoute: ErpFeesRoute,
-  ErpHodRoute: ErpHodRoute,
+  ErpHodRoute: ErpHodRouteWithChildren,
   ErpLeaveRoute: ErpLeaveRoute,
   ErpLeaveRequestsRoute: ErpLeaveRequestsRoute,
   ErpLoginRoute: ErpLoginRoute,
+  ErpNoticesRoute: ErpNoticesRoute,
   ErpPasswordRoute: ErpPasswordRoute,
   ErpProfileRoute: ErpProfileRoute,
   ErpResultsRoute: ErpResultsRoute,

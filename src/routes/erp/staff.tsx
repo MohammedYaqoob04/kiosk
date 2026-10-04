@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useLocation } from "@tanstack/react-router";
 
 import { LeaveApprovalDesk } from "@/components/erp/LeaveApprovalDesk";
 import { getCurrentUser } from "@/lib/auth-session";
@@ -12,6 +12,11 @@ export const Route = createFileRoute("/erp/staff")({
     if (user.role !== "COUNSELLOR") throw redirect({ to: "/erp", replace: true });
   },
   shouldReload: true,
-  component: () => <LeaveApprovalDesk role="COUNSELLOR" />,
+  component: CounsellorRoute,
   head: () => ({ meta: [{ title: "Counsellor Desk | Arunai ERP" }] }),
 });
+
+function CounsellorRoute() {
+  const { pathname } = useLocation();
+  return pathname === "/erp/staff" ? <LeaveApprovalDesk role="COUNSELLOR" /> : <Outlet />;
+}

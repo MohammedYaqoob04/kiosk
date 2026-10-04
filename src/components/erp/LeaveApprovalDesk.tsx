@@ -1,7 +1,8 @@
-import { useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { FileText, History, Inbox } from "lucide-react";
 
 import { TouchTextInput } from "@/components/TouchTextInput";
+import { RequestStudentContext } from "@/components/staff/RequestStudentContext";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,9 +11,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getRequestsSnapshot, subscribeToRequests } from "@/lib/leaveStore";
-import { counsellorApprove, counsellorReject, hodApprove, hodReject } from "@/lib/leaveStore";
+import {
+  counsellorApprove,
+  counsellorReject,
+  getRequestsSnapshot,
+  hodApprove,
+  hodReject,
+  listForCounsellor,
+  reassignCounsellor,
+  subscribeToRequests,
+} from "@/lib/leaveStore";
 import { useAuth } from "@/lib/auth-context";
+import { counsellors, counsellorOf, getStudentSummary } from "@/lib/staffData";
 import type { Request } from "@/types/leave";
 
 type DeskRole = "COUNSELLOR" | "HOD";
@@ -43,20 +53,45 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
   const [remark, setRemark] = useState("");
   const [letterOpen, setLetterOpen] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [reassignError, setReassignError] = useState("");
 
-  const pending = requests.filter((request) =>
-    role === "COUNSELLOR"
-      ? request.status === "PENDING_COUNSELLOR"
-      : request.status === "PENDING_HOD",
+  const pending = useMemo(
+    () =>
+      (role === "COUNSELLOR"
+        ? listForCounsellor(user?.id ?? "")
+        : requests.filter(
+            (request) =>
+              request.status === "PENDING_HOD" || request.status === "PENDING_COUNSELLOR",
+          )
+      ).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)),
+    [role, requests, user?.id],
   );
   const history = requests.filter((request) =>
     role === "COUNSELLOR"
-      ? request.counsellorDecision !== undefined
+      ? request.counsellorDecision !== undefined &&
+        (request.counsellorId ?? counsellorOf(request.studentRegNo)) === user?.id
       : request.hodDecision !== undefined,
   );
   const items = tab === "pending" ? pending : history;
   const selected = items.find((request) => request.id === selectedId) ?? items[0] ?? null;
   const approver = user?.name ?? (role === "COUNSELLOR" ? "Counsellor Demo" : "HOD Demo");
+  const canDecide =
+    selected !== null &&
+    (role === "COUNSELLOR"
+      ? selected.status === "PENDING_COUNSELLOR"
+      : selected.status === "PENDING_HOD");
+
+  const reassign = (counsellorId: string) => {
+    if (!selected || role !== "HOD") return;
+    try {
+      reassignCounsellor(selected.id, counsellorId);
+      setReassignError("");
+    } catch (cause) {
+      setReassignError(
+        cause instanceof Error ? cause.message : "The request could not be reassigned.",
+      );
+    }
+  };
 
   const approve = () => {
     if (!selected) return;
@@ -166,7 +201,11 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
                   </span>
                 </span>
                 <span className="shrink-0 text-sm text-muted-foreground">
-                  {tab === "history" ? "Decision" : "Review"}
+                  {tab === "history"
+                    ? "Decision"
+                    : role === "HOD" && request.status === "PENDING_COUNSELLOR"
+                      ? "Reassignment"
+                      : "Review"}
                 </span>
               </button>
             ))
@@ -258,12 +297,53 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
               )}
             </dl>
 
+            <RequestStudentContext selected={selected} />
+            {role === "HOD" && (
+              <div className="rounded-xl border border-border bg-surface p-3">
+                <h3 className="font-semibold text-foreground">Counsellor remark</h3>
+                <p className="text-sm text-foreground">
+                  {selected.counsellorDecision?.remark || "No remark recorded."}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selected.counsellorDecision
+                    ? formatDateTime(selected.counsellorDecision.at)
+                    : "Decision time unavailable"}
+                </p>
+                {selected.status === "PENDING_HOD" && (
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    Waiting {Math.max(0, Math.floor((Date.now() - Date.parse(selected.createdAt)) / 86_400_000))} days
+                  </p>
+                )}
+              </div>
+            )}
+
+            {role === "HOD" && selected.status === "PENDING_COUNSELLOR" && (
+              <label className="grid gap-2 text-sm font-medium text-foreground">
+                Reassign counsellor
+                <select
+                  value={selected.counsellorId ?? counsellorOf(selected.studentRegNo) ?? ""}
+                  onChange={(event) => reassign(event.target.value)}
+                  className="min-h-14 rounded-lg border border-border bg-surface px-3"
+                >
+                  <option value="" disabled>
+                    Choose a counsellor
+                  </option>
+                  {counsellors.map((counsellor) => (
+                    <option key={counsellor.id} value={counsellor.id}>
+                      {counsellor.name}
+                    </option>
+                  ))}
+                </select>
+                {reassignError && <span role="alert">{reassignError}</span>}
+              </label>
+            )}
+
             {actionError && (
               <p role="alert" className="text-sm text-destructive">
                 {actionError}
               </p>
             )}
-            {tab === "pending" && (
+            {tab === "pending" && canDecide && (
               <div className="mt-auto flex flex-wrap gap-3">
                 <Button type="button" onClick={approve} className="flex-1">
                   Approve

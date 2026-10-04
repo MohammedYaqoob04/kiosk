@@ -1,6 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useLocation } from "@tanstack/react-router";
 
-import { LeaveApprovalDesk } from "@/components/erp/LeaveApprovalDesk";
+import { HodDashboard } from "@/components/hod/HodDashboard";
 import { getCurrentUser } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/erp/hod")({
@@ -11,6 +11,11 @@ export const Route = createFileRoute("/erp/hod")({
     if (user.role === "COUNSELLOR") throw redirect({ to: "/erp/staff", replace: true });
     if (user.role !== "HOD") throw redirect({ to: "/erp", replace: true });
   },
-  component: () => <LeaveApprovalDesk role="HOD" />,
+  component: HodRoute,
   head: () => ({ meta: [{ title: "HOD Office | Arunai ERP" }] }),
 });
+
+function HodRoute() {
+  const { pathname } = useLocation();
+  return pathname === "/erp/hod" ? <HodDashboard /> : <Outlet />;
+}

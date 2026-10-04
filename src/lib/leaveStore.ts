@@ -7,6 +7,7 @@ import type {
   Status,
 } from "@/types/leave";
 import { department } from "@/config/department";
+import { DEMO_COUNSELLOR_ID, counsellorOf } from "@/lib/staffData";
 
 export const LEAVE_REQUEST_STORAGE_KEY = "arunai-erp-leave-requests";
 const MAX_LETTER_SIZE = 2 * 1024 * 1024;
@@ -146,6 +147,7 @@ export function submitRequest(input: SubmitRequestInput): Request {
   }
   if (!input.studentName.trim()) throw new Error("Student name is required.");
 
+  const assignedCounsellorId = counsellorOf(input.studentRegNo);
   let request: Request;
   const common = {
     id: `request-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -156,6 +158,7 @@ export function submitRequest(input: SubmitRequestInput): Request {
     toDate: input.toDate,
     createdAt: new Date().toISOString(),
     status: "PENDING_COUNSELLOR" as const,
+    ...(assignedCounsellorId ? { counsellorId: assignedCounsellorId } : {}),
   };
 
   if (input.kind === "LEAVE") {
@@ -254,11 +257,25 @@ export function listForStudent(regNo: string): Request[] {
   return requests.filter((request) => request.studentRegNo === regNo);
 }
 
-export function listForCounsellor(): Request[] {
+export function listForCounsellor(counsellorId = DEMO_COUNSELLOR_ID): Request[] {
   return requests.filter(
     (request) =>
-      request.departmentCode === department.code && request.status === "PENDING_COUNSELLOR",
+      request.departmentCode === department.code &&
+      request.status === "PENDING_COUNSELLOR" &&
+      (request.counsellorId ?? counsellorOf(request.studentRegNo)) === counsellorId,
   );
+}
+
+export function reassignCounsellor(id: string, counsellorId: string): Request {
+  const request = requests.find((item) => item.id === id);
+  if (!request) throw new Error("Request not found.");
+  if (request.status !== "PENDING_COUNSELLOR") {
+    throw new Error("Only requests pending counsellor review can be reassigned.");
+  }
+  if (!counsellorId.trim()) throw new Error("Choose a counsellor.");
+  const updated = { ...request, counsellorId };
+  publish(requests.map((item) => (item.id === id ? updated : item)));
+  return updated;
 }
 
 export function listForHod(): Request[] {

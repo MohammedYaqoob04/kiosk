@@ -1,10 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, GraduationCap, Grid2X2, LogOut, UserRound, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth-context";
+import {
+  getNoticesSnapshot,
+  subscribeToNotices,
+  unreadCount,
+} from "@/lib/noticeStore";
+import { initializeRequestAuditObserver } from "@/lib/requestAuditObserver";
 
 export const Route = createFileRoute("/erp")({
   component: ErpRoute,
@@ -14,6 +20,7 @@ const studentNavigation = [
   { label: "Dashboard", to: "/erp/dashboard" },
   { label: "Timetable", to: "/erp/timetable" },
   { label: "Leave & OD", to: "/erp/leave" },
+  { label: "Notices", to: "/erp/notices" },
   { label: "Assignment Front Page", to: "/erp/assignment" },
   { label: "Fees", to: "/erp/fees" },
   { label: "Results", to: "/erp/results" },
@@ -30,15 +37,22 @@ const studentOnlyPaths = new Set([
   "/erp/fees",
   "/erp/leave",
   "/erp/profile",
+  "/erp/notices",
 ]);
 
 const staffOnlyPaths = new Set(["/erp/leave-requests"]);
+const counsellorOnlyPaths = new Set([
+  "/erp/staff",
+  "/erp/staff/students",
+  "/erp/staff/history",
+]);
 function ErpRoute() {
   return <ErpLayout />;
 }
 
 function ErpLayout() {
   const { user, logout } = useAuth();
+  useSyncExternalStore(subscribeToNotices, getNoticesSnapshot, getNoticesSnapshot);
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -50,12 +64,24 @@ function ErpLayout() {
   const isStudentOnlyRoute = studentOnlyPaths.has(location.pathname);
 
   useEffect(() => {
+    initializeRequestAuditObserver();
+  }, []);
+
+  useEffect(() => {
     if (isLogin) return;
     if (!user) {
       return;
     }
     if (isStaffRoute && user.role === "STUDENT") {
       void navigate({ to: "/erp/dashboard", replace: true });
+      return;
+    }
+    if (location.pathname === "/erp/hod" && user.role === "COUNSELLOR") {
+      void navigate({ to: "/erp/staff", replace: true });
+      return;
+    }
+    if (counsellorOnlyPaths.has(location.pathname) && user.role === "HOD") {
+      void navigate({ to: "/erp/hod", replace: true });
       return;
     }
     if (isStudentOnlyRoute && user.role !== "STUDENT") {
@@ -223,7 +249,12 @@ function ErpLayout() {
                 activeProps={{ className: "is-active" }}
                 className="erp-menu-item"
               >
-                {label}
+                <span>{label}</span>
+                {user.role === "STUDENT" && label === "Notices" && user.identifier && (
+                  <span className="ml-auto rounded-full border border-border px-3 py-1 text-sm">
+                    {unreadCount(user.identifier)}
+                  </span>
+                )}
               </Link>
             ))}
             <button type="button" onClick={logout} className="erp-menu-item text-left">
