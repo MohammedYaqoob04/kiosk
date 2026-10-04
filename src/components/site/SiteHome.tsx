@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  Accessibility,
   ArrowDown,
   ArrowRight,
   ArrowUp,
@@ -15,23 +14,20 @@ import {
   ExternalLink,
   GraduationCap,
   House,
+  Image as ImageIcon,
+  MapPin,
   Microscope,
-  Menu,
+  Stethoscope,
   UtensilsCrossed,
   UsersRound,
+  Wifi,
   X,
 } from "lucide-react";
 
-import { useAccessibilityPanel } from "@/lib/accessibility-panel-context";
 import { siteContent } from "@/config/siteContent";
+import { SiteHeader } from "@/components/site/SiteHeader";
+import { HOME_BG_IMAGES, SHOW_PLACEHOLDERS } from "@/config/home";
 
-const backgroundImages = Object.values(
-  import.meta.glob<string>("/src/assets/home/bg-*.{jpg,jpeg,png,webp}", {
-    eager: true,
-    query: "?url",
-    import: "default",
-  }),
-).sort();
 const galleryImages = Object.values(
   import.meta.glob<string>("/src/assets/site/gallery-*.{jpg,jpeg,png,webp}", {
     eager: true,
@@ -42,7 +38,16 @@ const galleryImages = Object.values(
 const galleryPlaceholders = [0, 1, 2, 3];
 
 const quickAccessIcons = [GraduationCap, UsersRound, Building2, CalendarDays];
-const facilityIcons = [BookOpen, Microscope, House, BusFront, Dumbbell, UtensilsCrossed];
+const facilityIcons = [
+  BookOpen,
+  Microscope,
+  House,
+  Dumbbell,
+  BusFront,
+  UtensilsCrossed,
+  Stethoscope,
+  Wifi,
+];
 const aboutImages = Object.values(
   import.meta.glob<string>("/src/assets/site/about.{jpg,jpeg,png,webp,svg}", {
     eager: true,
@@ -50,10 +55,35 @@ const aboutImages = Object.values(
     import: "default",
   }),
 ).sort();
+const isPlaceholder = (value: string) => value.startsWith("-- add from college");
+const visibleStats = siteContent.stats.items.filter(
+  (stat) => SHOW_PLACEHOLDERS || !isPlaceholder(stat.value),
+);
+const visibleNotices = siteContent.notices.items.filter(
+  (notice) => SHOW_PLACEHOLDERS || !isPlaceholder(notice.title),
+);
+const hasVisibleNotices = SHOW_PLACEHOLDERS || visibleNotices.length > 0;
+const visibleQuickAccessItems = siteContent.quickAccess.items.filter(
+  (item) => item.href !== "#notices" || hasVisibleNotices,
+);
+const visibleFooterLinks = siteContent.header.nav.filter(
+  (item) => item.href !== "#notices" || hasVisibleNotices,
+);
+const visibleDepartmentProgrammes = siteContent.department.programmes.filter(
+  (programme) => SHOW_PLACEHOLDERS || !isPlaceholder(programme),
+);
+const visibleDepartmentHighlights = siteContent.department.highlights.filter(
+  (highlight) => SHOW_PLACEHOLDERS || !isPlaceholder(highlight),
+);
+const showProgrammesPanel =
+  visibleDepartmentProgrammes.length > 0 ||
+  SHOW_PLACEHOLDERS ||
+  !isPlaceholder(siteContent.department.hodName);
+const showHighlightsPanel = visibleDepartmentHighlights.length > 0;
 
 function useScrollReveal() {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const element = ref.current;
@@ -61,6 +91,27 @@ function useScrollReveal() {
       setVisible(true);
       return;
     }
+
+    const isInRevealRange = () => {
+      const bounds = element.getBoundingClientRect();
+      const isAtPageBottom =
+        window.scrollY + window.innerHeight >=
+        document.documentElement.scrollHeight - 2;
+      return (
+        isAtPageBottom ||
+        (bounds.top < window.innerHeight * 0.9 && bounds.bottom > 0)
+      );
+    };
+    const revealIfInRange = () => {
+      if (window.scrollY > 0) {
+        document.documentElement.classList.add("site-reveal-enabled");
+      }
+      if (isInRevealRange()) setVisible(true);
+    };
+
+    if (isInRevealRange()) setVisible(true);
+    else setVisible(false);
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
@@ -68,10 +119,18 @@ function useScrollReveal() {
           observer.disconnect();
         }
       },
-      { threshold: 0.14 },
+      { rootMargin: "0px 0px -10% 0px" },
     );
     observer.observe(element);
-    return () => observer.disconnect();
+    window.addEventListener("load", revealIfInRange);
+    window.addEventListener("resize", revealIfInRange);
+    window.addEventListener("scroll", revealIfInRange, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("load", revealIfInRange);
+      window.removeEventListener("resize", revealIfInRange);
+      window.removeEventListener("scroll", revealIfInRange);
+    };
   }, []);
 
   return { ref, visible };
@@ -130,17 +189,16 @@ function AnimatedStat({ label, value, delay }: { label: string; value: string; d
 }
 
 export function SiteHome() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [headerSolid, setHeaderSolid] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [activeBackground, setActiveBackground] = useState(0);
   const [activeGalleryImage, setActiveGalleryImage] = useState<number | null>(null);
-  const openAccessibility = useAccessibilityPanel();
 
   useEffect(() => {
     const onScroll = () => {
-      setHeaderSolid(window.scrollY > 24);
-      setShowBackToTop(window.scrollY > 600);
+      const footer = document.querySelector(".site-footer");
+      const footerIsVisible =
+        footer instanceof HTMLElement && footer.getBoundingClientRect().top < window.innerHeight;
+      setShowBackToTop(window.scrollY > 600 && !footerIsVisible);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -196,87 +254,64 @@ export function SiteHome() {
   }, [activeGalleryImage]);
 
   useEffect(() => {
-    if (backgroundImages.length < 2) return;
+    if (HOME_BG_IMAGES.length < 2) return;
     const interval = window.setInterval(() => {
-      setActiveBackground((current) => (current + 1) % backgroundImages.length);
+      setActiveBackground((current) => (current + 1) % HOME_BG_IMAGES.length);
     }, 14_000);
     return () => window.clearInterval(interval);
   }, []);
 
   return (
     <div className="site-home">
-      <header className={`site-header ${headerSolid ? "is-solid" : ""}`}>
-        <a className="site-brand" href="#home" aria-label={siteContent.header.homeLabel}>
-          <span className="site-brand-mark">{siteContent.projectName}</span>
-          <span className="site-brand-name">{siteContent.shortInstitutionName}</span>
-        </a>
-        <nav className="site-nav" aria-label={siteContent.header.mainNavigationLabel}>
-          {siteContent.header.nav.map((item) => (
-            <a key={item.href} href={item.href}>
-              {item.label}
-            </a>
-          ))}
-        </nav>
-        <div className="site-header-actions">
-          <Link className="site-button site-button-primary site-header-login" to="/erp">
-            {siteContent.header.erpLabel}
-          </Link>
-          <button
-            type="button"
-            className="accessibility-button"
-            aria-label={siteContent.header.accessibilityLabel}
-            onClick={openAccessibility}
-          >
-            <Accessibility aria-hidden="true" className="size-6" strokeWidth={1.5} />
-          </button>
-          <button
-            type="button"
-            className="site-menu-toggle"
-            aria-label={menuOpen ? siteContent.header.menuCloseLabel : siteContent.header.menuOpenLabel}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            {menuOpen ? <X strokeWidth={1.5} /> : <Menu strokeWidth={1.5} />}
-          </button>
-        </div>
-        {menuOpen && (
-          <nav className="site-mobile-nav" aria-label={siteContent.header.mobileNavigationLabel}>
-            {siteContent.header.nav.map((item) => (
-              <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
-                {item.label}
-              </a>
-            ))}
-            <Link to="/erp" onClick={() => setMenuOpen(false)}>
-              {siteContent.header.erpLabel}
-            </Link>
-          </nav>
-        )}
-      </header>
+      <SiteHeader />
 
       <div className="site-page-content">
         <section className="site-hero" id="home" aria-labelledby="site-hero-title">
-          <div className="site-hero-background" aria-hidden="true">
-            {backgroundImages.map((image, index) => (
-              <img
-                key={image}
-                src={image}
-                alt=""
-                className={index === activeBackground ? "is-active" : ""}
-              />
-            ))}
-          </div>
-          <div className="site-hero-content">
-            <p className="site-eyebrow site-hero-eyebrow">{siteContent.hero.eyebrow}</p>
-            <h1 id="site-hero-title">{siteContent.hero.title}</h1>
-            <p className="site-hero-description">{siteContent.hero.description}</p>
-            <div className="site-hero-actions">
-              <Link className="site-button site-button-cream" to="/erp">
-                {siteContent.hero.erpLabel}
-                <ArrowRight aria-hidden="true" strokeWidth={1.5} />
-              </Link>
-              <a className="site-button site-button-outline" href="#about">
-                {siteContent.hero.exploreLabel}
-              </a>
+          <svg className="site-architecture" viewBox="0 0 900 720" fill="none" aria-hidden="true">
+            <path d="M40 720V290C40 128 172 0 334 0s294 128 294 290v430M108 720V294c0-124 102-224 226-224s226 100 226 224v426M176 720V298c0-86 72-156 158-156s158 70 158 156v422" />
+            <path d="M75 290h468M143 294h384M211 298h248M40 374h588M40 458h588M40 542h588M40 626h588M40 720h588M690 720V180m68 540V120m68 600V180" />
+          </svg>
+          <div className="site-hero-layout">
+            <div className="site-hero-content">
+              <p className="site-eyebrow site-hero-eyebrow">{siteContent.hero.eyebrow}</p>
+              <div className="site-hero-lockup">
+                <span>{siteContent.hero.wordmark}</span>
+                <p>{siteContent.hero.lockupDescription}</p>
+              </div>
+              <h1 id="site-hero-title">{siteContent.hero.title}</h1>
+              <p className="site-hero-description">{siteContent.hero.description}</p>
+              <div className="site-hero-actions">
+                <Link className="site-button site-button-cream" to="/campus">
+                  <MapPin aria-hidden="true" strokeWidth={1.5} />
+                  {siteContent.hero.exploreLabel}
+                </Link>
+                <a className="site-button site-button-outline" href="#department">
+                  {siteContent.hero.departmentsLabel}
+                </a>
+              </div>
+            </div>
+            <div className="site-hero-image-frame">
+              <div className="site-hero-image-panel" aria-label={siteContent.hero.imageAlt} role="img">
+                {HOME_BG_IMAGES.map((image, index) => (
+                  <img
+                    key={image}
+                    src={image}
+                    alt=""
+                    className={index === activeBackground ? "is-active" : ""}
+                    fetchPriority={index === 0 ? "high" : "auto"}
+                  />
+                ))}
+                {!HOME_BG_IMAGES.length && <span>{siteContent.hero.imageFallback}</span>}
+              </div>
+              <span className="site-frame-corner site-frame-corner-top-left" />
+              <span className="site-frame-corner site-frame-corner-top-right" />
+              <span className="site-frame-corner site-frame-corner-bottom-left" />
+              <span className="site-frame-corner site-frame-corner-bottom-right" />
+              <div className="site-hero-service-card">
+                {siteContent.hero.serviceSummary.map((service) => (
+                  <span key={service}>{service}</span>
+                ))}
+              </div>
             </div>
           </div>
           <a className="site-scroll-cue" href="#about" aria-label={siteContent.hero.scrollLabel}>
@@ -290,7 +325,7 @@ export function SiteHome() {
             {siteContent.quickAccess.title}
           </h2>
           <div className="site-quick-grid">
-            {siteContent.quickAccess.items.map((item, index) => {
+            {visibleQuickAccessItems.map((item, index) => {
               const Icon = quickAccessIcons[index] ?? GraduationCap;
               const content = (
                 <>
@@ -302,12 +337,21 @@ export function SiteHome() {
                   <ArrowRight aria-hidden="true" className="site-quick-arrow" strokeWidth={1.5} />
                 </>
               );
-              return item.href.startsWith("/") ? (
-                <Link key={item.title} className="site-quick-card" to="/erp">
-                  {content}
-                </Link>
-              ) : (
-                <a key={item.title} className="site-quick-card" href={item.href}>
+              const cardClassName = "site-quick-card";
+              if ("role" in item) {
+                return (
+                  <Link
+                    key={item.title}
+                    className={cardClassName}
+                    to="/erp/login"
+                    search={{ role: item.role }}
+                  >
+                    {content}
+                  </Link>
+                );
+              }
+              return (
+                <a key={item.title} className={cardClassName} href={item.href}>
                   {content}
                 </a>
               );
@@ -327,6 +371,16 @@ export function SiteHome() {
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
+              <dl className="site-facts-grid">
+                {siteContent.about.facts
+                  .filter((fact) => SHOW_PLACEHOLDERS || !isPlaceholder(fact.value))
+                  .map((fact) => (
+                    <div key={fact.label}>
+                      <dt>{fact.label}</dt>
+                      <dd>{fact.value}</dd>
+                    </div>
+                  ))}
+              </dl>
             </Reveal>
             <Reveal delay={80} className="site-about-media">
               {aboutImages[0] ? (
@@ -341,13 +395,15 @@ export function SiteHome() {
           </div>
         </section>
 
-        <section className="site-stats" aria-label={siteContent.about.eyebrow}>
-          <div className="site-section-inner site-stats-grid">
-            {siteContent.stats.items.map((stat, index) => (
-              <AnimatedStat key={stat.label} {...stat} delay={index * 80} />
-            ))}
-          </div>
-        </section>
+        {visibleStats.length > 0 && (
+          <section className="site-stats" aria-label={siteContent.stats.title}>
+            <div className="site-section-inner site-stats-grid">
+              {visibleStats.map((stat, index) => (
+                <AnimatedStat key={stat.label} {...stat} delay={index * 80} />
+              ))}
+            </div>
+          </section>
+        )}
 
         <section
           className="site-section site-department"
@@ -360,31 +416,51 @@ export function SiteHome() {
               <h2 id="site-department-title" className="site-section-title">
                 {siteContent.department.title}
               </h2>
-              <p className="site-section-intro">{siteContent.department.description}</p>
+              {(SHOW_PLACEHOLDERS || !isPlaceholder(siteContent.department.description)) && (
+                <p className="site-section-intro">{siteContent.department.description}</p>
+              )}
+              <p className="site-department-batch">
+                <span>{siteContent.department.batchLabel}</span>
+                <strong>{siteContent.department.batch}</strong>
+              </p>
             </Reveal>
-            <div className="site-department-grid">
-              <Reveal className="site-info-panel">
-                <h3>{siteContent.department.programmesTitle}</h3>
-                <ul className="site-detail-list">
-                  {siteContent.department.programmes.map((programme) => (
-                    <li key={programme}>{programme}</li>
-                  ))}
-                </ul>
-                <h3>{siteContent.department.hodLabel}</h3>
-                <p>{siteContent.department.hodName}</p>
-              </Reveal>
-              <Reveal delay={80} className="site-info-panel">
-                <h3>{siteContent.department.highlightsTitle}</h3>
-                <ul className="site-highlight-list">
-                  {siteContent.department.highlights.map((highlight) => (
-                    <li key={highlight}>
-                      <GraduationCap aria-hidden="true" strokeWidth={1.5} />
-                      <span>{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Reveal>
-            </div>
+            {(showProgrammesPanel || showHighlightsPanel) && (
+              <div className="site-department-grid">
+                {showProgrammesPanel && (
+                  <Reveal className="site-info-panel">
+                    {visibleDepartmentProgrammes.length > 0 && (
+                      <>
+                        <h3>{siteContent.department.programmesTitle}</h3>
+                        <ul className="site-detail-list">
+                          {visibleDepartmentProgrammes.map((programme) => (
+                            <li key={programme}>{programme}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    {(SHOW_PLACEHOLDERS || !isPlaceholder(siteContent.department.hodName)) && (
+                      <>
+                        <h3>{siteContent.department.hodLabel}</h3>
+                        <p>{siteContent.department.hodName}</p>
+                      </>
+                    )}
+                  </Reveal>
+                )}
+                {showHighlightsPanel && (
+                  <Reveal delay={80} className="site-info-panel">
+                    <h3>{siteContent.department.highlightsTitle}</h3>
+                    <ul className="site-highlight-list">
+                      {visibleDepartmentHighlights.map((highlight) => (
+                        <li key={highlight}>
+                          <GraduationCap aria-hidden="true" strokeWidth={1.5} />
+                          <span>{highlight}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Reveal>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -407,7 +483,9 @@ export function SiteHome() {
                   <Reveal key={facility.name} delay={(index % 3) * 80} className="site-facility-card">
                     <Icon aria-hidden="true" strokeWidth={1.5} />
                     <h3>{facility.name}</h3>
-                    <p>{facility.description}</p>
+                    {(SHOW_PLACEHOLDERS || !isPlaceholder(facility.description)) && (
+                      <p>{facility.description}</p>
+                    )}
                   </Reveal>
                 );
               })}
@@ -415,11 +493,12 @@ export function SiteHome() {
           </div>
         </section>
 
-        <section
-          className="site-section site-notices"
-          id="notices"
-          aria-labelledby="site-notices-title"
-        >
+        {visibleNotices.length > 0 && (
+          <section
+            className="site-section site-notices"
+            id="notices"
+            aria-labelledby="site-notices-title"
+          >
           <div className="site-section-inner">
             <Reveal>
               <p className="site-eyebrow">{siteContent.notices.eyebrow}</p>
@@ -428,9 +507,11 @@ export function SiteHome() {
               </h2>
             </Reveal>
             <div className="site-notice-list">
-              {siteContent.notices.items.map((notice, index) => (
+              {visibleNotices.map((notice, index) => (
                 <Reveal key={`${notice.category}-${index}`} delay={index * 80} className="site-notice">
-                  <span className="site-notice-date">{notice.date}</span>
+                  {(SHOW_PLACEHOLDERS || !isPlaceholder(notice.date)) && (
+                    <span className="site-notice-date">{notice.date}</span>
+                  )}
                   <div className="site-notice-copy">
                     <span>{notice.category}</span>
                     <h3>{notice.title}</h3>
@@ -440,7 +521,8 @@ export function SiteHome() {
               ))}
             </div>
           </div>
-        </section>
+          </section>
+        )}
 
         <section
           className="site-section site-gallery"
@@ -474,6 +556,7 @@ export function SiteHome() {
                       role="img"
                       aria-label={siteContent.gallery.emptyLabel}
                     >
+                      <ImageIcon aria-hidden="true" strokeWidth={1.5} />
                       <span>{siteContent.gallery.emptyLabel}</span>
                     </div>
                   ))}
@@ -507,13 +590,26 @@ export function SiteHome() {
                   <ExternalLink aria-hidden="true" strokeWidth={1.5} />
                 </a>
               </div>
+              {(SHOW_PLACEHOLDERS || !isPlaceholder(siteContent.contact.phone)) && (
+                <div>
+                  <h3>{siteContent.contact.phoneLabel}</h3>
+                  <p>{siteContent.contact.phone}</p>
+                </div>
+              )}
+              {(SHOW_PLACEHOLDERS || !isPlaceholder(siteContent.contact.email)) && (
+                <div>
+                  <h3>{siteContent.contact.emailLabel}</h3>
+                  <p>{siteContent.contact.email}</p>
+                </div>
+              )}
               <div>
-                <h3>{siteContent.contact.phoneLabel}</h3>
-                <p>{siteContent.contact.phone}</p>
-              </div>
-              <div>
-                <h3>{siteContent.contact.emailLabel}</h3>
-                <p>{siteContent.contact.email}</p>
+                <h3>{siteContent.contact.officialSiteLabel}</h3>
+                <p>
+                  <a className="site-text-link" href={siteContent.officialSite} target="_blank" rel="noreferrer">
+                    {siteContent.footer.officialSiteLabel}
+                    <ExternalLink aria-hidden="true" strokeWidth={1.5} />
+                  </a>
+                </p>
               </div>
             </Reveal>
           </div>
@@ -531,12 +627,22 @@ export function SiteHome() {
           <div className="site-footer-links">
             <h2>{siteContent.footer.quickLinksTitle}</h2>
             <nav aria-label={siteContent.footer.quickLinksTitle}>
-              {siteContent.header.nav.map((item) => (
-                <a key={item.href} href={item.href}>
-                  {item.label}
-                </a>
-              ))}
+              {visibleFooterLinks.map((item) =>
+                item.href === "/campus" ? (
+                  <Link key={item.href} to="/campus">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <a key={item.href} href={item.href}>
+                    {item.label}
+                  </a>
+                ),
+              )}
             </nav>
+            <a className="site-footer-official-link" href={siteContent.officialSite} target="_blank" rel="noreferrer">
+              {siteContent.footer.officialSiteLabel}
+              <ExternalLink aria-hidden="true" strokeWidth={1.5} />
+            </a>
           </div>
           <a className="site-footer-top" href="#home">
             {siteContent.footer.backToTop}

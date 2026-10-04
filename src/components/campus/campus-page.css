@@ -1,0 +1,245 @@
+body:has(.campus-page) {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.app-shell:has(.campus-page) {
+  position: relative;
+  inset: auto;
+  height: auto;
+  min-height: 100svh;
+  overflow: visible;
+}
+
+.app-main:has(.campus-page) {
+  min-height: 0;
+  flex: none;
+  overflow: visible;
+}
+
+.site-header-campus {
+  border-bottom-color: var(--border);
+  background: var(--bg-base);
+  color: var(--text);
+}
+
+.site-header-back {
+  display: inline-flex;
+  min-height: 56px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-header-back svg {
+  width: 20px;
+  height: 20px;
+}
+
+.campus-page {
+  min-height: 100svh;
+  padding: 112px clamp(20px, 4vw, 64px) 48px;
+  background: var(--bg-base);
+  color: var(--text);
+}
+
+.campus-page-inner {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+}
+
+.campus-page-title {
+  margin: 0 0 32px;
+  font-family: var(--font-display);
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.campus-explorer {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.5fr);
+  align-items: stretch;
+  gap: 24px;
+}
+
+.campus-location-panel {
+  min-width: 0;
+  max-height: min(680px, calc(100svh - 240px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 20px;
+}
+
+.campus-search-label {
+  display: grid;
+  gap: 10px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.campus-search-input {
+  width: 100%;
+  min-height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0 16px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.campus-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.campus-location-panel h2 {
+  margin: 24px 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.campus-location-list {
+  display: grid;
+  gap: 8px;
+}
+
+.campus-location-item {
+  display: grid;
+  min-height: 64px;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 10px 14px;
+  color: var(--text);
+  text-align: left;
+}
+
+.campus-location-item.is-selected {
+  border-color: var(--accent);
+}
+
+.campus-location-item strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.campus-location-item span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.campus-location-empty {
+  margin: 16px 0;
+  color: var(--text-muted);
+}
+
+.campus-map-section {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: minmax(360px, 1fr) auto;
+  gap: 12px;
+}
+
+.campus-map-empty {
+  position: relative;
+  display: grid;
+  min-height: 420px;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--text-muted) 14%, transparent) 0.8px, transparent 1px)
+      0 0 / 18px 18px,
+    var(--surface-2);
+  padding: 32px;
+  text-align: center;
+}
+
+.campus-map-marker {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--accent);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+
+.campus-map-empty h2 {
+  max-width: 380px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 600;
+}
+
+.campus-map-empty p,
+.campus-map-actions p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.campus-map-actions {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.campus-map-actions button {
+  min-height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding-inline: 20px;
+  color: var(--text-muted);
+}
+
+.campus-map-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@media (max-width: 767px) {
+  .campus-page {
+    padding: 96px 16px 32px;
+  }
+
+  .campus-page-title {
+    margin-bottom: 24px;
+  }
+
+  .campus-explorer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campus-location-panel {
+    max-height: none;
+  }
+
+  .campus-map-empty {
+    min-height: 320px;
+  }
+
+  .campus-map-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .campus-map-actions button {
+    width: 100%;
+  }
+}

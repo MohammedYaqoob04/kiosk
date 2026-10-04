@@ -33,16 +33,6 @@ const studentOnlyPaths = new Set([
 ]);
 
 const staffOnlyPaths = new Set(["/erp/leave-requests"]);
-const fixedPagePaths = new Set([
-  "/erp/dashboard",
-  "/erp/timetable",
-  "/erp/assignment",
-  "/erp/fees",
-  "/erp/results",
-  "/erp/profile",
-  "/erp/password",
-]);
-
 function ErpRoute() {
   return <ErpLayout />;
 }
@@ -163,10 +153,8 @@ function ErpLayout() {
             { label: "My Students", to: "/erp/staff/students" },
           ] as const)
         : ([{ label: "HOD Office", to: "/erp/hod" }] as const);
-  const isFixedPage = fixedPagePaths.has(location.pathname);
-
   return (
-    <div className={`erp-app-shell ${isFixedPage ? "is-fixed-page" : ""}`}>
+    <div className="erp-app-shell">
       <div className="erp-brand-heading">
         <div>
           <p className="font-semibold text-foreground">Arunai Engineering College (Autonomous)</p>
@@ -205,7 +193,7 @@ function ErpLayout() {
           )}
         </div>
       </header>
-      <main className={`erp-route-content ${isFixedPage ? "is-fixed-page" : ""}`}>
+      <main className="erp-route-content">
         <Outlet />
       </main>
       <footer className="erp-brand-footer">
