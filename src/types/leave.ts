@@ -8,6 +8,7 @@ export interface LeaveHistoryEntry {
   stage: "Submitted" | "Counsellor" | "HOD" | "Final";
   decision: "SUBMITTED" | "APPROVED" | "REJECTED";
   at: string;
+  remark?: string;
 }
 
 export interface LeaveRequest {
@@ -23,4 +24,5 @@ export interface LeaveRequest {
   status: LeaveRequestStatus;
   history: LeaveHistoryEntry[];
   assignedCounsellorId: string;
+  submittedAt?: string;
 }

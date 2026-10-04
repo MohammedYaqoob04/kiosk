@@ -8,7 +8,9 @@ import type {
   ResultsResponse,
   StudentProfile,
   TimetableDay,
+  StaffHistoryFilter,
 } from "@/api/types";
+import type { LeaveDecision } from "@/types/leave";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -90,5 +92,22 @@ export const httpApi = {
     request<ChangePasswordResponse>("/password", {
       method: "POST",
       body: JSON.stringify({ current, next }),
+    }),
+  getLeaveQueue: (counsellorId: string) =>
+    request<import("@/types/leave").LeaveRequest[]>(
+      `/staff/leave-queue?counsellorId=${encodeURIComponent(counsellorId)}`,
+    ),
+  getAssignedStudents: (counsellorId: string) =>
+    request<import("@/types/staff-dashboard").AssignedStudent[]>(
+      `/staff/students?counsellorId=${encodeURIComponent(counsellorId)}`,
+    ),
+  getLeaveHistory: (counsellorId: string, filter: StaffHistoryFilter = "ALL") =>
+    request<import("@/api/types").StaffLeaveHistory[]>(
+      `/staff/leave-history?counsellorId=${encodeURIComponent(counsellorId)}&filter=${filter}`,
+    ),
+  decideLeaveRequest: (id: string, decision: LeaveDecision, remark?: string) =>
+    request<import("@/types/leave").LeaveRequest>(`/staff/leave-requests/${encodeURIComponent(id)}`, {
+      method: "POST",
+      body: JSON.stringify({ decision, remark }),
     }),
 };

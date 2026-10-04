@@ -153,10 +153,16 @@ function ErpLayout() {
   const navigation =
     user.role === "STUDENT"
       ? studentNavigation
-      : ([
-          { label: "Dashboard", to: "/erp/staff" },
-          { label: "Leave", to: "/erp/staff/leave" },
-        ] as const);
+      : user.role === "COUNSELLOR"
+        ? ([
+            { label: "Approvals", to: "/erp/staff" },
+            { label: "My Students", to: "/erp/staff/students" },
+            { label: "History", to: "/erp/staff/history" },
+          ] as const)
+        : ([
+            { label: "Dashboard", to: "/erp/hod" },
+            { label: "Leave", to: "/erp/staff/leave" },
+          ] as const);
 
   return (
     <div className="erp-app-shell">

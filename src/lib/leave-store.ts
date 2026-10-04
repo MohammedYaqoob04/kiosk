@@ -7,6 +7,8 @@ import type {
   LeaveRequestStatus,
   LeaveRequestType,
 } from "@/types/leave";
+import { demoAssignedStudents } from "@/mock/staff-dashboard";
+import type { AssignedStudent } from "@/types/staff-dashboard";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -46,7 +48,8 @@ const initialRequests: LeaveRequest[] = [
     residentialAddress: "Sample address · Demo",
     status: "PENDING_COUNSELLOR",
     history: history(timestamp),
-    assignedCounsellorId: "9999900101",
+    assignedCounsellorId: "STAFF-AI-104",
+    submittedAt: timestamp,
   },
   {
     id: "leave-demo-2",
@@ -60,7 +63,8 @@ const initialRequests: LeaveRequest[] = [
     residentialAddress: "Sample address · Demo",
     status: "PENDING_HOD",
     history: history(timestamp, "APPROVED"),
-    assignedCounsellorId: "9999900101",
+    assignedCounsellorId: "STAFF-AI-104",
+    submittedAt: timestamp,
   },
   {
     id: "leave-demo-3",
@@ -74,7 +78,8 @@ const initialRequests: LeaveRequest[] = [
     residentialAddress: "Sample address · Demo",
     status: "APPROVED",
     history: history(timestamp, "APPROVED", "APPROVED"),
-    assignedCounsellorId: "9999900101",
+    assignedCounsellorId: "STAFF-AI-104",
+    submittedAt: timestamp,
   },
   {
     id: "leave-demo-4",
@@ -88,7 +93,8 @@ const initialRequests: LeaveRequest[] = [
     residentialAddress: "Sample address · Demo",
     status: "REJECTED",
     history: history(timestamp, "REJECTED"),
-    assignedCounsellorId: "9999900102",
+    assignedCounsellorId: "STAFF-AI-104",
+    submittedAt: timestamp,
   },
   {
     id: "leave-demo-5",
@@ -102,7 +108,8 @@ const initialRequests: LeaveRequest[] = [
     residentialAddress: "Sample address · Demo",
     status: "PENDING_COUNSELLOR",
     history: history(timestamp),
-    assignedCounsellorId: "9999900102",
+    assignedCounsellorId: "STAFF-AI-104",
+    submittedAt: timestamp,
   },
 ];
 let requests: LeaveRequest[] = [...initialRequests];
@@ -143,6 +150,28 @@ export function useLeaveRequests(): LeaveRequest[] {
   );
 }
 
+export function getLeaveRequestsSnapshot(): LeaveRequest[] {
+  return requests;
+}
+
+export function getAssignedStudents(counsellorId: string): AssignedStudent[] {
+  return demoAssignedStudents.filter((student) => student.assignedCounsellorId === counsellorId);
+}
+
+export function getCounsellorLeaveQueue(counsellorId: string): LeaveRequest[] {
+  return requests
+    .filter(
+      (request) =>
+        request.assignedCounsellorId === counsellorId &&
+        request.status === "PENDING_COUNSELLOR",
+    )
+    .sort((a, b) =>
+      (a.submittedAt ?? a.history[0]?.at ?? "").localeCompare(
+        b.submittedAt ?? b.history[0]?.at ?? "",
+      ),
+    );
+}
+
 export function createLeaveRequest(input: {
   type: LeaveRequestType;
   studentName: string;
@@ -159,13 +188,18 @@ export function createLeaveRequest(input: {
     id: `leave-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     status: "PENDING_COUNSELLOR",
     history: [{ stage: "Submitted", decision: "SUBMITTED", at: new Date().toISOString() }],
+    submittedAt: new Date().toISOString(),
   };
   requests = [request, ...requests];
   emitChange();
   return request;
 }
 
-export function decideLeaveRequest(id: string, decision: LeaveDecision): LeaveRequest | undefined {
+export function decideLeaveRequest(
+  id: string,
+  decision: LeaveDecision,
+  remark?: string,
+): LeaveRequest | undefined {
   const index = requests.findIndex((request) => request.id === id);
   if (index < 0) return undefined;
   const request = requests[index];
@@ -180,7 +214,7 @@ export function decideLeaveRequest(id: string, decision: LeaveDecision): LeaveRe
     status,
     history: [
       ...request.history,
-      { stage, decision: action, at: new Date().toISOString() },
+      { stage, decision: action, at: new Date().toISOString(), ...(remark ? { remark } : {}) },
       ...(status === "APPROVED" || status === "REJECTED"
         ? [
             {

@@ -7,7 +7,11 @@ import type {
   ResultsResponse,
   StudentProfile,
   TimetableDay,
+  StaffHistoryFilter,
+  StaffLeaveHistory,
 } from "@/api/types";
+import type { LeaveDecision, LeaveRequest } from "@/types/leave";
+import type { AssignedStudent } from "@/types/staff-dashboard";
 import { httpApi } from "@/api/http";
 import { mockApi } from "@/api/mock";
 
@@ -27,6 +31,17 @@ export const api: {
     no: number,
   ) => Promise<AssignmentFrontPageResponse>;
   changePassword: (current: string, next: string) => Promise<ChangePasswordResponse>;
+  getLeaveQueue: (counsellorId: string) => Promise<LeaveRequest[]>;
+  getAssignedStudents: (counsellorId: string) => Promise<AssignedStudent[]>;
+  getLeaveHistory: (
+    counsellorId: string,
+    filter?: StaffHistoryFilter,
+  ) => Promise<StaffLeaveHistory[]>;
+  decideLeaveRequest: (
+    id: string,
+    decision: LeaveDecision,
+    remark?: string,
+  ) => Promise<LeaveRequest>;
 } = implementation;
 
 export { ApiError } from "@/api/http";

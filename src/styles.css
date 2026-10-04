@@ -305,6 +305,93 @@
   background: rgba(20, 14, 28, 0.78);
 }
 
+.staff-portal-page {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+  padding: clamp(0.75rem, 1.5vw, 1.25rem);
+}
+
+.staff-portal-list {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 0.75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.1rem;
+}
+
+.staff-approval-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+.staff-approval-card.is-fading {
+  opacity: 0;
+}
+
+.staff-approval-details {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.staff-request-chip {
+  display: inline-flex;
+  min-height: 2.5rem;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid;
+  border-radius: 9999px;
+  padding-inline: 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.staff-request-chip.is-leave {
+  border-color: rgba(251, 113, 133, 0.24);
+  background: rgba(251, 113, 133, 0.1);
+  color: #fda4af;
+}
+
+.staff-request-chip.is-od {
+  border-color: rgba(167, 139, 250, 0.24);
+  background: rgba(167, 139, 250, 0.1);
+  color: #c4b5fd;
+}
+
+.staff-student-row {
+  display: flex;
+  min-height: 5.5rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+@media (max-width: 767px) {
+  .staff-portal-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .staff-student-row {
+    gap: 0.65rem;
+  }
+}
+
 .erp-app-shell {
   display: flex;
   width: 100%;
@@ -428,6 +515,176 @@
   gap: 1.5rem;
   overflow: hidden;
   padding: 1rem;
+}
+
+.erp-login-layout.login-role-student {
+  --login-accent: #fb7185;
+}
+
+.erp-login-layout.login-role-staff {
+  --login-accent: #34d399;
+}
+
+.erp-login-layout.login-role-hod {
+  --login-accent: #a78bfa;
+}
+
+.erp-login-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.erp-login-role-switch {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 0.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  background: rgba(20, 14, 28, 0.78);
+  padding: 0.2rem;
+}
+
+.erp-login-role-option {
+  display: grid;
+  min-width: 76px;
+  min-height: 56px;
+  place-items: center;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.erp-login-role-label {
+  display: grid;
+  height: 36px;
+  min-width: 68px;
+  place-items: center;
+  border-radius: 9999px;
+  padding-inline: 0.65rem;
+}
+
+.erp-login-role-option.is-active .erp-login-role-label {
+  background: color-mix(in srgb, var(--login-accent) 18%, transparent);
+  color: var(--login-accent);
+}
+
+.login-role-student .erp-login-input.is-selected,
+.login-role-student .erp-login-role-option.is-active {
+  border-color: #fb7185;
+}
+
+.login-role-staff .erp-login-input.is-selected,
+.login-role-staff .erp-login-role-option.is-active {
+  border-color: #34d399;
+}
+
+.login-role-hod .erp-login-input.is-selected,
+.login-role-hod .erp-login-role-option.is-active {
+  border-color: #a78bfa;
+}
+
+.erp-login-layout .erp-login-submit {
+  background: var(--login-accent);
+  color: #1a0f1f;
+}
+
+.erp-login-layout .erp-login-submit:disabled {
+  background: color-mix(in srgb, var(--login-accent) 40%, transparent);
+  color: rgba(26, 15, 31, 0.65);
+}
+
+.erp-login-layout.is-text-login {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 620px);
+}
+
+.erp-login-layout.is-text-login .erp-login-keypad-panel {
+  max-width: 620px;
+  grid-template-rows: auto 3.5rem 1.5rem;
+  gap: 0.5rem;
+}
+
+.erp-login-layout.is-text-login .erp-login-fields {
+  gap: 1rem;
+}
+
+.erp-login-layout.is-text-login .erp-login-input {
+  height: 4rem;
+  text-align: left;
+  letter-spacing: 0.08em;
+}
+
+.erp-login-layout.is-text-login .erp-login-input[type="password"] {
+  letter-spacing: 0.2em;
+}
+
+.kiosk-keyboard-desktop {
+  display: block;
+}
+
+.kiosk-keyboard {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.kiosk-keyboard-row {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.kiosk-keyboard-row.row-2 {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.kiosk-keyboard-row.row-3 {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  padding-inline: 4%;
+}
+
+.kiosk-keyboard-row.row-4 {
+  grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.4fr);
+  padding-inline: 10%;
+}
+
+.kiosk-keyboard-key {
+  display: flex;
+  min-width: 0;
+  height: clamp(36px, calc((100svh - 300px) / 6), 56px);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.65rem;
+  background: rgba(35, 25, 46, 0.96);
+  color: var(--foreground);
+  font-size: 1.1rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.kiosk-keyboard-key:active,
+.kiosk-keyboard-key.is-selected {
+  border-color: color-mix(in srgb, var(--login-accent) 50%, transparent);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.kiosk-keyboard-row.utility-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kiosk-keyboard-key.utility-key {
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.is-text-login .erp-login-keypad-panel .erp-login-key {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(35, 25, 46, 0.96);
 }
 
 .erp-login-details {
@@ -631,6 +888,31 @@
 }
 
 @media (max-width: 899px) {
+  .erp-login-layout.is-text-login {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .erp-login-layout.is-text-login .erp-login-keypad-panel {
+    grid-template-rows: 3.5rem 1.5rem;
+    align-self: end;
+  }
+
+  .kiosk-keyboard-desktop {
+    display: none;
+  }
+
+  .erp-login-role-option {
+    min-width: 68px;
+  }
+
+  .erp-login-role-label {
+    min-width: 60px;
+  }
+
+  .erp-login-layout.is-text-login .erp-login-input {
+    font-size: 1.15rem;
+  }
+
   .erp-password-layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;

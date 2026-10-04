@@ -1,3 +1,6 @@
+import type { LeaveDecision, LeaveRequest } from "@/types/leave";
+import type { AssignedStudent } from "@/types/staff-dashboard";
+
 export interface StudentProfile {
   registerNo: string;
   name: string;
@@ -103,3 +106,21 @@ export interface AssignmentFrontPageResponse {
 export interface ChangePasswordResponse {
   changed: boolean;
 }
+
+export interface StaffLeaveHistory {
+  id: string;
+  request: LeaveRequest;
+  decision: "APPROVED" | "REJECTED";
+  decidedAt: string;
+  remark?: string;
+}
+
+export type StaffHistoryFilter = "ALL" | "APPROVED" | "REJECTED";
+
+export interface LeaveDecisionInput {
+  id: string;
+  decision: LeaveDecision;
+  remark?: string;
+}
+
+export type { AssignedStudent, LeaveDecision, LeaveRequest };

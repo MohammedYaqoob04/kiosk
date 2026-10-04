@@ -4,6 +4,15 @@ export interface AssignedStudent {
   department: string;
   attendancePercentage: number;
   assignedCounsellorId: string;
+  batch: string;
+  programme: string;
+  course: string;
+  semester: number;
+  year: number;
+  section: string;
+  mobile: string;
+  email: string;
+  gender: string;
 }
 
 export interface DepartmentCounsellor {

@@ -29,6 +29,7 @@ import { Route as ErpAssignmentRouteImport } from './routes/erp/assignment'
 import { Route as ErpBookVerificationFormRouteImport } from './routes/erp/book-verification-form'
 import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
 import { Route as ErpFeesRouteImport } from './routes/erp/fees'
+import { Route as ErpHodRouteImport } from './routes/erp/hod'
 import { Route as ErpLeaveRouteImport } from './routes/erp/leave'
 import { Route as ErpLeaveRequestsRouteImport } from './routes/erp/leave-requests'
 import { Route as ErpLoginRouteImport } from './routes/erp.login'
@@ -40,7 +41,9 @@ import { Route as ErpTimetableRouteImport } from './routes/erp/timetable'
 import { Route as LoginHodRouteImport } from './routes/login.hod'
 import { Route as LoginStaffRouteImport } from './routes/login.staff'
 import { Route as LoginStudentRouteImport } from './routes/login.student'
+import { Route as ErpStaffHistoryRouteImport } from './routes/erp/staff.history'
 import { Route as ErpStaffLeaveRouteImport } from './routes/erp/staff.leave'
+import { Route as ErpStaffStudentsRouteImport } from './routes/erp/staff.students'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -142,6 +145,11 @@ const ErpFeesRoute = ErpFeesRouteImport.update({
   path: '/fees',
   getParentRoute: () => ErpRouteRoute,
 } as any)
+const ErpHodRoute = ErpHodRouteImport.update({
+  id: '/hod',
+  path: '/hod',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
 const ErpLeaveRoute = ErpLeaveRouteImport.update({
   id: '/leave',
   path: '/leave',
@@ -197,9 +205,19 @@ const LoginStudentRoute = LoginStudentRouteImport.update({
   path: '/login/student',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErpStaffHistoryRoute = ErpStaffHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
 const ErpStaffLeaveRoute = ErpStaffLeaveRouteImport.update({
   id: '/leave',
   path: '/leave',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
+const ErpStaffStudentsRoute = ErpStaffStudentsRouteImport.update({
+  id: '/students',
+  path: '/students',
   getParentRoute: () => ErpStaffRoute,
 } as any)
 
@@ -224,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/fees': typeof ErpFeesRoute
+  '/erp/hod': typeof ErpHodRoute
   '/erp/leave': typeof ErpLeaveRoute
   '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
@@ -235,7 +254,9 @@ export interface FileRoutesByFullPath {
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
+  '/erp/staff/students': typeof ErpStaffStudentsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -258,6 +279,7 @@ export interface FileRoutesByTo {
   '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/fees': typeof ErpFeesRoute
+  '/erp/hod': typeof ErpHodRoute
   '/erp/leave': typeof ErpLeaveRoute
   '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
@@ -269,7 +291,9 @@ export interface FileRoutesByTo {
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
+  '/erp/staff/students': typeof ErpStaffStudentsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -293,6 +317,7 @@ export interface FileRoutesById {
   '/erp/book-verification-form': typeof ErpBookVerificationFormRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/fees': typeof ErpFeesRoute
+  '/erp/hod': typeof ErpHodRoute
   '/erp/leave': typeof ErpLeaveRoute
   '/erp/leave-requests': typeof ErpLeaveRequestsRoute
   '/erp/login': typeof ErpLoginRoute
@@ -304,7 +329,9 @@ export interface FileRoutesById {
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
+  '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
+  '/erp/staff/students': typeof ErpStaffStudentsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -329,6 +356,7 @@ export interface FileRouteTypes {
     | '/erp/book-verification-form'
     | '/erp/dashboard'
     | '/erp/fees'
+    | '/erp/hod'
     | '/erp/leave'
     | '/erp/leave-requests'
     | '/erp/login'
@@ -340,7 +368,9 @@ export interface FileRouteTypes {
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/staff/history'
     | '/erp/staff/leave'
+    | '/erp/staff/students'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -363,6 +393,7 @@ export interface FileRouteTypes {
     | '/erp/book-verification-form'
     | '/erp/dashboard'
     | '/erp/fees'
+    | '/erp/hod'
     | '/erp/leave'
     | '/erp/leave-requests'
     | '/erp/login'
@@ -374,7 +405,9 @@ export interface FileRouteTypes {
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/staff/history'
     | '/erp/staff/leave'
+    | '/erp/staff/students'
   id:
     | '__root__'
     | '/'
@@ -397,6 +430,7 @@ export interface FileRouteTypes {
     | '/erp/book-verification-form'
     | '/erp/dashboard'
     | '/erp/fees'
+    | '/erp/hod'
     | '/erp/leave'
     | '/erp/leave-requests'
     | '/erp/login'
@@ -408,7 +442,9 @@ export interface FileRouteTypes {
     | '/login/hod'
     | '/login/staff'
     | '/login/student'
+    | '/erp/staff/history'
     | '/erp/staff/leave'
+    | '/erp/staff/students'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -572,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpFeesRouteImport
       parentRoute: typeof ErpRouteRoute
     }
+    '/erp/hod': {
+      id: '/erp/hod'
+      path: '/hod'
+      fullPath: '/erp/hod'
+      preLoaderRoute: typeof ErpHodRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
     '/erp/leave': {
       id: '/erp/leave'
       path: '/leave'
@@ -649,6 +692,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginStudentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/erp/staff/history': {
+      id: '/erp/staff/history'
+      path: '/history'
+      fullPath: '/erp/staff/history'
+      preLoaderRoute: typeof ErpStaffHistoryRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
     '/erp/staff/leave': {
       id: '/erp/staff/leave'
       path: '/leave'
@@ -656,15 +706,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpStaffLeaveRouteImport
       parentRoute: typeof ErpStaffRoute
     }
+    '/erp/staff/students': {
+      id: '/erp/staff/students'
+      path: '/students'
+      fullPath: '/erp/staff/students'
+      preLoaderRoute: typeof ErpStaffStudentsRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
   }
 }
 
 interface ErpStaffRouteChildren {
+  ErpStaffHistoryRoute: typeof ErpStaffHistoryRoute
   ErpStaffLeaveRoute: typeof ErpStaffLeaveRoute
+  ErpStaffStudentsRoute: typeof ErpStaffStudentsRoute
 }
 
 const ErpStaffRouteChildren: ErpStaffRouteChildren = {
+  ErpStaffHistoryRoute: ErpStaffHistoryRoute,
   ErpStaffLeaveRoute: ErpStaffLeaveRoute,
+  ErpStaffStudentsRoute: ErpStaffStudentsRoute,
 }
 
 const ErpStaffRouteWithChildren = ErpStaffRoute._addFileChildren(
@@ -676,6 +737,7 @@ interface ErpRouteRouteChildren {
   ErpBookVerificationFormRoute: typeof ErpBookVerificationFormRoute
   ErpDashboardRoute: typeof ErpDashboardRoute
   ErpFeesRoute: typeof ErpFeesRoute
+  ErpHodRoute: typeof ErpHodRoute
   ErpLeaveRoute: typeof ErpLeaveRoute
   ErpLeaveRequestsRoute: typeof ErpLeaveRequestsRoute
   ErpLoginRoute: typeof ErpLoginRoute
@@ -691,6 +753,7 @@ const ErpRouteRouteChildren: ErpRouteRouteChildren = {
   ErpBookVerificationFormRoute: ErpBookVerificationFormRoute,
   ErpDashboardRoute: ErpDashboardRoute,
   ErpFeesRoute: ErpFeesRoute,
+  ErpHodRoute: ErpHodRoute,
   ErpLeaveRoute: ErpLeaveRoute,
   ErpLeaveRequestsRoute: ErpLeaveRequestsRoute,
   ErpLoginRoute: ErpLoginRoute,

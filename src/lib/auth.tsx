@@ -57,8 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     (role: Role, identifier: string, pin: string) => {
-      if (!identifier.trim() || !/^\d{4}$/.test(pin)) {
-        throw new Error("Enter an ID and a four-digit PIN to sign in.");
+      if (!identifier.trim()) throw new Error("Enter your ID to sign in.");
+      if (role === "STUDENT" && !/^\d{4}$/.test(pin)) {
+        throw new Error("Enter a four-digit PIN to sign in.");
+      }
+      if (role !== "STUDENT" && !pin.trim()) {
+        throw new Error("Enter your password to sign in.");
       }
       const demoUser = getDemoUser(role);
       const signedInUser =
@@ -67,7 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ...demoUser,
               identifier: identifier.trim(),
             }
-          : demoUser;
+          : {
+              ...demoUser,
+              identifier: identifier.trim().toUpperCase(),
+            };
       setCurrentUser(signedInUser);
       setAuthToken(`mock-session-${signedInUser.identifier}`);
       setUser(signedInUser);
