@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useLeaveRequests } from "@/lib/leave-store";
 import { demoAssignedStudents, demoDepartmentCounsellors } from "@/mock/staff-dashboard";
+import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/erp/staff")({
+  beforeLoad: requireAuth,
+  shouldReload: true,
   component: StaffDashboard,
   head: () => ({ meta: [{ title: "Staff dashboard | Student ERP" }] }),
 });

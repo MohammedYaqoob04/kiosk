@@ -33,12 +33,12 @@ function history(
   return events;
 }
 
-let requests: LeaveRequest[] = [
+const initialRequests: LeaveRequest[] = [
   {
     id: "leave-demo-1",
     type: "LEAVE",
-    studentName: "Aarav Placeholder",
-    registerNo: "9999900001",
+    studentName: "Sample Student",
+    registerNo: "510000000001",
     department: "AIDS / A",
     fromDate: "2026-10-06",
     toDate: "2026-10-07",
@@ -51,8 +51,8 @@ let requests: LeaveRequest[] = [
   {
     id: "leave-demo-2",
     type: "OD",
-    studentName: "Meera Sample",
-    registerNo: "9999900002",
+    studentName: "Sample Student",
+    registerNo: "510000000002",
     department: "AIDS / A",
     fromDate: "2026-10-08",
     toDate: "2026-10-08",
@@ -65,8 +65,8 @@ let requests: LeaveRequest[] = [
   {
     id: "leave-demo-3",
     type: "LEAVE",
-    studentName: "Kavin Example",
-    registerNo: "9999900003",
+    studentName: "Sample Student",
+    registerNo: "510000000003",
     department: "AIDS / A",
     fromDate: "2026-09-30",
     toDate: "2026-10-01",
@@ -79,8 +79,8 @@ let requests: LeaveRequest[] = [
   {
     id: "leave-demo-4",
     type: "OD",
-    studentName: "Tara Example",
-    registerNo: "9999900004",
+    studentName: "Sample Student",
+    registerNo: "510000000004",
     department: "AIDS / A",
     fromDate: "2026-09-25",
     toDate: "2026-09-25",
@@ -93,8 +93,8 @@ let requests: LeaveRequest[] = [
   {
     id: "leave-demo-5",
     type: "LEAVE",
-    studentName: "Nila Sample",
-    registerNo: "9999900005",
+    studentName: "Sample Student",
+    registerNo: "510000000005",
     department: "AIDS / A",
     fromDate: "2026-10-10",
     toDate: "2026-10-11",
@@ -105,9 +105,15 @@ let requests: LeaveRequest[] = [
     assignedCounsellorId: "9999900102",
   },
 ];
+let requests: LeaveRequest[] = [...initialRequests];
 
 function emitChange() {
   listeners.forEach((listener) => listener());
+}
+
+export function resetLeaveRequests(): void {
+  requests = [...initialRequests];
+  emitChange();
 }
 
 export function nextStatus(

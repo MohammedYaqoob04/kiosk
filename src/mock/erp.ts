@@ -14,11 +14,11 @@ import type {
 
 export const demoStudent: Student = {
   id: "demo-student",
-  name: "Aarav Placeholder",
+  name: "Sample Student",
   role: "STUDENT",
-  identifier: "9999900001",
-  registerNumber: "9999900001",
-  department: "AIDS / A",
+  identifier: "510000000001",
+  registerNumber: "510000000001",
+  department: "Computer Science and Engineering",
   year: "2023-2027",
 };
 

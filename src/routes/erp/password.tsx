@@ -1,99 +1,176 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, LockKeyhole, ShieldCheck } from "lucide-react";
 
+import { api } from "@/api";
 import { KeypadInput } from "@/components/KeypadInput";
-import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { PageBanner } from "@/components/erp/PageBanner";
+import { useAuth } from "@/lib/auth-context";
+import { requireAuth } from "@/lib/require-auth";
+
+type PasswordField = "current" | "next" | "confirm";
 
 export const Route = createFileRoute("/erp/password")({
+  beforeLoad: requireAuth,
+  shouldReload: true,
   component: ChangePassword,
+  head: () => ({ meta: [{ title: "Change Password | Student ERP" }] }),
 });
 
 function ChangePassword() {
+  const { user, completePasswordChange } = useAuth();
+  const navigate = useNavigate();
+  const forced = user?.mustChangePassword === true;
+  const [activeField, setActiveField] = useState<PasswordField>("current");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const passwordsMatch = newPassword.length === 4 && newPassword === confirmPassword;
-  const canSubmit =
-    currentPassword.length === 4 && passwordsMatch && newPassword !== currentPassword;
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = () => {
+  const values: Record<PasswordField, string> = {
+    current: currentPassword,
+    next: newPassword,
+    confirm: confirmPassword,
+  };
+  const setValue = (field: PasswordField, value: string) => {
+    if (field === "current") setCurrentPassword(value);
+    if (field === "next") setNewPassword(value);
+    if (field === "confirm") setConfirmPassword(value);
+    setError("");
+    setSuccess(false);
+  };
+
+  const newPasswordValid = /^\d{6,8}$/.test(newPassword);
+  const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const canSubmit =
+    /^\d{4,8}$/.test(currentPassword) &&
+    newPasswordValid &&
+    passwordsMatch &&
+    newPassword !== currentPassword &&
+    !submitting;
+
+  useEffect(() => {
+    if (!success || !forced) return;
+    const timeout = window.setTimeout(() => {
+      completePasswordChange();
+      void navigate({
+        to: user?.role === "STUDENT" ? "/erp/dashboard" : "/erp/staff",
+        replace: true,
+      });
+    }, 1200);
+    return () => window.clearTimeout(timeout);
+  }, [completePasswordChange, forced, navigate, success, user?.role]);
+
+  const submit = async () => {
     if (!canSubmit) return;
-    setMessage("Password updated for this demo session.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    setSubmitting(true);
+    setError("");
+    try {
+      const result = await api.changePassword(currentPassword, newPassword);
+      if (!result.changed) {
+        setError("Password could not be changed. Please try again.");
+        return;
+      }
+      setSuccess(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to update password.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const labels: Record<PasswordField, string> = {
+    current: "Current Password",
+    next: "New Password",
+    confirm: "Confirm Password",
   };
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-8 sm:py-8">
-      <PageHeader
-        title="Change password"
-        description="Demo password update · Use the on-screen keypad"
-      />
-      <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <KeypadInput
-            label="Current password"
-            value={currentPassword}
-            onChange={(value) => {
-              setCurrentPassword(value);
-              setMessage("");
-            }}
-            maxLength={4}
-            masked
-            placeholder="4 digits"
-          />
-          <KeypadInput
-            label="New password"
-            value={newPassword}
-            onChange={(value) => {
-              setNewPassword(value);
-              setMessage("");
-            }}
-            maxLength={4}
-            masked
-            placeholder="4 digits"
-          />
-          <KeypadInput
-            label="Confirm new password"
-            value={confirmPassword}
-            onChange={(value) => {
-              setConfirmPassword(value);
-              setMessage("");
-            }}
-            maxLength={4}
-            masked
-            placeholder="4 digits"
-          />
+    <div className={`erp-password-layout ${forced ? "is-forced" : ""}`}>
+      <section className="erp-password-fields">
+        <div className="erp-password-heading">
+          {forced ? (
+            <>
+              <ShieldCheck aria-hidden="true" className="size-7 text-rose-300" strokeWidth={1.5} />
+              <h1 className="font-display text-2xl font-semibold text-foreground">
+                Set your password
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Choose a new 6–8 digit password to continue.
+              </p>
+            </>
+          ) : (
+            <PageBanner
+              title="Change Password"
+              subtitle="Use 6 to 8 digits for your new password"
+              icon={LockKeyhole}
+            />
+          )}
         </div>
-        {confirmPassword.length === 4 && !passwordsMatch && (
-          <p role="alert" className="mt-4 text-lg text-destructive">
-            The new password and confirmation do not match.
-          </p>
+        <div className="grid gap-2">
+          {(["current", "next", "confirm"] as const).map((field) => (
+            <button
+              key={field}
+              type="button"
+              aria-pressed={activeField === field}
+              onClick={() => {
+                setActiveField(field);
+                setError("");
+              }}
+              className={`erp-password-field ${activeField === field ? "is-active" : ""}`}
+            >
+              <span className="text-sm text-muted-foreground">{labels[field]}</span>
+              <span className="font-display text-lg tracking-[0.2em] text-foreground">
+                {"●".repeat(values[field].length) || "Tap to enter"}
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          New password must contain 6–8 digits, match the confirmation, and differ from the current
+          password.
+        </p>
+        {!forced && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void navigate({ to: "/erp/profile" })}
+            className="min-h-14 w-fit gap-2 px-5 text-base"
+          >
+            <ArrowLeft aria-hidden="true" className="size-5" />
+            Cancel
+          </Button>
         )}
-        {newPassword.length === 4 && newPassword === currentPassword && (
-          <p role="alert" className="mt-4 text-lg text-destructive">
-            Choose a new password different from the current password.
-          </p>
-        )}
+      </section>
+
+      <section className="erp-password-keypad">
+        <KeypadInput
+          label={labels[activeField]}
+          value={values[activeField]}
+          onChange={(value) => setValue(activeField, value)}
+          maxLength={8}
+          masked
+          placeholder={activeField === "current" ? "Current password" : "6–8 digits"}
+        />
         <Button
           type="button"
-          onClick={submit}
+          onClick={() => void submit()}
           disabled={!canSubmit}
-          className="mt-6 min-h-14 w-full text-lg font-semibold sm:w-auto sm:px-8"
+          className="min-h-14 w-full text-lg font-semibold"
         >
-          Update password
+          {submitting ? "Updating…" : "Update Password"}
         </Button>
-        {message && (
-          <p role="status" className="mt-4 text-lg font-medium text-primary">
-            {message}
+        <p role="alert" className="erp-password-message">
+          {error}
+        </p>
+        {success && (
+          <p role="status" className="text-base font-semibold text-emerald-300">
+            Password updated successfully.
           </p>
         )}
-        <p className="mt-4 text-lg text-muted-foreground">
-          This demo confirms the change on screen only. No password is stored or sent.
-        </p>
       </section>
     </div>
   );

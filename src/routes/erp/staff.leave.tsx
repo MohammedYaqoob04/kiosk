@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { decideLeaveRequest, useLeaveRequests } from "@/lib/leave-store";
 import type { LeaveDecision } from "@/types/leave";
+import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/erp/staff/leave")({
+  beforeLoad: requireAuth,
+  shouldReload: true,
   component: StaffLeaveQueue,
   head: () => ({ meta: [{ title: "Leave requests | Staff ERP" }] }),
 });

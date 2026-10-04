@@ -7,12 +7,15 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { createLeaveRequest, useLeaveRequests } from "@/lib/leave-store";
+import { requireAuth } from "@/lib/require-auth";
 import type { LeaveRequestType } from "@/types/leave";
 
 const reasonChoices = ["Medical", "Family function", "Other"] as const;
 const timelineStages = ["Submitted", "Counsellor", "HOD", "Final"] as const;
 
 export const Route = createFileRoute("/erp/leave")({
+  beforeLoad: requireAuth,
+  shouldReload: true,
   component: StudentLeavePage,
   head: () => ({ meta: [{ title: "Leave and OD | Student ERP" }] }),
 });

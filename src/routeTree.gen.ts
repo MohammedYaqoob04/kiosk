@@ -11,12 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as CampusRouteImport } from './routes/campus'
 import { Route as CampusNavigationRouteImport } from './routes/campus-navigation'
 import { Route as CoeRouteImport } from './routes/coe'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as ErpRouteRouteImport } from './routes/erp/route'
 import { Route as FacilitiesRouteImport } from './routes/facilities'
+import { Route as FacultyRouteImport } from './routes/faculty'
+import { Route as FacultyDirectoryRouteImport } from './routes/faculty-directory'
+import { Route as MenuRouteImport } from './routes/menu'
 import { Route as NoticesRouteImport } from './routes/notices'
 import { Route as CoeLoginRouteImport } from './routes/coe/login'
 import { Route as CoePortalRouteImport } from './routes/coe/portal'
@@ -48,6 +52,11 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampusRoute = CampusRouteImport.update({
+  id: '/campus',
+  path: '/campus',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CampusNavigationRoute = CampusNavigationRouteImport.update({
   id: '/campus-navigation',
   path: '/campus-navigation',
@@ -76,6 +85,21 @@ const ErpRouteRoute = ErpRouteRouteImport.update({
 const FacilitiesRoute = FacilitiesRouteImport.update({
   id: '/facilities',
   path: '/facilities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyRoute = FacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyDirectoryRoute = FacultyDirectoryRouteImport.update({
+  id: '/faculty-directory',
+  path: '/faculty-directory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MenuRoute = MenuRouteImport.update({
+  id: '/menu',
+  path: '/menu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NoticesRoute = NoticesRouteImport.update({
@@ -183,11 +207,15 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/campus': typeof CampusRoute
   '/campus-navigation': typeof CampusNavigationRoute
   '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRoute
   '/facilities': typeof FacilitiesRoute
+  '/faculty': typeof FacultyRoute
+  '/faculty-directory': typeof FacultyDirectoryRoute
+  '/menu': typeof MenuRoute
   '/notices': typeof NoticesRoute
   '/coe/login': typeof CoeLoginRoute
   '/coe/portal': typeof CoePortalRoute
@@ -213,11 +241,15 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/campus': typeof CampusRoute
   '/campus-navigation': typeof CampusNavigationRoute
   '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRoute
   '/facilities': typeof FacilitiesRoute
+  '/faculty': typeof FacultyRoute
+  '/faculty-directory': typeof FacultyDirectoryRoute
+  '/menu': typeof MenuRoute
   '/notices': typeof NoticesRoute
   '/coe/login': typeof CoeLoginRoute
   '/coe/portal': typeof CoePortalRoute
@@ -244,11 +276,15 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/campus': typeof CampusRoute
   '/campus-navigation': typeof CampusNavigationRoute
   '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRoute
   '/facilities': typeof FacilitiesRoute
+  '/faculty': typeof FacultyRoute
+  '/faculty-directory': typeof FacultyDirectoryRoute
+  '/menu': typeof MenuRoute
   '/notices': typeof NoticesRoute
   '/coe/login': typeof CoeLoginRoute
   '/coe/portal': typeof CoePortalRoute
@@ -276,11 +312,15 @@ export interface FileRouteTypes {
     | '/'
     | '/erp'
     | '/about'
+    | '/campus'
     | '/campus-navigation'
     | '/coe'
     | '/contact'
     | '/departments'
     | '/facilities'
+    | '/faculty'
+    | '/faculty-directory'
+    | '/menu'
     | '/notices'
     | '/coe/login'
     | '/coe/portal'
@@ -306,11 +346,15 @@ export interface FileRouteTypes {
     | '/'
     | '/erp'
     | '/about'
+    | '/campus'
     | '/campus-navigation'
     | '/coe'
     | '/contact'
     | '/departments'
     | '/facilities'
+    | '/faculty'
+    | '/faculty-directory'
+    | '/menu'
     | '/notices'
     | '/coe/login'
     | '/coe/portal'
@@ -336,11 +380,15 @@ export interface FileRouteTypes {
     | '/'
     | '/erp'
     | '/about'
+    | '/campus'
     | '/campus-navigation'
     | '/coe'
     | '/contact'
     | '/departments'
     | '/facilities'
+    | '/faculty'
+    | '/faculty-directory'
+    | '/menu'
     | '/notices'
     | '/coe/login'
     | '/coe/portal'
@@ -367,11 +415,15 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ErpRouteRoute: typeof ErpRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
+  CampusRoute: typeof CampusRoute
   CampusNavigationRoute: typeof CampusNavigationRoute
   CoeRoute: typeof CoeRouteWithChildren
   ContactRoute: typeof ContactRoute
   DepartmentsRoute: typeof DepartmentsRoute
   FacilitiesRoute: typeof FacilitiesRoute
+  FacultyRoute: typeof FacultyRoute
+  FacultyDirectoryRoute: typeof FacultyDirectoryRoute
+  MenuRoute: typeof MenuRoute
   NoticesRoute: typeof NoticesRoute
   LoginHodRoute: typeof LoginHodRoute
   LoginStaffRoute: typeof LoginStaffRoute
@@ -392,6 +444,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campus': {
+      id: '/campus'
+      path: '/campus'
+      fullPath: '/campus'
+      preLoaderRoute: typeof CampusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campus-navigation': {
@@ -434,6 +493,27 @@ declare module '@tanstack/react-router' {
       path: '/facilities'
       fullPath: '/facilities'
       preLoaderRoute: typeof FacilitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty': {
+      id: '/faculty'
+      path: '/faculty'
+      fullPath: '/faculty'
+      preLoaderRoute: typeof FacultyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty-directory': {
+      id: '/faculty-directory'
+      path: '/faculty-directory'
+      fullPath: '/faculty-directory'
+      preLoaderRoute: typeof FacultyDirectoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/menu': {
+      id: '/menu'
+      path: '/menu'
+      fullPath: '/menu'
+      preLoaderRoute: typeof MenuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notices': {
@@ -643,11 +723,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ErpRouteRoute: ErpRouteRouteWithChildren,
   AboutRoute: AboutRoute,
+  CampusRoute: CampusRoute,
   CampusNavigationRoute: CampusNavigationRoute,
   CoeRoute: CoeRouteWithChildren,
   ContactRoute: ContactRoute,
   DepartmentsRoute: DepartmentsRoute,
   FacilitiesRoute: FacilitiesRoute,
+  FacultyRoute: FacultyRoute,
+  FacultyDirectoryRoute: FacultyDirectoryRoute,
+  MenuRoute: MenuRoute,
   NoticesRoute: NoticesRoute,
   LoginHodRoute: LoginHodRoute,
   LoginStaffRoute: LoginStaffRoute,

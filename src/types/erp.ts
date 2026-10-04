@@ -7,6 +7,7 @@ export interface User {
   identifier: string;
   department: string;
   year: string;
+  mustChangePassword?: boolean;
 }
 
 export interface Student extends User {

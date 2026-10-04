@@ -3,11 +3,14 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { PageHeader } from "@/components/PageHeader";
 import { demoTimetable } from "@/mock/erp";
+import { requireAuth } from "@/lib/require-auth";
 
 const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
 const periods = [1, 2, 3, 4, 5, 6, 7] as const;
 
 export const Route = createFileRoute("/erp/timetable")({
+  beforeLoad: requireAuth,
+  shouldReload: true,
   component: TimetablePage,
   head: () => ({ meta: [{ title: "Timetable | Student ERP" }] }),
 });

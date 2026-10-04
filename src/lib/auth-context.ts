@@ -6,8 +6,15 @@ export interface AuthContextValue {
   user: User | null;
   login: (role: Role, identifier: string, pin: string) => void;
   logout: () => void;
+  completePasswordChange: () => void;
   warningOpen: boolean;
   staySignedIn: () => void;
+  largeText: boolean;
+  highContrast: boolean;
+  extendedTimeout: boolean;
+  setLargeText: (enabled: boolean) => void;
+  setHighContrast: (enabled: boolean) => void;
+  setExtendedTimeout: (enabled: boolean) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
