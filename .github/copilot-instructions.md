@@ -37,4 +37,4 @@ Project: touch-screen college kiosk + student ERP for Arunai Engineering College
 
 - Student username: exactly 12 digits, must start with 5104 (regex ^5104\d{8}$), e.g. 510423243001. Password: ddmm (4 digits).
 - Leave/OD flow: Student -> Counsellor -> HOD. Counsellor reject = final, never reaches HOD. Rejection by counsellor or HOD REQUIRES a reason (min 10 chars). OD requires an uploaded official letter.
-- Test sizes: 1920x1080, 1366x768, 390x844, 844x390.
+- Test sizes: 1920x1080, 1366x768 (touch kiosk only; mobile later)
