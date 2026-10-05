@@ -72,6 +72,7 @@ function ErpLogin() {
   const [nativeTextInput, setNativeTextInput] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 899px)").matches,
   );
+  const [staffPasswordVisible, setStaffPasswordVisible] = useState(false);
   const details = roleDetails[role];
   const isStudent = role === "student";
 
@@ -112,7 +113,7 @@ function ErpLogin() {
   const goBack = () => void navigate({ to: "/erp", replace: true });
 
   const setIdentifierValue = (value: string) => {
-    setIdentifier(isStudent ? value : value.toUpperCase());
+    setIdentifier(value);
     setError("");
   };
 
@@ -180,74 +181,60 @@ function ErpLogin() {
         </div>
 
         <div className="erp-login-fields">
-          {isStudent ? (
-            <>
-              <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
-                {details.identifierLabel}
-                <input
-                  aria-label={details.identifierLabel}
-                  className={`erp-login-input ${activeField === "identifier" ? "is-selected" : ""}`}
-                  inputMode="none"
-                  readOnly
-                  value={identifier}
-                  onClick={() => setActiveField("identifier")}
-                />
-              </label>
-              <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
-                {details.credentialLabel}
-                <input
-                  aria-label={details.credentialLabel}
-                  className={`erp-login-input ${activeField === "pin" ? "is-selected" : ""}`}
-                  inputMode="none"
-                  readOnly
-                  value={"●".repeat(credential.length)}
-                  onClick={() => setActiveField("pin")}
-                />
-              </label>
-            </>
-          ) : (
-            <>
-              <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
-                {details.identifierLabel}
-                <input
-                  aria-label={details.identifierLabel}
-                  className={`erp-login-input kiosk-text-input ${activeField === "identifier" ? "is-selected" : ""}`}
-                  type="text"
-                  inputMode={nativeTextInput ? "text" : "none"}
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  data-1p-ignore="true"
-                  data-bwignore="true"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  name="kiosk-identifier"
-                  readOnly={!nativeTextInput}
-                  value={identifier}
-                  onClick={() => setActiveField("identifier")}
-                  onChange={(event) => setIdentifierValue(event.currentTarget.value)}
-                />
-              </label>
-              <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
-                {details.credentialLabel}
-                <input
-                  aria-label={details.credentialLabel}
-                  className={`erp-login-input kiosk-text-input ${activeField === "pin" ? "is-selected" : ""}`}
-                  type="password"
-                  inputMode={nativeTextInput ? "text" : "none"}
-                  autoComplete="off"
-                  data-1p-ignore="true"
-                  data-bwignore="true"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  name="kiosk-credential"
-                  readOnly={!nativeTextInput}
-                  value={credential}
-                  onClick={() => setActiveField("pin")}
-                  onChange={(event) => setCredentialValue(event.currentTarget.value)}
-                />
-              </label>
-            </>
-          )}
+          <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
+            {details.identifierLabel}
+            <input
+              aria-label={details.identifierLabel}
+              className={`erp-login-input kiosk-text-input ${activeField === "identifier" ? "is-selected" : ""}`}
+              type="text"
+              inputMode={nativeTextInput ? "text" : "none"}
+              autoCapitalize="none"
+              autoComplete="off"
+              data-1p-ignore="true"
+              data-bwignore="true"
+              data-lpignore="true"
+              data-form-type="other"
+              name="kiosk-identifier"
+              readOnly={!nativeTextInput}
+              value={identifier}
+              onClick={() => setActiveField("identifier")}
+              onChange={(event) => setIdentifierValue(event.currentTarget.value)}
+            />
+          </label>
+          <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
+            {details.credentialLabel}
+            <div className="relative flex items-center">
+              <input
+                aria-label={details.credentialLabel}
+                className={`erp-login-input kiosk-text-input w-full pr-12 ${activeField === "pin" ? "is-selected" : ""}`}
+                type={staffPasswordVisible ? "text" : "password"}
+                inputMode={nativeTextInput ? "text" : "none"}
+                autoCapitalize="none"
+                autoComplete="off"
+                data-1p-ignore="true"
+                data-bwignore="true"
+                data-lpignore="true"
+                data-form-type="other"
+                name="kiosk-credential"
+                readOnly={!nativeTextInput}
+                value={credential}
+                onClick={() => setActiveField("pin")}
+                onChange={(event) => setCredentialValue(event.currentTarget.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setStaffPasswordVisible((v) => !v)}
+                className="absolute right-3 grid size-9 place-items-center text-muted-foreground hover:text-foreground"
+                aria-label={staffPasswordVisible ? "Hide password" : "Show password"}
+              >
+                {staffPasswordVisible ? (
+                  <EyeOff aria-hidden="true" className="size-5" />
+                ) : (
+                  <Eye aria-hidden="true" className="size-5" />
+                )}
+              </button>
+            </div>
+          </label>
         </div>
       </section>
 
@@ -259,13 +246,17 @@ function ErpLogin() {
           submit();
         }}
       >
-        <div className="kiosk-keyboard-desktop">
+        <div className="kiosk-keyboard-desktop w-full">
           <KioskKeyboard
+            layout="full"
             shift={shift}
             onShift={() => setShift((current) => !current)}
             onCharacter={appendText}
             onBackspace={backspace}
             onClear={clearActive}
+            isPassword={activeField === "pin"}
+            passwordVisible={staffPasswordVisible}
+            onTogglePassword={() => setStaffPasswordVisible((v) => !v)}
           />
         </div>
         <Button
@@ -311,14 +302,23 @@ function StudentLogin({
   };
   const [loading, setLoading] = useState(false);
 
-  const appendDigit = (digit: string) => {
+  const appendCharacter = (char: string) => {
     if (activeField === "identifier") {
-      setRegisterSuffix((value) => (value.length < 8 ? `${value}${digit}` : value));
+      if (/^\d$/.test(char)) {
+        setRegisterSuffix((value) => {
+          const next = value.length < 8 ? `${value}${char}` : value;
+          if (next.length === 8) {
+            setActiveField("pin");
+          }
+          return next;
+        });
+      }
     } else {
-      setPassword((value) => (value.length < 32 ? `${value}${digit}` : value));
+      setPassword((value) => (value.length < 32 ? `${value}${char}` : value));
     }
     setError("");
   };
+
   const canSubmit = registerSuffix.length === 8 && password.length >= 4 && !loading;
 
   const submit = async () => {
@@ -329,7 +329,7 @@ function StudentLogin({
       return;
     }
     if (password.length < 4) {
-      setError("Password must be at least 4 digits");
+      setError("Password must be at least 4 characters");
       return;
     }
     setLoading(true);
@@ -367,7 +367,7 @@ function StudentLogin({
             <span>1</span> Enter register number
           </li>
           <li>
-            <span>2</span> Enter DOB as DDMM
+            <span>2</span> Enter DOB (DDMMYYYY or DD-MM-YYYY)
           </li>
           <li>
             <span>3</span> Sign in
@@ -405,23 +405,28 @@ function StudentLogin({
 
         <div className="student-login-field student-password-field">
           <label htmlFor="student-password" className="font-semibold text-foreground">
-            Password = birth date and month, e.g. 0105
+            Password = date of birth (e.g. 14052006 or 14-05-2006)
           </label>
           <div className="student-password-box">
             <button
               id="student-password"
               type="button"
               onClick={() => setField("pin")}
-              aria-label="Password, 4 digits"
+              aria-label="Password: date of birth"
               aria-pressed={activeField === "pin"}
-              className={`student-password-cells ${activeField === "pin" ? "is-selected" : ""}`}
+              className={`student-password-cells px-4 font-display text-xl tracking-wider ${activeField === "pin" ? "is-selected" : ""}`}
             >
-              {Array.from({ length: Math.max(4, password.length) }, (_, index) => (
-                <span key={index} className="student-password-cell">
-                  {passwordVisible ? (password[index] ?? "") : password[index] ? "●" : ""}
+              {password ? (
+                passwordVisible ? (
+                  password
+                ) : (
+                  "●".repeat(password.length)
+                )
+              ) : (
+                <span className="text-muted-foreground font-sans text-sm tracking-normal">
+                  DDMMYYYY or DD-MM-YYYY
                 </span>
-              ))}
-              {!password && <span className="student-password-hint">DDMM</span>}
+              )}
             </button>
             <button
               type="button"
@@ -433,57 +438,21 @@ function StudentLogin({
               {passwordVisible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
             </button>
           </div>
-          {attempted && password.length !== 4 && (
-            <span className="text-sm text-destructive">Password must be 4 digits (DDMM)</span>
+          {attempted && password.length < 4 && (
+            <span className="text-sm text-destructive">Password must be at least 4 characters</span>
           )}
         </div>
 
-        <div className="student-login-keypad" aria-label="Numeric keypad">
-          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
-            <button
-              key={digit}
-              type="button"
-              className="erp-login-key"
-              onClick={() => {
-                appendDigit(digit);
-                if (activeField === "identifier" && registerSuffix.length === 7)
-                  setActiveField("pin");
-              }}
-              aria-label={`Enter ${digit}`}
-            >
-              {digit}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="erp-login-key erp-login-key-action"
-            onClick={clear}
-            aria-label="Clear selected field"
-          >
-            <RotateCcw aria-hidden="true" className="size-5" />
-            <span className="student-key-label">Clear</span>
-          </button>
-          <button
-            type="button"
-            className="erp-login-key"
-            onClick={() => {
-              appendDigit("0");
-              if (activeField === "identifier" && registerSuffix.length === 7)
-                setActiveField("pin");
-            }}
-            aria-label="Enter 0"
-          >
-            0
-          </button>
-          <button
-            type="button"
-            className="erp-login-key erp-login-key-action"
-            onClick={backspace}
-            aria-label="Delete last digit"
-          >
-            <Delete aria-hidden="true" className="size-5" />
-            <span className="student-key-label">Backspace</span>
-          </button>
+        <div className="student-login-keypad-wrapper w-full">
+          <KioskKeyboard
+            layout="numeric"
+            onCharacter={appendCharacter}
+            onBackspace={backspace}
+            onClear={clear}
+            isPassword={activeField === "pin"}
+            passwordVisible={passwordVisible}
+            onTogglePassword={() => setPasswordVisible((v) => !v)}
+          />
         </div>
         <Button type="submit" disabled={!canSubmit} className="student-login-submit">
           Sign in <ArrowRight aria-hidden="true" />

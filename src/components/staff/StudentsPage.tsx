@@ -1,58 +1,52 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, UsersRound } from "lucide-react";
 
 import { TouchTextInput } from "@/components/TouchTextInput";
 import { PageBanner } from "@/components/erp/PageBanner";
-import { useAuth } from "@/lib/auth-context";
-import { getRequestsSnapshot, subscribeToRequests } from "@/lib/leaveStore";
-import { ATTENDANCE_MIN, getStudentSummary, listStudents } from "@/lib/staffData";
-import type { Request, Status } from "@/types/leave";
+import { ATTENDANCE_MIN } from "@/lib/staffData";
+import { api } from "@/api";
+import { useApi } from "@/api/use-api";
 
 interface StudentsPageProps {
   regNo: string | undefined;
   onBack: () => void;
 }
 
-function isPending(status: Status): boolean {
-  return status === "PENDING_COUNSELLOR" || status === "PENDING_HOD";
-}
-
-function statusLabel(status: Status): string {
+function statusLabel(status: string): string {
   return status
     .replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function rejectionReason(request: Request): string | undefined {
-  if (request.status === "REJECTED_BY_COUNSELLOR") return request.counsellorDecision?.remark;
-  if (request.status === "REJECTED_BY_HOD") return request.hodDecision?.remark;
-  return undefined;
-}
-
-function requestDate(request: Request): number {
-  return Date.parse(request.createdAt);
-}
-
 export function StudentsPage({ regNo, onBack }: StudentsPageProps) {
-  const { user } = useAuth();
-  const requests = useSyncExternalStore(
-    subscribeToRequests,
-    getRequestsSnapshot,
-    getRequestsSnapshot,
+  const studentsQuery = useApi(["staffStudents"], () => api.getAssignedStudents());
+  const summaryQuery = useApi(
+    ["staffStudentSummary", regNo],
+    () => (regNo ? api.getStaffStudentSummary(regNo) : Promise.resolve(null)),
+    { enabled: Boolean(regNo) },
   );
-  const assignedStudents = useMemo(() => listStudents(user?.id ?? ""), [user?.id]);
 
   if (regNo) {
-    const isAssigned = assignedStudents.some((student) => student.regNo === regNo);
-    const student = isAssigned ? getStudentSummary(regNo) : null;
-    if (!isAssigned) {
+    if (summaryQuery.loading) {
       return (
         <div className="staff-portal-page">
-          <PageBanner title="Student Summary" subtitle="Student details" icon={UsersRound} />
+          <PageBanner title="Student Summary" subtitle="Loading..." icon={UsersRound} />
+          <section className="erp-surface grid min-h-40 place-items-center p-6 text-center text-muted-foreground">
+            Loading student details...
+          </section>
+        </div>
+      );
+    }
+
+    const student = summaryQuery.data;
+    if (!student) {
+      return (
+        <div className="staff-portal-page">
+          <PageBanner title="Student Summary" subtitle="Student not found" icon={UsersRound} />
           <section className="erp-surface grid min-h-40 place-items-center p-6 text-center text-lg text-foreground">
-            This student is not assigned to you.
+            This student is not assigned to you or could not be found.
           </section>
           <button type="button" onClick={onBack} className="erp-menu-item w-fit">
             <ArrowLeft aria-hidden="true" className="mr-2 inline size-5" strokeWidth={1.5} />
@@ -61,45 +55,39 @@ export function StudentsPage({ regNo, onBack }: StudentsPageProps) {
         </div>
       );
     }
-    if (!student) {
-      return (
-        <div className="staff-portal-page">
-          <PageBanner title="Student Summary" subtitle="Student not found" icon={UsersRound} />
-          <button type="button" onClick={onBack} className="erp-menu-item w-fit">
-            <ArrowLeft aria-hidden="true" className="mr-2 inline size-5" strokeWidth={1.5} />
-            Back to My Students
-          </button>
-        </div>
-      );
-    }
-
-    const studentRequests = requests
-      .filter((request) => request.studentRegNo === student.regNo)
-      .sort((a, b) => requestDate(b) - requestDate(a))
-      .slice(0, 5);
 
     return (
       <div className="staff-portal-page">
         <PageBanner
           title={student.name}
-          subtitle={`Student Summary · ${student.regNo}`}
+          subtitle={`Student Summary · ${student.registerNo}`}
           icon={UsersRound}
         />
         <section className="erp-surface grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
           <SummaryField label="Name" value={student.name} />
-          <SummaryField label="Register number" value={student.regNo} />
-          <SummaryField label="Batch" value="2023-2027" />
-          <SummaryField label="Section" value={student.section} />
-          <SummaryField label="Semester" value={String(student.semester)} />
-          <SummaryField label="Attendance" value={`${student.attendancePercentage}%`} />
+          <SummaryField label="Register number" value={student.registerNo} />
+          <SummaryField label="Batch" value={student.batch ?? "2023-2027"} />
+          <SummaryField label="Section" value={student.section ?? "—"} />
+          <SummaryField
+            label="Semester"
+            value={student.semester ? String(student.semester) : "—"}
+          />
+          <SummaryField
+            label="Attendance"
+            value={
+              student.attendancePercentage !== null
+                ? `${student.attendancePercentage}%`
+                : "Unavailable"
+            }
+          />
         </section>
         <section className="erp-surface min-h-0 flex-1 overflow-auto p-4">
           <h2 className="mb-3 text-lg font-semibold text-foreground">Last 5 Leave/OD requests</h2>
-          {studentRequests.length === 0 ? (
+          {student.recentRequests.length === 0 ? (
             <p className="text-sm text-muted-foreground">No Leave/OD requests.</p>
           ) : (
             <ul className="grid gap-3">
-              {studentRequests.map((request) => (
+              {student.recentRequests.map((request) => (
                 <li key={request.id} className="rounded-xl border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium text-foreground">
@@ -112,9 +100,9 @@ export function StudentsPage({ regNo, onBack }: StudentsPageProps) {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {request.fromDate} – {request.toDate}
                   </p>
-                  {rejectionReason(request) && (
+                  {request.rejectionReason && (
                     <p className="mt-2 text-sm text-foreground">
-                      Rejection reason: {rejectionReason(request)}
+                      Rejection reason: {request.rejectionReason}
                     </p>
                   )}
                 </li>
@@ -130,27 +118,29 @@ export function StudentsPage({ regNo, onBack }: StudentsPageProps) {
     );
   }
 
-  const assignedRequests = requests.filter((request) =>
-    assignedStudents.some((student) => student.regNo === request.studentRegNo),
-  );
-  const rows = assignedStudents
-    .map((student) => {
-      const studentRequests = assignedRequests.filter(
-        (request) => request.studentRegNo === student.regNo,
-      );
-      return {
-        student,
-        leaveCount: studentRequests.length,
-        pendingCount: studentRequests.filter((request) => isPending(request.status)).length,
-      };
-    })
+  const rows: StudentRow[] = (studentsQuery.data ?? [])
+    .map((student) => ({
+      student: {
+        regNo: student.registerNo || (student as unknown as { regNo: string }).regNo,
+        name: student.name,
+        section: student.section,
+        attendancePercentage: student.attendancePercentage ?? 0,
+      },
+      leaveCount: (student as unknown as { leaveCount?: number }).leaveCount ?? 0,
+      pendingCount: (student as unknown as { pendingCount?: number }).pendingCount ?? 0,
+    }))
     .sort((a, b) => a.student.attendancePercentage - b.student.attendancePercentage);
 
   return <StudentTable rows={rows} belowThreshold={ATTENDANCE_MIN} />;
 }
 
 interface StudentRow {
-  student: NonNullable<ReturnType<typeof getStudentSummary>>;
+  student: {
+    regNo: string;
+    name: string;
+    section: string;
+    attendancePercentage: number;
+  };
   leaveCount: number;
   pendingCount: number;
 }

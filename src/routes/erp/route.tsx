@@ -199,6 +199,7 @@ function ErpLayout() {
         ? ([
             { label: "Approvals", to: "/erp/staff" },
             { label: "My Students", to: "/erp/staff/students" },
+            { label: "Announcements", to: "/erp/staff/announcements" },
           ] as const)
         : ([{ label: "HOD Office", to: "/erp/hod" }] as const);
   return (

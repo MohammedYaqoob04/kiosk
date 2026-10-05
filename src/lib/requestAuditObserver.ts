@@ -1,6 +1,7 @@
 import { getRequestsSnapshot, subscribeToRequests } from "@/lib/leaveStore";
 import { appendAudit } from "@/lib/auditLog";
 import type { Request } from "@/types/leave";
+import { isMockApi } from "@/api";
 
 let stopObserving: (() => void) | null = null;
 
@@ -48,7 +49,7 @@ function decisionAction(request: Request): {
 }
 
 export function initializeRequestAuditObserver(): void {
-  if (stopObserving) return;
+  if (stopObserving || !isMockApi) return;
   let previous = new Map(getRequestsSnapshot().map((request) => [request.id, request]));
   stopObserving = subscribeToRequests(() => {
     const next = getRequestsSnapshot();

@@ -1,10 +1,15 @@
 import { useState, useSyncExternalStore } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { FileText } from "lucide-react";
 
+import { api, isMockApi } from "@/api";
+import { useApi } from "@/api/use-api";
+import { ErrorState } from "@/components/erp/ErrorState";
+import { Skeleton } from "@/components/erp/Skeleton";
 import { TouchTextInput } from "@/components/TouchTextInput";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
-import { getRequestsSnapshot, submitRequest, subscribeToRequests } from "@/lib/leaveStore";
+import { getRequestsSnapshot, subscribeToRequests } from "@/lib/leaveStore";
 import { requireAuth } from "@/lib/require-auth";
 import type {
   LeaveCategory,
@@ -55,33 +60,46 @@ function rejectionInfo(request: Request): { authority: string; reason: string } 
   if (request.status === "REJECTED_BY_COUNSELLOR") {
     return {
       authority: "Counsellor",
-      reason: request.counsellorDecision?.remark ?? "",
+      reason: request.counsellorDecision?.remark || request.rejectionReason || "No remark provided.",
     };
   }
   if (request.status === "REJECTED_BY_HOD") {
-    return { authority: "HOD", reason: request.hodDecision?.remark ?? "" };
+    return {
+      authority: "HOD",
+      reason: request.hodDecision?.remark || request.rejectionReason || "No remark provided.",
+    };
   }
   return null;
 }
 
 function StudentLeavePage() {
   const { user } = useAuth();
-  const allRequests = useSyncExternalStore(
+  const mockRequests = useSyncExternalStore(
     subscribeToRequests,
     getRequestsSnapshot,
     getRequestsSnapshot,
   );
-  const requests = allRequests.filter((request) => request.studentRegNo === user?.identifier);
+  const myLeavesQuery = useApi(["erp", "leave", "mine"], api.getMyLeaves, {
+    enabled: !isMockApi && Boolean(user),
+  });
+  const requests = isMockApi
+    ? mockRequests.filter((request) => request.studentRegNo === user?.identifier)
+    : (myLeavesQuery.data ?? []);
+
   const [kind, setKind] = useState<RequestKind>("LEAVE");
   const [leaveCategory, setLeaveCategory] = useState<LeaveCategory | "">("");
   const [odCategory, setOdCategory] = useState<OdCategory | "">("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [reason, setReason] = useState("");
+  const [address, setAddress] = useState("");
   const [eventName, setEventName] = useState("");
   const [organizer, setOrganizer] = useState("");
   const [venue, setVenue] = useState("");
   const [letter, setLetter] = useState<LeaveLetterInput | null>(null);
+  const [fileObject, setFileObject] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [letterLoadingId, setLetterLoadingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
 
@@ -109,6 +127,7 @@ function StudentLeavePage() {
   const uploadLetter = (file: File | undefined) => {
     if (!file) return;
     setLetter(null);
+    setFileObject(null);
     const letterType = file.type;
     if (!isSupportedLetterType(letterType)) {
       setError("OD letter must be a PDF, JPG, or PNG file.");
@@ -118,6 +137,7 @@ function StudentLeavePage() {
       setError("OD letter must be no larger than 2 MB.");
       return;
     }
+    setFileObject(file);
     const reader = new FileReader();
     reader.onerror = () => setError("OD letter could not be read. Please upload it again.");
     reader.onload = () => {
@@ -137,47 +157,71 @@ function StudentLeavePage() {
     reader.readAsDataURL(file);
   };
 
-  const submit = () => {
-    if (!user || !canSubmit) return;
+  const submit = async () => {
+    if (!user || !canSubmit || submitting) return;
+    setSubmitting(true);
+    setError("");
+    setSent(false);
     try {
+      const formData = new FormData();
+      formData.append("kind", kind);
+      formData.append("category", kind === "LEAVE" ? leaveCategory : odCategory);
+      formData.append("fromDate", fromDate);
+      formData.append("toDate", toDate);
       if (kind === "LEAVE") {
-        if (!leaveCategory) return;
-        submitRequest({
-          kind,
-          category: leaveCategory,
-          studentRegNo: user.identifier,
-          studentName: user.name,
-          fromDate,
-          toDate,
-          reason,
-        });
-      } else if (letter && odCategory) {
-        submitRequest({
-          kind,
-          category: odCategory,
-          studentRegNo: user.identifier,
-          studentName: user.name,
-          fromDate,
-          toDate,
-          eventName,
-          organizer,
-          venue,
-          letter,
-        });
+        formData.append("reason", reason);
+        if (address.trim()) {
+          formData.append("residentialAddress", address.trim());
+          formData.append("address", address.trim());
+        }
+      } else {
+        formData.append("eventName", eventName);
+        formData.append("organizer", organizer);
+        formData.append("venue", venue);
+        if (fileObject) {
+          formData.append("letter", fileObject);
+        }
+      }
+      await api.submitLeave(formData);
+      if (!isMockApi) {
+        await myLeavesQuery.reload();
       }
       setFromDate("");
       setToDate("");
       setReason("");
+      setAddress("");
       setEventName("");
       setOrganizer("");
       setVenue("");
       setLetter(null);
+      setFileObject(null);
       setLeaveCategory("");
       setOdCategory("");
-      setError("");
       setSent(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Your request could not be submitted.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openLetter = async (request: Request) => {
+    if (!request.letter) return;
+    if (request.letter.dataUrl) {
+      const win = window.open(request.letter.dataUrl, "_blank");
+      win?.focus();
+      return;
+    }
+    setLetterLoadingId(request.id);
+    try {
+      const blob = await api.getLeaveLetterBlob(request.id);
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      win?.focus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load letter.");
+    } finally {
+      setLetterLoadingId(null);
     }
   };
 
@@ -312,13 +356,22 @@ function StudentLeavePage() {
           </div>
 
           {kind === "LEAVE" ? (
-            <TouchTextInput
-              label="Reason"
-              value={reason}
-              onChange={onTextChange(setReason)}
-              placeholder="Enter the reason for leave (at least 10 characters)"
-              maxLength={300}
-            />
+            <>
+              <TouchTextInput
+                label="Reason"
+                value={reason}
+                onChange={onTextChange(setReason)}
+                placeholder="Enter the reason for leave (at least 10 characters)"
+                maxLength={300}
+              />
+              <TouchTextInput
+                label="Address while on leave"
+                value={address}
+                onChange={onTextChange(setAddress)}
+                placeholder="Enter residential or contact address"
+                maxLength={200}
+              />
+            </>
           ) : (
             <div className="grid gap-2">
               <label htmlFor="od-letter" className="font-semibold text-foreground">
@@ -336,7 +389,10 @@ function StudentLeavePage() {
                   <span className="min-w-0 truncate text-sm text-foreground">{letter.name}</span>
                   <button
                     type="button"
-                    onClick={() => setLetter(null)}
+                    onClick={() => {
+                      setLetter(null);
+                      setFileObject(null);
+                    }}
                     className="min-h-12 px-3 font-semibold text-foreground underline"
                   >
                     Remove
@@ -356,8 +412,13 @@ function StudentLeavePage() {
               Sent to Counsellor
             </p>
           )}
-          <Button type="button" onClick={submit} disabled={!canSubmit} className="w-full">
-            Submit request
+          <Button
+            type="button"
+            onClick={submit}
+            disabled={!canSubmit || submitting}
+            className="w-full"
+          >
+            {submitting ? "Submitting request…" : "Submit request"}
           </Button>
         </section>
 
@@ -365,7 +426,14 @@ function StudentLeavePage() {
           <h2 className="shrink-0 font-display text-xl font-semibold text-foreground">
             My requests
           </h2>
-          {requests.length === 0 ? (
+          {!isMockApi && myLeavesQuery.loading ? (
+            <Skeleton rows={3} className="py-2" />
+          ) : !isMockApi && myLeavesQuery.error ? (
+            <ErrorState
+              message={myLeavesQuery.error.message}
+              onRetry={myLeavesQuery.reload}
+            />
+          ) : requests.length === 0 ? (
             <p className="py-4 text-base text-muted-foreground">No requests submitted yet.</p>
           ) : (
             <div className="leave-history-list">
@@ -383,6 +451,7 @@ function StudentLeavePage() {
                         </h3>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {formatDate(request.fromDate)} – {formatDate(request.toDate)}
+                          {request.days ? ` (${request.days} ${request.days === 1 ? "day" : "days"})` : ""}
                         </p>
                       </div>
                       <span className="inline-flex min-h-10 items-center rounded-full border border-border px-3 text-sm font-medium text-foreground">
@@ -390,11 +459,44 @@ function StudentLeavePage() {
                       </span>
                     </div>
                     {request.kind === "OD" && (
-                      <p className="mt-2 text-sm text-muted-foreground">{request.eventName}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {request.eventName}
+                        {request.organizer ? ` · ${request.organizer}` : ""}
+                        {request.venue ? ` · ${request.venue}` : ""}
+                      </p>
+                    )}
+                    {request.kind === "LEAVE" && request.reason && (
+                      <p className="mt-2 text-sm text-muted-foreground">{request.reason}</p>
+                    )}
+                    {request.letter && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={letterLoadingId === request.id}
+                          onClick={() => openLetter(request)}
+                          className="min-h-10 gap-2 text-sm font-semibold"
+                        >
+                          <FileText aria-hidden="true" className="size-4" />
+                          {letterLoadingId === request.id
+                            ? "Opening letter…"
+                            : `View Letter (${request.letter.name})`}
+                        </Button>
+                      </div>
                     )}
                     {rejection && (
-                      <p className="mt-2 text-sm text-foreground">
+                      <p className="mt-2 text-sm text-destructive">
                         Rejected by {rejection.authority}: {rejection.reason}
+                      </p>
+                    )}
+                    {request.status === "PENDING_HOD" && request.counsellorDecision && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Verified by Counsellor{request.counsellorDecision.by ? ` (${request.counsellorDecision.by})` : ""}, waiting for HOD approval.
+                      </p>
+                    )}
+                    {request.status === "APPROVED" && (
+                      <p className="mt-2 text-sm text-ok">
+                        Approved{request.hodDecision?.by ? ` by HOD (${request.hodDecision.by})` : ""}
                       </p>
                     )}
                   </article>

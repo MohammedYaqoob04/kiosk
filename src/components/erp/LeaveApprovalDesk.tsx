@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileText, History, Inbox } from "lucide-react";
 
 import { TouchTextInput } from "@/components/TouchTextInput";
@@ -11,19 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  counsellorApprove,
-  counsellorReject,
-  getRequestsSnapshot,
-  hodApprove,
-  hodReject,
-  listForCounsellor,
-  reassignCounsellor,
-  subscribeToRequests,
-} from "@/lib/leaveStore";
+import { subscribeToRequests } from "@/lib/leaveStore";
 import { useAuth } from "@/lib/auth-context";
-import { counsellors, counsellorOf, getStudentSummary } from "@/lib/staffData";
+import { counsellors, counsellorOf } from "@/lib/staffData";
 import type { Request } from "@/types/leave";
+import { api, isMockApi } from "@/api";
+import { useApi } from "@/api/use-api";
 
 type DeskRole = "COUNSELLOR" | "HOD";
 type DeskTab = "pending" | "history";
@@ -42,50 +35,108 @@ function formatDateTime(value: string): string {
 
 export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprovalDeskProps) {
   const { user } = useAuth();
-  const requests = useSyncExternalStore(
-    subscribeToRequests,
-    getRequestsSnapshot,
-    getRequestsSnapshot,
-  );
   const [tab, setTab] = useState<DeskTab>(initialTab);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [remark, setRemark] = useState("");
   const [letterOpen, setLetterOpen] = useState(false);
+  const [letterUrl, setLetterUrl] = useState<string | null>(null);
+  const [letterLoading, setLetterLoading] = useState(false);
+  const [letterError, setLetterError] = useState("");
   const [actionError, setActionError] = useState("");
   const [reassignError, setReassignError] = useState("");
 
-  const pending = useMemo(
-    () =>
-      (role === "COUNSELLOR"
-        ? listForCounsellor(user?.id ?? "")
-        : requests.filter(
-            (request) =>
-              request.status === "PENDING_HOD" || request.status === "PENDING_COUNSELLOR",
-          )
-      ).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)),
-    [role, requests, user?.id],
-  );
-  const history = requests.filter((request) =>
-    role === "COUNSELLOR"
-      ? request.counsellorDecision !== undefined &&
-        (request.counsellorId ?? counsellorOf(request.studentRegNo)) === user?.id
-      : request.hodDecision !== undefined,
-  );
+  const queueQuery = useApi(["leaveQueue", role], () => api.getLeaveQueue());
+  const historyQuery = useApi(["leaveHistory", role], () => api.getLeaveHistory(undefined, "ALL"));
+  const counsellorsQuery = useApi(["hodCounsellors"], () => api.getHodCounsellors(), {
+    enabled: role === "HOD",
+  });
+
+  useEffect(() => {
+    if (!isMockApi) return;
+    return subscribeToRequests(() => {
+      queueQuery.reload();
+      historyQuery.reload();
+    });
+  }, [queueQuery, historyQuery]);
+
+  const pending = useMemo<Request[]>(() => {
+    const raw = queueQuery.data ?? [];
+    return (raw as Request[]).slice().sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  }, [queueQuery.data]);
+
+  const history = useMemo<Request[]>(() => {
+    const raw = historyQuery.data ?? [];
+    return raw.map((item) => {
+      if ("request" in item && item.request) {
+        const req = { ...(item.request as Request) };
+        if (role === "COUNSELLOR" && !req.counsellorDecision && item.decidedAt) {
+          req.counsellorDecision = {
+            by: req.counsellorName || "Counsellor",
+            at: item.decidedAt,
+            ...(item.remark ? { remark: item.remark } : {}),
+          };
+        }
+        if (role === "HOD" && !req.hodDecision && item.decidedAt) {
+          req.hodDecision = {
+            by: user?.name || "HOD",
+            at: item.decidedAt,
+            ...(item.remark ? { remark: item.remark } : {}),
+          };
+        }
+        return req;
+      }
+      return item as unknown as Request;
+    });
+  }, [historyQuery.data, role, user?.name]);
+
   const items = tab === "pending" ? pending : history;
   const selected = items.find((request) => request.id === selectedId) ?? items[0] ?? null;
-  const approver = user?.name ?? (role === "COUNSELLOR" ? "Counsellor Demo" : "HOD Demo");
   const canDecide =
     selected !== null &&
     (role === "COUNSELLOR"
       ? selected.status === "PENDING_COUNSELLOR"
       : selected.status === "PENDING_HOD");
 
-  const reassign = (counsellorId: string) => {
+  const availableCounsellors = useMemo(() => {
+    if (role !== "HOD") return [];
+    if (counsellorsQuery.data && counsellorsQuery.data.length > 0) {
+      return counsellorsQuery.data.map((c) => ({
+        id: c.staffId || c.id,
+        name: c.name,
+      }));
+    }
+    return counsellors;
+  }, [role, counsellorsQuery.data]);
+
+  const openLetter = async () => {
+    if (selected?.kind !== "OD") return;
+    setLetterOpen(true);
+    if (selected.letter.dataUrl) {
+      setLetterUrl(selected.letter.dataUrl);
+      return;
+    }
+    setLetterLoading(true);
+    setLetterError("");
+    try {
+      const blob = await (selected.letter.url
+        ? api.getBlob(selected.letter.url)
+        : api.getLeaveLetterBlob(selected.id));
+      const objUrl = URL.createObjectURL(blob);
+      setLetterUrl(objUrl);
+    } catch (err) {
+      setLetterError(err instanceof Error ? err.message : "Failed to load letter preview.");
+    } finally {
+      setLetterLoading(false);
+    }
+  };
+
+  const reassign = async (counsellorId: string) => {
     if (!selected || role !== "HOD") return;
     try {
-      reassignCounsellor(selected.id, counsellorId);
+      await api.reassignLeaveRequest(selected.id, counsellorId);
       setReassignError("");
+      queueQuery.reload();
     } catch (cause) {
       setReassignError(
         cause instanceof Error ? cause.message : "The request could not be reassigned.",
@@ -93,22 +144,24 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
     }
   };
 
-  const approve = () => {
+  const approve = async () => {
     if (!selected) return;
     try {
-      if (role === "COUNSELLOR") counsellorApprove(selected.id, approver);
-      else hodApprove(selected.id, approver);
+      await api.decideLeaveRequest(selected.id, "APPROVE");
+      queueQuery.reload();
+      historyQuery.reload();
       setActionError("");
     } catch (cause) {
       setActionError(cause instanceof Error ? cause.message : "The request could not be approved.");
     }
   };
 
-  const reject = () => {
+  const reject = async () => {
     if (!selected || remark.trim().length < 10) return;
     try {
-      if (role === "COUNSELLOR") counsellorReject(selected.id, approver, remark);
-      else hodReject(selected.id, approver, remark);
+      await api.decideLeaveRequest(selected.id, "REJECT", remark.trim());
+      queueQuery.reload();
+      historyQuery.reload();
       setRejectOpen(false);
       setRemark("");
       setActionError("");
@@ -241,7 +294,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
                     <dd>
                       <button
                         type="button"
-                        onClick={() => setLetterOpen(true)}
+                        onClick={() => void openLetter()}
                         className="inline-flex min-h-12 items-center gap-2 font-semibold text-accent underline"
                       >
                         <FileText aria-hidden="true" className="size-5" strokeWidth={1.5} />
@@ -322,19 +375,19 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
                 Reassign counsellor
                 <select
                   value={selected.counsellorId ?? counsellorOf(selected.studentRegNo) ?? ""}
-                  onChange={(event) => reassign(event.target.value)}
+                  onChange={(event) => void reassign(event.target.value)}
                   className="min-h-14 rounded-lg border border-border bg-surface px-3"
                 >
                   <option value="" disabled>
                     Choose a counsellor
                   </option>
-                  {counsellors.map((counsellor) => (
+                  {availableCounsellors.map((counsellor) => (
                     <option key={counsellor.id} value={counsellor.id}>
                       {counsellor.name}
                     </option>
                   ))}
                 </select>
-                {reassignError && <span role="alert">{reassignError}</span>}
+                {reassignError && <span role="alert" className="text-sm text-destructive">{reassignError}</span>}
               </label>
             )}
 
@@ -401,7 +454,19 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
         </DialogContent>
       </Dialog>
 
-      <Dialog open={letterOpen} onOpenChange={setLetterOpen}>
+      <Dialog
+        open={letterOpen}
+        onOpenChange={(open) => {
+          setLetterOpen(open);
+          if (!open) {
+            if (letterUrl && selected?.kind === "OD" && letterUrl !== selected.letter.dataUrl) {
+              URL.revokeObjectURL(letterUrl);
+            }
+            setLetterUrl(null);
+            setLetterError("");
+          }
+        }}
+      >
         <DialogContent className="max-h-[90svh] max-w-5xl overflow-y-auto border-border bg-surface text-foreground">
           <DialogHeader>
             <DialogTitle>OD official letter</DialogTitle>
@@ -409,20 +474,31 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
               {selected?.kind === "OD" ? selected.letter.name : ""}
             </DialogDescription>
           </DialogHeader>
-          {selected?.kind === "OD" &&
-            (selected.letter.type === "application/pdf" ? (
-              <iframe
-                title={`OD letter: ${selected.letter.name}`}
-                src={selected.letter.dataUrl}
-                className="h-[70svh] w-full rounded-lg border border-border"
-              />
-            ) : (
-              <img
-                src={selected.letter.dataUrl}
-                alt={`OD letter: ${selected.letter.name}`}
-                className="max-h-[70svh] max-w-full justify-self-center object-contain"
-              />
-            ))}
+          {selected?.kind === "OD" && (
+            letterLoading ? (
+              <div className="flex h-[40svh] items-center justify-center text-muted-foreground">
+                Loading letter preview...
+              </div>
+            ) : letterError ? (
+              <div className="flex h-[40svh] items-center justify-center text-destructive">
+                {letterError}
+              </div>
+            ) : letterUrl ? (
+              selected.letter.type === "application/pdf" ? (
+                <iframe
+                  title={`OD letter: ${selected.letter.name}`}
+                  src={letterUrl}
+                  className="h-[70svh] w-full rounded-lg border border-border"
+                />
+              ) : (
+                <img
+                  src={letterUrl}
+                  alt={`OD letter: ${selected.letter.name}`}
+                  className="max-h-[70svh] max-w-full justify-self-center object-contain"
+                />
+              )
+            ) : null
+          )}
         </DialogContent>
       </Dialog>
     </div>

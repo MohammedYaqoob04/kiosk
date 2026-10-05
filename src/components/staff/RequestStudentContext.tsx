@@ -1,28 +1,21 @@
-import { useSyncExternalStore } from "react";
-
-import { getRequestsSnapshot, subscribeToRequests } from "@/lib/leaveStore";
-import { getStudentSummary } from "@/lib/staffData";
+import { api } from "@/api";
+import { useApi } from "@/api/use-api";
 import type { Request } from "@/types/leave";
 
-function formatStatus(request: Request): string {
-  return request.status
+function formatStatus(status: string): string {
+  return status
     .replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export function RequestStudentContext({ selected }: { selected: Request }) {
-  const requests = useSyncExternalStore(
-    subscribeToRequests,
-    getRequestsSnapshot,
-    getRequestsSnapshot,
+  const summaryQuery = useApi(["staffStudentSummary", selected.studentRegNo], () =>
+    api.getStaffStudentSummary(selected.studentRegNo),
   );
-  const student = getStudentSummary(selected.studentRegNo);
-  const previousRequests = requests
-    .filter(
-      (request) => request.studentRegNo === selected.studentRegNo && request.id !== selected.id,
-    )
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+  const student = summaryQuery.data;
+  const previousRequests = (student?.recentRequests ?? [])
+    .filter((request) => String(request.id) !== String(selected.id))
     .slice(0, 3);
 
   return (
@@ -30,7 +23,12 @@ export function RequestStudentContext({ selected }: { selected: Request }) {
       <div>
         <h3 className="font-semibold text-foreground">Student context</h3>
         <p className="text-sm text-muted-foreground">
-          Attendance: {student ? `${student.attendancePercentage}%` : "Unavailable"}
+          Attendance:{" "}
+          {student && student.attendancePercentage !== null
+            ? `${student.attendancePercentage}%`
+            : summaryQuery.loading
+              ? "Loading..."
+              : "Unavailable"}
         </p>
       </div>
       <div>
@@ -42,12 +40,14 @@ export function RequestStudentContext({ selected }: { selected: Request }) {
                 <span className="text-foreground">
                   {request.kind} · {request.fromDate} – {request.toDate}
                 </span>
-                <span className="text-muted-foreground">{formatStatus(request)}</span>
+                <span className="text-muted-foreground">{formatStatus(request.status)}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-sm text-muted-foreground">No previous requests.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {summaryQuery.loading ? "Loading requests..." : "No previous requests."}
+          </p>
         )}
       </div>
     </section>

@@ -1,23 +1,18 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { FileText, Megaphone, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, FileText, Loader2, Megaphone, X } from "lucide-react";
 
 import { TouchTextInput } from "@/components/TouchTextInput";
 import { PageBanner } from "@/components/erp/PageBanner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
+import { api, isMockApi } from "@/api";
+import { useApi } from "@/api/use-api";
+import type { NoticeAttachmentResponse, NoticeInboxItem, NoticeSentItem } from "@/api/types";
 import {
-  createNotice,
-  getNoticesSnapshot,
-  listForCounsellor,
   noticeAudienceSelection,
   noticeCategories,
-  readCount,
-  recipientCount,
   subscribeToNotices,
-  withdraw,
-  type Notice,
-  type NoticeAttachment,
   type NoticeAudience,
   type NoticeCategory,
   type NoticeRole,
@@ -35,23 +30,37 @@ function formatDate(value: string): string {
 export function AnnouncementsPage({ role }: { role: NoticeRole }) {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("compose");
-  const notices = useSyncExternalStore(
-    subscribeToNotices,
-    getNoticesSnapshot,
-    getNoticesSnapshot,
+
+  const sentQuery = useApi(["sentNotices"], () => api.getSentNotices());
+  const hodInboxQuery = useApi(["hodInboxNotices"], () => api.getNoticeInbox(), {
+    enabled: role === "COUNSELLOR",
+  });
+  const studentsQuery = useApi(
+    ["staffNoticeStudents", role],
+    () => (role === "COUNSELLOR" ? api.getAssignedStudents() : api.getHodStudents()),
   );
-  const students = useMemo(
-    () => (role === "COUNSELLOR" ? listStudents(user?.id ?? "") : listAllStudents()),
-    [role, user?.id],
-  );
-  const sent = useMemo(
-    () => notices.filter((notice) => notice.authorId === user?.id),
-    [notices, user?.id],
-  );
-  const inbox = useMemo(
-    () => (role === "COUNSELLOR" ? listForCounsellor(user?.id ?? "") : []),
-    [notices, role, user?.id],
-  );
+
+  useEffect(() => {
+    if (!isMockApi) return;
+    return subscribeToNotices(() => {
+      sentQuery.reload();
+      hodInboxQuery.reload();
+    });
+  }, [sentQuery.reload, hodInboxQuery.reload]);
+
+  const students = useMemo(() => {
+    if (studentsQuery.data && studentsQuery.data.length > 0) {
+      return studentsQuery.data.map((s) => ({
+        regNo: s.registerNo,
+        name: s.name,
+        section: s.section,
+      }));
+    }
+    return role === "COUNSELLOR" ? listStudents(user?.id ?? "") : listAllStudents();
+  }, [role, studentsQuery.data, user?.id]);
+
+  const sent = sentQuery.data ?? [];
+  const inbox = hodInboxQuery.data ?? [];
 
   return (
     <div className="staff-portal-page">
@@ -89,18 +98,33 @@ export function AnnouncementsPage({ role }: { role: NoticeRole }) {
           authorId={user.id}
           authorName={user.name}
           students={students}
+          onSent={() => {
+            sentQuery.reload();
+            setTab("sent");
+          }}
         />
       )}
       {tab === "sent" && (
         <NoticeList
           notices={sent}
           empty="No notices sent yet."
-          authorId={user?.id ?? ""}
+          loading={sentQuery.loading}
+          error={sentQuery.error?.message}
+          allowWithdraw
           allowPin={role === "HOD"}
+          onReload={() => sentQuery.reload()}
         />
       )}
       {tab === "from-hod" && role === "COUNSELLOR" && (
-        <NoticeList notices={inbox} empty="No notices from HOD." authorId="" />
+        <NoticeList
+          notices={inbox}
+          empty="No notices from HOD."
+          loading={hodInboxQuery.loading}
+          error={hodInboxQuery.error?.message}
+          allowWithdraw={false}
+          allowPin={false}
+          onReload={() => hodInboxQuery.reload()}
+        />
       )}
     </div>
   );
@@ -108,14 +132,16 @@ export function AnnouncementsPage({ role }: { role: NoticeRole }) {
 
 function ComposeNotice({
   role,
-  authorId,
-  authorName,
+  authorId: _authorId,
+  authorName: _authorName,
   students,
+  onSent,
 }: {
   role: NoticeRole;
   authorId: string;
   authorName: string;
-  students?: ReturnType<typeof listStudents>;
+  students?: Array<{ regNo: string; name: string; section?: string }>;
+  onSent?: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -126,10 +152,16 @@ function ComposeNotice({
   const [selectedRegNos, setSelectedRegNos] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState("");
   const [pinned, setPinned] = useState(false);
-  const [attachments, setAttachments] = useState<NoticeAttachment[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [preview, setPreview] = useState<NoticeAttachment | null>(null);
+  const [preview, setPreview] = useState<{
+    name: string;
+    type: string;
+    blobUrl: string;
+  } | null>(null);
+
   const isSelectedAudience = audience.startsWith("SELECTED_STUDENTS:");
   const selectedAudience = noticeAudienceSelection(selectedRegNos);
   const currentAudience =
@@ -139,17 +171,21 @@ function ComposeNotice({
     title.trim().length <= 80 &&
     body.trim().length > 0 &&
     body.trim().length <= 1500 &&
-    attachments.length <= 3 &&
+    files.length <= 3 &&
     (!isSelectedAudience || selectedRegNos.length > 0);
 
-  const upload = (files: FileList | null) => {
-    if (!files?.length) return;
-    const incoming = Array.from(files);
-    if (attachments.length + incoming.length > 3) {
+  const upload = (fileList: FileList | null) => {
+    if (!fileList?.length) return;
+    const incoming = Array.from(fileList);
+    if (files.length + incoming.length > 3) {
       setError("Attach no more than 3 files.");
       return;
     }
-    if (incoming.some((file) => !attachmentTypes.includes(file.type as (typeof attachmentTypes)[number]))) {
+    if (
+      incoming.some(
+        (file) => !attachmentTypes.includes(file.type as (typeof attachmentTypes)[number]),
+      )
+    ) {
       setError("Attachments must be PDF, JPG, or PNG files.");
       return;
     }
@@ -157,63 +193,60 @@ function ComposeNotice({
       setError("Each attachment must be no larger than 2 MB.");
       return;
     }
-    Promise.all(
-      incoming.map(
-        (file) =>
-          new Promise<NoticeAttachment>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onerror = () => reject(new Error(`${file.name} could not be read.`));
-            reader.onload = () => {
-              if (typeof reader.result !== "string") {
-                reject(new Error(`${file.name} could not be read.`));
-                return;
-              }
-              resolve({
-                name: file.name,
-                type: file.type as NoticeAttachment["type"],
-                size: file.size,
-                dataUrl: reader.result,
-              });
-            };
-            reader.readAsDataURL(file);
-          }),
-      ),
-    )
-      .then((loaded) => {
-        setAttachments((current) => [...current, ...loaded]);
-        setError("");
-      })
-      .catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : "Attachments could not be read.");
-      });
+    setFiles((current) => [...current, ...incoming]);
+    setError("");
   };
 
-  const send = () => {
-    if (!isValid) return;
+  const previewDraftFile = (file: File) => {
+    const blobUrl = URL.createObjectURL(file);
+    setPreview({
+      name: file.name,
+      type: file.type,
+      blobUrl,
+    });
+  };
+
+  const closePreview = () => {
+    if (preview?.blobUrl) {
+      URL.revokeObjectURL(preview.blobUrl);
+    }
+    setPreview(null);
+  };
+
+  const send = async () => {
+    if (!isValid || submitting) return;
+    setSubmitting(true);
+    setError("");
+    setConfirmation("");
     try {
-      const notice = createNotice({
-        title,
-        body,
-        category,
-        audience: currentAudience,
-        authorRole: role,
-        authorId,
-        authorName,
-        ...(expiresAt ? { expiresAt } : {}),
-        ...(role === "HOD" && pinned ? { pinned } : {}),
-        attachments,
-      });
-      const count = recipientCount(notice);
-      setConfirmation(`Sent to ${count} students.`);
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      formData.append("body", body.trim());
+      formData.append("category", category);
+      formData.append("audience", currentAudience);
+      if (expiresAt) {
+        formData.append("expiresAt", expiresAt);
+      }
+      if (role === "HOD" && pinned) {
+        formData.append("pinned", "true");
+      }
+      for (const file of files) {
+        formData.append("files", file);
+      }
+
+      const res = await api.createNotice(formData);
+      setConfirmation(`Sent to ${res.recipientCount} recipients.`);
       setTitle("");
       setBody("");
-      setAttachments([]);
+      setFiles([]);
       setSelectedRegNos([]);
       setExpiresAt("");
       setPinned(false);
-      setError("");
+      onSent?.();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The notice could not be sent.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -293,7 +326,9 @@ function ComposeNotice({
                 }
                 className="size-5 accent-primary"
               />
-              <span>{student.name} · {student.regNo}</span>
+              <span>
+                {student.name} · {student.regNo}
+              </span>
             </label>
           ))}
         </fieldset>
@@ -321,7 +356,7 @@ function ComposeNotice({
         )}
       </div>
       <div className="grid gap-2">
-        <label className="inline-flex min-h-14 w-fit cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-4 font-medium text-foreground">
+        <label className="inline-flex min-h-14 w-fit cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-4 font-medium text-foreground hover:bg-surface-2">
           <FileText aria-hidden="true" className="size-5" strokeWidth={1.5} />
           Attach files
           <input
@@ -335,32 +370,45 @@ function ComposeNotice({
             }}
           />
         </label>
-        {attachments.map((attachment, index) => (
-          <div key={`${attachment.name}-${index}`} className="flex min-h-14 items-center gap-3">
+        {files.map((file, index) => (
+          <div key={`${file.name}-${index}`} className="flex min-h-14 items-center gap-3">
             <button
               type="button"
-              onClick={() => setPreview(attachment)}
+              onClick={() => previewDraftFile(file)}
               className="min-h-14 flex-1 text-left underline"
             >
-              {attachment.name}
+              {file.name} ({(file.size / 1024).toFixed(0)} KB)
             </button>
             <button
               type="button"
-              aria-label={`Remove ${attachment.name}`}
-              onClick={() => setAttachments((current) => current.filter((_, i) => i !== index))}
-              className="grid size-14 place-items-center rounded-lg border border-border"
+              aria-label={`Remove ${file.name}`}
+              onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+              className="grid size-14 place-items-center rounded-lg border border-border hover:bg-surface-2"
             >
               <X aria-hidden="true" />
             </button>
           </div>
         ))}
       </div>
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      {confirmation && <p role="status" className="text-sm font-semibold text-ok">{confirmation}</p>}
-      <Button type="button" onClick={send} disabled={!isValid} className="min-h-14 w-fit">
-        Send
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      {confirmation && (
+        <p role="status" className="text-sm font-semibold text-ok">
+          {confirmation}
+        </p>
+      )}
+      <Button
+        type="button"
+        onClick={send}
+        disabled={!isValid || submitting}
+        className="min-h-14 w-fit"
+      >
+        {submitting ? "Sending…" : "Send"}
       </Button>
-      <AttachmentPreview attachment={preview} onClose={() => setPreview(null)} />
+      <AttachmentPreview preview={preview} onClose={closePreview} />
     </section>
   );
 }
@@ -368,86 +416,210 @@ function ComposeNotice({
 function NoticeList({
   notices,
   empty,
-  authorId,
+  loading = false,
+  error,
+  allowWithdraw = false,
   allowPin = false,
+  onReload,
 }: {
-  notices: Notice[];
+  notices: Array<NoticeSentItem | NoticeInboxItem>;
   empty: string;
-  authorId: string;
+  loading?: boolean;
+  error?: string | null | undefined;
+  allowWithdraw?: boolean;
   allowPin?: boolean;
+  onReload?: () => void;
 }) {
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [activePreview, setActivePreview] = useState<{
+    name: string;
+    type: string;
+    blobUrl: string;
+  } | null>(null);
+  const [loadingAttachmentId, setLoadingAttachmentId] = useState<string | number | null>(null);
+
+  const handleWithdraw = async (id: number | string) => {
+    setActionError("");
+    try {
+      await api.withdrawNotice(id);
+      onReload?.();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not withdraw notice.");
+    }
+  };
+
+  const handleTogglePin = async (id: number | string, nextPin: boolean) => {
+    setActionError("");
+    try {
+      await api.pinNotice(id, nextPin);
+      onReload?.();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not update pin.");
+    }
+  };
+
+  const openRemoteAttachment = async (
+    noticeId: number | string,
+    attachment: NoticeAttachmentResponse,
+  ) => {
+    setLoadingAttachmentId(attachment.id);
+    setActionError("");
+    try {
+      const blob = attachment.url
+        ? await api.getBlob(attachment.url)
+        : await api.getNoticeAttachmentBlob(noticeId, attachment.id);
+      const blobUrl = URL.createObjectURL(blob);
+      setActivePreview({
+        name: attachment.name,
+        type: attachment.type,
+        blobUrl,
+      });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Unable to load attachment.");
+    } finally {
+      setLoadingAttachmentId(null);
+    }
+  };
+
+  const closePreview = () => {
+    if (activePreview?.blobUrl) {
+      URL.revokeObjectURL(activePreview.blobUrl);
+    }
+    setActivePreview(null);
+  };
+
   return (
     <section className="min-h-0 flex-1 overflow-auto">
-      {notices.length === 0 ? (
+      {loading && notices.length === 0 ? (
+        <div className="erp-surface grid min-h-40 place-items-center p-6 text-center text-muted-foreground">
+          <Loader2 className="size-6 animate-spin" />
+          <p className="mt-2 text-sm">Loading notices…</p>
+        </div>
+      ) : error ? (
+        <div className="erp-surface flex flex-col items-center justify-center gap-3 p-6 text-center text-danger">
+          <AlertCircle className="size-8" />
+          <p className="font-semibold">{error}</p>
+          {onReload && (
+            <Button type="button" variant="outline" onClick={onReload}>
+              Try again
+            </Button>
+          )}
+        </div>
+      ) : notices.length === 0 ? (
         <div className="erp-surface grid min-h-40 place-items-center p-6 text-center text-muted-foreground">
           {empty}
         </div>
       ) : (
         <ul className="grid gap-3">
-          {notices.map((notice) => (
-            <li key={notice.id} className="erp-surface grid gap-3 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-foreground">{notice.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {notice.category} · {formatDate(notice.createdAt)} · {readCount(notice)} of{" "}
-                    {recipientCount(notice)} read
-                  </p>
+          {notices.map((notice) => {
+            const isSent = "recipientCount" in notice;
+            const sentItem = isSent ? (notice as NoticeSentItem) : null;
+            return (
+              <li key={notice.id} className="erp-surface grid gap-3 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{notice.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {notice.category} · {formatDate(notice.createdAt)}
+                      {sentItem && ` · ${sentItem.readCount} of ${sentItem.recipientCount} read`}
+                      {sentItem?.expired && " · Expired"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {notice.pinned && (
+                      <span className="rounded-full border border-primary bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                        Pinned
+                      </span>
+                    )}
+                    {sentItem?.withdrawn && (
+                      <span className="rounded-full border border-border px-3 py-1 text-sm text-muted-foreground">
+                        Withdrawn
+                      </span>
+                    )}
+                    {allowPin && (
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePin(notice.id, !notice.pinned)}
+                        className="rounded-lg border border-border px-3 py-1 text-sm hover:bg-surface-2"
+                      >
+                        {notice.pinned ? "Unpin" : "Pin"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {allowPin && notice.pinned && (
-                  <span className="rounded-full border border-border px-3 py-2 text-sm">Pinned</span>
+                {"body" in notice && notice.body && (
+                  <p className="whitespace-pre-wrap text-sm text-foreground">{notice.body}</p>
                 )}
-              </div>
-              <p className="whitespace-pre-wrap text-sm text-foreground">{notice.body}</p>
-              <p className="text-sm text-muted-foreground">
-                To {notice.audience.replaceAll("_", " ").replace(":", " · ")}
-              </p>
-              {authorId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      withdraw(notice.id, authorId);
-                      setError("");
-                    } catch (cause) {
-                      setError(cause instanceof Error ? cause.message : "Could not withdraw notice.");
-                    }
-                  }}
-                  className="min-h-14 w-fit rounded-lg border border-border px-4 font-medium"
-                >
-                  Withdraw
-                </button>
-              )}
-            </li>
-          ))}
+                <p className="text-sm text-muted-foreground">
+                  To {notice.audience.replaceAll("_", " ").replace(":", " · ")}
+                </p>
+                {notice.attachments && notice.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {notice.attachments.map((att) => (
+                      <button
+                        key={att.id}
+                        type="button"
+                        disabled={loadingAttachmentId === att.id}
+                        onClick={() => openRemoteAttachment(notice.id, att)}
+                        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm font-medium hover:bg-surface-2 disabled:opacity-50"
+                      >
+                        <FileText aria-hidden="true" className="size-4" strokeWidth={1.5} />
+                        <span>{att.name}</span>
+                        {loadingAttachmentId === att.id && (
+                          <Loader2 className="ml-1 size-3 animate-spin" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {allowWithdraw && !sentItem?.withdrawn && (
+                  <button
+                    type="button"
+                    onClick={() => handleWithdraw(notice.id)}
+                    className="min-h-14 w-fit rounded-lg border border-border px-4 font-medium hover:bg-surface-2"
+                  >
+                    Withdraw
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
-      {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
+      {actionError && (
+        <p role="alert" className="mt-2 text-sm text-danger">
+          {actionError}
+        </p>
+      )}
+      <AttachmentPreview preview={activePreview} onClose={closePreview} />
     </section>
   );
 }
 
 function AttachmentPreview({
-  attachment,
+  preview,
   onClose,
 }: {
-  attachment: NoticeAttachment | null;
+  preview: { name: string; type: string; blobUrl: string } | null;
   onClose: () => void;
 }) {
   return (
-    <Dialog open={attachment !== null} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={preview !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90svh] max-w-5xl overflow-auto border-border bg-surface text-foreground">
         <DialogHeader>
-          <DialogTitle>{attachment?.name}</DialogTitle>
+          <DialogTitle>{preview?.name}</DialogTitle>
         </DialogHeader>
-        {attachment?.type === "application/pdf" ? (
-          <iframe title={attachment.name} src={attachment.dataUrl} className="h-[70svh] w-full" />
+        {preview?.type === "application/pdf" ? (
+          <iframe
+            title={preview.name}
+            src={preview.blobUrl}
+            className="h-[70svh] w-full border-0"
+          />
         ) : (
-          attachment && (
+          preview && (
             <img
-              src={attachment.dataUrl}
-              alt={attachment.name}
+              src={preview.blobUrl}
+              alt={preview.name}
               className="max-h-[70svh] max-w-full justify-self-center object-contain"
             />
           )

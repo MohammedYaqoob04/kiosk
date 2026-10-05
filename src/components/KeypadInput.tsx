@@ -1,4 +1,5 @@
-import { Delete, RotateCcw } from "lucide-react";
+import { useState } from "react";
+import { KioskKeyboard } from "@/components/KioskKeyboard";
 
 interface KeypadInputProps {
   label: string;
@@ -7,19 +8,19 @@ interface KeypadInputProps {
   maxLength?: number;
   masked?: boolean;
   placeholder?: string;
+  layout?: "numeric" | "full";
 }
 
 export function KeypadInput({
   label,
   value,
   onChange,
-  maxLength = 12,
+  maxLength = 32,
   masked = false,
   placeholder,
+  layout = "numeric",
 }: KeypadInputProps) {
-  const append = (digit: string) => {
-    if (value.length < maxLength) onChange(`${value}${digit}`);
-  };
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   return (
     <fieldset className="min-w-0">
@@ -29,48 +30,23 @@ export function KeypadInput({
         className="mb-4 min-h-14 w-full rounded-xl border border-input bg-background px-4 text-center font-display text-2xl tracking-[0.2em] text-foreground outline-none"
         inputMode="none"
         readOnly
-        value={masked ? "●".repeat(value.length) : value}
+        value={masked && !passwordVisible ? "●".repeat(value.length) : value}
         placeholder={placeholder}
       />
-      <div className="grid grid-cols-3 gap-2">
-        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
-          <button
-            key={digit}
-            type="button"
-            onClick={() => append(digit)}
-            className="min-h-14 rounded-xl border border-border bg-secondary text-xl font-semibold text-foreground active:bg-accent"
-            aria-label={`Enter ${digit}`}
-          >
-            {digit}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border bg-secondary text-lg font-semibold text-muted-foreground active:bg-accent"
-          aria-label={`Clear ${label}`}
-        >
-          <RotateCcw aria-hidden="true" className="size-5" />
-          Clear
-        </button>
-        <button
-          type="button"
-          onClick={() => append("0")}
-          className="min-h-14 rounded-xl border border-border bg-secondary text-xl font-semibold text-foreground active:bg-accent"
-          aria-label="Enter 0"
-        >
-          0
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(value.slice(0, -1))}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border bg-secondary text-lg font-semibold text-muted-foreground active:bg-accent"
-          aria-label={`Delete last digit from ${label}`}
-        >
-          <Delete aria-hidden="true" className="size-5" />
-          Backspace
-        </button>
-      </div>
+      <KioskKeyboard
+        layout={layout}
+        isPassword={masked}
+        passwordVisible={passwordVisible}
+        onTogglePassword={() => setPasswordVisible((v) => !v)}
+        onCharacter={(char) => {
+          if (value.length < maxLength) onChange(`${value}${char}`);
+        }}
+        onBackspace={() => onChange(value.slice(0, -1))}
+        onClear={() => onChange("")}
+        onSpace={() => {
+          if (value.length < maxLength) onChange(`${value} `);
+        }}
+      />
     </fieldset>
   );
 }

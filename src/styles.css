@@ -796,8 +796,8 @@
 }
 
 .student-login-keypad .erp-login-key {
-  height: clamp(48px, calc((100svh - 480px) / 4), 64px);
-  min-height: 48px;
+  height: clamp(56px, calc((100svh - 480px) / 4), 64px);
+  min-height: 56px;
 }
 
 .student-login-submit {
@@ -925,7 +925,8 @@
 .kiosk-keyboard-key {
   display: flex;
   min-width: 0;
-  height: clamp(36px, calc((100svh - 300px) / 6), 56px);
+  min-height: 56px;
+  height: clamp(56px, calc((100svh - 300px) / 6), 64px);
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
@@ -1040,7 +1041,8 @@
 .erp-login-key {
   display: flex;
   min-width: 0;
-  height: clamp(40px, calc((100svh - 186px) / 4), 72px);
+  min-height: 56px;
+  height: clamp(56px, calc((100svh - 186px) / 4), 72px);
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
@@ -1080,7 +1082,7 @@
   width: 100%;
   min-height: 0;
   flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 680px);
   align-items: center;
   gap: 1.5rem;
   overflow: auto;
@@ -1121,7 +1123,7 @@
 .erp-password-keypad {
   display: grid;
   width: 100%;
-  max-width: 420px;
+  max-width: 680px;
   min-width: 0;
   justify-self: center;
   gap: 0.75rem;
@@ -1146,8 +1148,8 @@
 }
 
 .erp-password-keypad .grid-cols-3 > button {
-  height: clamp(40px, calc((100svh - 250px) / 4), 72px);
-  min-height: 0;
+  min-height: 56px;
+  height: clamp(56px, calc((100svh - 250px) / 4), 72px);
 }
 
 .erp-password-message {
@@ -1393,7 +1395,8 @@
   }
 
   .erp-password-keypad .grid-cols-3 > button {
-    height: clamp(36px, calc((100svh - 380px) / 4), 60px);
+    min-height: 56px;
+    height: clamp(56px, calc((100svh - 380px) / 4), 60px);
   }
 }
 
@@ -1493,7 +1496,8 @@
   }
 
   .erp-login-key {
-    height: clamp(40px, calc((100svh - 334px) / 4), 72px);
+    min-height: 56px;
+    height: clamp(56px, calc((100svh - 334px) / 4), 72px);
   }
 }
 

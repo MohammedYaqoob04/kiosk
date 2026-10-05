@@ -28,12 +28,22 @@ export class ApiError extends Error {
 const configuredBaseUrl = (import.meta.env["VITE_API_URL"] ?? "").replace(/\/$/, "");
 const baseUrl = `${configuredBaseUrl}/api/v1`;
 
+function resolveUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  if (path.startsWith("/api/v1/")) {
+    return `${configuredBaseUrl}${path}`;
+  }
+  return `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();
   let response: Response;
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   try {
-    response = await fetch(`${baseUrl}${path}`, {
+    response = await fetch(resolveUrl(path), {
       ...init,
       headers: {
         Accept: "application/json",
@@ -92,10 +102,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
   const token = getAuthToken();
-  const url =
-    path.startsWith("http://") || path.startsWith("https://")
-      ? path
-      : `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+  const url = resolveUrl(path);
   let response: Response;
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   try {
@@ -284,12 +291,12 @@ export const httpApi = {
   getSentNotices: () =>
     request<import("@/api/types").NoticeSentItem[]>("/notices/sent"),
   withdrawNotice: (noticeId: number | string) =>
-    request<{ id: number; withdrawn: boolean }>(
+    request<{ id: number | string; withdrawn: boolean }>(
       `/notices/${encodeURIComponent(noticeId)}/withdraw`,
       { method: "POST" },
     ),
   pinNotice: (noticeId: number | string, pinned: boolean) =>
-    request<{ id: number; pinned: boolean }>(
+    request<{ id: number | string; pinned: boolean }>(
       `/notices/${encodeURIComponent(noticeId)}/pin`,
       {
         method: "POST",

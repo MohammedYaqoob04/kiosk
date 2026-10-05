@@ -1,57 +1,41 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo } from "react";
 import { Activity, CalendarDays, GraduationCap, UsersRound } from "lucide-react";
 
 import { PageBanner } from "@/components/erp/PageBanner";
-import { getRequestsSnapshot, subscribeToRequests } from "@/lib/leaveStore";
-import { ATTENDANCE_MIN, listAllStudents } from "@/lib/staffData";
-import { useAuth } from "@/lib/auth-context";
-import { getNoticesSnapshot, subscribeToNotices } from "@/lib/noticeStore";
+import { api, isMockApi } from "@/api";
+import { useApi } from "@/api/use-api";
+import { subscribeToRequests } from "@/lib/leaveStore";
+import { subscribeToNotices } from "@/lib/noticeStore";
 
 const approvalPath = "/erp/hod/approvals";
 
 export function HodDashboard() {
-  const { user } = useAuth();
-  const requests = useSyncExternalStore(
-    subscribeToRequests,
-    getRequestsSnapshot,
-    getRequestsSnapshot,
-  );
-  const notices = useSyncExternalStore(
-    subscribeToNotices,
-    getNoticesSnapshot,
-    getNoticesSnapshot,
-  );
-  const students = listAllStudents();
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-  const pending = requests
-    .filter((request) => request.status === "PENDING_HOD")
-    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
-  const lowAttendance = students.filter(
-    (student) => student.attendancePercentage < ATTENDANCE_MIN,
-  );
-  const thisMonth = requests.filter((request) => Date.parse(request.createdAt) >= monthStart.getTime());
-  const sentCount = notices.filter((notice) => notice.authorId === user?.id).length;
-  const averageFor = (section: "A" | "B") => {
-    const sectionStudents = students.filter((student) => student.section === section);
-    return sectionStudents.length
-      ? (
-          sectionStudents.reduce((sum, student) => sum + student.attendancePercentage, 0) /
-          sectionStudents.length
-        ).toFixed(1)
-      : "0.0";
-  };
+  const { data: overview, reload } = useApi(["hodOverview"], () => api.getHodOverview());
+
+  useEffect(() => {
+    if (!isMockApi) return;
+    const unsubLeaves = subscribeToRequests(reload);
+    const unsubNotices = subscribeToNotices(reload);
+    return () => {
+      unsubLeaves();
+      unsubNotices();
+    };
+  }, [reload]);
+
   const metrics = useMemo(
     () => [
-      { title: "Pending approvals", value: pending.length, icon: Activity },
-      { title: "Total students", value: students.length, icon: GraduationCap },
-      { title: "Below 75%", value: lowAttendance.length, icon: UsersRound },
-      { title: "Leave/OD this month", value: thisMonth.length, icon: CalendarDays },
-      { title: "Notices sent", value: sentCount, icon: Activity },
+      { title: "Pending approvals", value: overview?.cards.pendingApprovals ?? 0, icon: Activity },
+      { title: "Total students", value: overview?.cards.totalStudents ?? 0, icon: GraduationCap },
+      { title: "Below 75%", value: overview?.cards.belowMinAttendance ?? 0, icon: UsersRound },
+      {
+        title: "Leave/OD this month",
+        value: overview?.cards.leaveThisMonth ?? 0,
+        icon: CalendarDays,
+      },
+      { title: "Notices sent", value: overview?.cards.noticesSent ?? 0, icon: Activity },
     ],
-    [pending.length, students.length, lowAttendance.length, thisMonth.length, sentCount],
+    [overview?.cards],
   );
 
   return (
@@ -80,11 +64,13 @@ export function HodDashboard() {
               </tr>
             </thead>
             <tbody>
-              {(["A", "B"] as const).map((section) => (
-                <tr key={section} className="border-t border-border">
-                  <td className="p-3">{section}</td>
-                  <td className="p-3">{students.filter((student) => student.section === section).length}</td>
-                  <td className="p-3">{averageFor(section)}%</td>
+              {(overview?.attendanceBySection ?? []).map((item) => (
+                <tr key={item.section} className="border-t border-border">
+                  <td className="p-3">{item.section}</td>
+                  <td className="p-3">{item.students}</td>
+                  <td className="p-3">
+                    {item.averagePercent !== null ? `${item.averagePercent}%` : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -93,26 +79,50 @@ export function HodDashboard() {
         <article className="erp-surface min-h-0 overflow-auto p-4">
           <h2 className="mb-3 font-semibold text-foreground">Students below 75%</h2>
           <ul className="grid gap-2">
-            {lowAttendance.map((student) => (
-              <li key={student.regNo} className="flex justify-between gap-3 border-b border-border py-2">
-                <span>{student.name} · {student.regNo}</span>
-                <span className="font-semibold">{student.attendancePercentage}%</span>
+            {(overview?.belowMinStudents ?? []).map((student) => (
+              <li
+                key={student.registerNo}
+                className="flex justify-between gap-3 border-b border-border py-2"
+              >
+                <span>
+                  {student.name} · {student.registerNo}
+                </span>
+                <span className="font-semibold">
+                  {student.attendancePercentage !== null
+                    ? `${student.attendancePercentage}%`
+                    : "—"}
+                </span>
               </li>
             ))}
+            {overview?.belowMinStudents.length === 0 && (
+              <li className="py-2 text-sm text-muted-foreground">No students below 75%.</li>
+            )}
           </ul>
         </article>
         <article className="erp-surface min-h-0 overflow-auto p-4 xl:col-span-2">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-semibold text-foreground">Oldest pending approvals</h2>
-            <Link to={approvalPath} className="erp-menu-item">Open approvals</Link>
+            <Link to={approvalPath} className="erp-menu-item">
+              Open approvals
+            </Link>
           </div>
-          {pending.length ? (
+          {overview?.pendingApprovals && overview.pendingApprovals.length ? (
             <ul className="grid gap-2">
-              {pending.slice(0, 8).map((request) => (
-                <li key={request.id} className="flex flex-wrap justify-between gap-3 border-b border-border py-2">
-                  <span>{request.studentName} · {request.kind} · {request.fromDate}</span>
+              {overview.pendingApprovals.slice(0, 8).map((request) => (
+                <li
+                  key={request.id}
+                  className="flex flex-wrap justify-between gap-3 border-b border-border py-2"
+                >
+                  <span>
+                    {request.studentName} · {request.kind} · {request.fromDate}
+                  </span>
                   <span className="text-sm text-muted-foreground">
-                    Waiting {Math.max(0, Math.floor((Date.now() - Date.parse(request.createdAt)) / 86_400_000))} days
+                    Waiting{" "}
+                    {Math.max(
+                      0,
+                      Math.floor((Date.now() - Date.parse(request.createdAt)) / 86_400_000),
+                    )}{" "}
+                    days
                   </span>
                 </li>
               ))}

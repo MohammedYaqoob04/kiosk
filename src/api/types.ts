@@ -234,7 +234,7 @@ export interface AuditEntry {
 }
 
 export interface NoticeAttachmentResponse {
-  id: number;
+  id: number | string;
   name: string;
   type: string;
   size: number;
@@ -242,7 +242,7 @@ export interface NoticeAttachmentResponse {
 }
 
 export interface NoticeInboxItem {
-  id: number;
+  id: number | string;
   title: string;
   body: string;
   category: string;
@@ -257,8 +257,9 @@ export interface NoticeInboxItem {
 }
 
 export interface NoticeSentItem {
-  id: number;
+  id: number | string;
   title: string;
+  body?: string;
   category: string;
   audience: string;
   createdAt: string;
@@ -271,7 +272,7 @@ export interface NoticeSentItem {
 }
 
 export interface CreateNoticeResponse {
-  id: number;
+  id: number | string;
   recipientCount: number;
 }
 

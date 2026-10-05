@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Delete, RotateCcw } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { KioskKeyboard } from "@/components/KioskKeyboard";
+import { Button } from "@/components/ui/button";
 
 interface TouchTextInputProps {
   label: string;
@@ -9,9 +11,8 @@ interface TouchTextInputProps {
   maxLength?: number;
   multiline?: boolean;
   masked?: boolean;
+  layout?: "numeric" | "full";
 }
-
-const keyboardRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
 
 export function TouchTextInput({
   label,
@@ -21,16 +22,46 @@ export function TouchTextInput({
   maxLength = 120,
   multiline = false,
   masked = false,
+  layout = "full",
 }: TouchTextInputProps) {
   const [open, setOpen] = useState(false);
-  const [uppercase, setUppercase] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+
   const append = (character: string) => {
     if (value.length < maxLength) onChange(`${value}${character}`);
   };
 
+  const backspace = () => {
+    onChange(value.slice(0, -1));
+  };
+
+  const clear = () => {
+    onChange("");
+  };
+
+  const displayValue = masked && !passwordVisible ? "●".repeat(value.length) : value;
+
   return (
     <div className="touch-text-input">
-      <span className="mb-2 block text-lg font-medium text-foreground">{label}</span>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="block text-lg font-medium text-foreground">{label}</span>
+        {masked && value.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setPasswordVisible((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            aria-label={passwordVisible ? "Hide password" : "Show password"}
+          >
+            {passwordVisible ? (
+              <EyeOff aria-hidden="true" className="size-4" />
+            ) : (
+              <Eye aria-hidden="true" className="size-4" />
+            )}
+            <span>{passwordVisible ? "Hide" : "Show"}</span>
+          </button>
+        )}
+      </div>
+
       {multiline ? (
         <textarea
           aria-label={label}
@@ -40,7 +71,7 @@ export function TouchTextInput({
           value={value}
           placeholder={placeholder ?? "Tap to enter"}
           onClick={() => setOpen((current) => !current)}
-          className="min-h-24 w-full resize-none rounded-xl border border-input bg-background px-4 py-3 text-left text-lg text-foreground placeholder:text-muted-foreground"
+          className="min-h-24 w-full resize-none rounded-xl border border-input bg-background px-4 py-3 text-left text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
       ) : (
         <button
@@ -48,96 +79,48 @@ export function TouchTextInput({
           aria-label={`Edit ${label}`}
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-          className="min-h-14 w-full rounded-xl border border-input bg-background px-4 text-left text-lg text-foreground active:bg-secondary"
+          className="min-h-14 w-full rounded-xl border border-input bg-background px-4 text-left text-lg text-foreground active:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary"
         >
           {value ? (
-            masked ? (
-              "●".repeat(value.length)
-            ) : (
-              value
-            )
+            displayValue
           ) : (
             <span className="text-muted-foreground">{placeholder ?? "Tap to enter"}</span>
           )}
         </button>
       )}
+
       {open && (
         <div
-          className="mt-3 rounded-2xl border border-border bg-card p-3"
+          className="mt-3 rounded-2xl border border-border bg-card p-3 shadow-lg"
           aria-label="On-screen keyboard"
         >
-          <div className="mb-2 grid grid-cols-10 gap-1">
-            {"1234567890".split("").map((character) => (
-              <button
-                key={character}
-                type="button"
-                onClick={() => append(character)}
-                className="min-h-14 min-w-0 rounded-lg border border-border bg-secondary text-lg font-semibold text-foreground active:bg-accent"
-                aria-label={`Enter ${character}`}
-              >
-                {character}
-              </button>
-            ))}
+          <div className="mb-2 flex items-center justify-between px-1">
+            <span className="text-sm font-semibold text-muted-foreground">{label}</span>
+            <span className="text-sm text-muted-foreground">
+              {value.length}/{maxLength}
+            </span>
           </div>
-          {keyboardRows.map((row) => (
-            <div key={row} className="mb-2 grid grid-cols-10 gap-1">
-              {[...row].map((character) => {
-                const shownCharacter = uppercase ? character.toUpperCase() : character;
-                return (
-                  <button
-                    key={character}
-                    type="button"
-                    onClick={() => append(shownCharacter)}
-                    className="min-h-14 min-w-0 rounded-lg border border-border bg-secondary text-lg font-semibold text-foreground active:bg-accent"
-                    aria-label={`Enter ${shownCharacter}`}
-                  >
-                    {shownCharacter}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-          <div className="flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              aria-pressed={uppercase}
-              onClick={() => setUppercase((current) => !current)}
-              className="min-h-14 rounded-lg border border-border bg-secondary px-4 text-lg font-semibold text-foreground active:bg-accent"
-            >
-              Shift
-            </button>
-            <button
-              type="button"
-              onClick={() => append(" ")}
-              className="min-h-14 min-w-28 rounded-lg border border-border bg-secondary px-4 text-lg text-foreground active:bg-accent"
-            >
-              Space
-            </button>
-            <button
-              type="button"
-              onClick={() => onChange(value.slice(0, -1))}
-              className="inline-flex min-h-14 items-center gap-2 rounded-lg border border-border bg-secondary px-4 text-lg text-foreground active:bg-accent"
-            >
-              <Delete aria-hidden="true" className="size-5" /> Backspace
-            </button>
-            <button
-              type="button"
-              onClick={() => onChange("")}
-              className="inline-flex min-h-14 items-center gap-2 rounded-lg border border-border bg-secondary px-4 text-lg text-foreground active:bg-accent"
-            >
-              <RotateCcw aria-hidden="true" className="size-5" /> Clear
-            </button>
-            <button
+
+          <KioskKeyboard
+            layout={layout}
+            isPassword={masked}
+            passwordVisible={passwordVisible}
+            onTogglePassword={() => setPasswordVisible((v) => !v)}
+            onCharacter={append}
+            onBackspace={backspace}
+            onClear={clear}
+            onSpace={() => append(" ")}
+          />
+
+          <div className="mt-3 flex justify-end">
+            <Button
               type="button"
               onClick={() => setOpen(false)}
-              className="min-h-14 rounded-lg bg-primary px-5 text-lg font-semibold text-primary-foreground"
+              className="min-h-14 rounded-lg bg-primary px-6 text-lg font-semibold text-primary-foreground"
             >
               Done
-            </button>
+            </Button>
           </div>
-          <p className="mt-2 text-right text-base text-muted-foreground">
-            {value.length}/{maxLength}
-          </p>
         </div>
       )}
     </div>

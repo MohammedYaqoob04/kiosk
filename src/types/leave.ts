@@ -13,12 +13,25 @@ export type OdCategory =
   | "Other";
 
 export type Status =
-  "PENDING_COUNSELLOR" | "REJECTED_BY_COUNSELLOR" | "PENDING_HOD" | "APPROVED" | "REJECTED_BY_HOD";
+  | "PENDING_COUNSELLOR"
+  | "REJECTED_BY_COUNSELLOR"
+  | "PENDING_HOD"
+  | "APPROVED"
+  | "REJECTED_BY_HOD";
 
 export interface Decision {
   by: string;
+  byId?: string;
   at: string;
   remark?: string;
+}
+
+export interface LeaveLetter {
+  name: string;
+  type: string;
+  size: number;
+  url?: string;
+  dataUrl?: string;
 }
 
 interface RequestBase {
@@ -26,20 +39,26 @@ interface RequestBase {
   departmentCode: string;
   studentRegNo: string;
   studentName: string;
+  section?: string | null;
   kind: RequestKind;
-  category: LeaveCategory | OdCategory;
+  category: LeaveCategory | OdCategory | string;
   fromDate: string;
   toDate: string;
+  days?: number;
   status: Status;
   createdAt: string;
   counsellorId?: string;
-  counsellorDecision?: Decision;
-  hodDecision?: Decision;
+  counsellorName?: string;
+  counsellorDecision?: Decision | null;
+  hodDecision?: Decision | null;
+  rejectionReason?: string | null;
+  waitingDays?: number | null;
+  residentialAddress?: string | null;
 }
 
 export interface LeaveRequestRecord extends RequestBase {
   kind: "LEAVE";
-  category: LeaveCategory;
+  category: LeaveCategory | string;
   reason: string;
   eventName?: never;
   organizer?: never;
@@ -49,17 +68,12 @@ export interface LeaveRequestRecord extends RequestBase {
 
 export interface OdRequestRecord extends RequestBase {
   kind: "OD";
-  category: OdCategory;
+  category: OdCategory | string;
   eventName: string;
   organizer: string;
   venue: string;
-  letter: {
-    name: string;
-    type: "application/pdf" | "image/jpeg" | "image/png";
-    size: number;
-    dataUrl: string;
-  };
-  reason?: never;
+  letter: LeaveLetter;
+  reason?: string | null;
 }
 
 export type Request = LeaveRequestRecord | OdRequestRecord;
