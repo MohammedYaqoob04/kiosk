@@ -8,6 +8,8 @@ import { PageBanner } from "@/components/erp/PageBanner";
 import { useAuth } from "@/lib/auth-context";
 import { requireAuth } from "@/lib/require-auth";
 
+import { api } from "@/api";
+
 export const Route = createFileRoute("/erp/password")({
   beforeLoad: requireAuth,
   shouldReload: true,
@@ -23,25 +25,45 @@ function ChangePassword() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const canSubmit =
     currentPassword.length > 0 &&
     newPassword.length >= 6 &&
     newPassword === confirmPassword &&
     newPassword !== currentPassword &&
-    !success;
+    !success &&
+    !submitting;
 
   useEffect(() => {
     if (!success) return;
     const timeout = window.setTimeout(() => {
-      if (forced) completePasswordChange();
-      logout();
+      if (forced) {
+        completePasswordChange();
+        void navigate({
+          to: user?.role === "STUDENT" ? "/erp/dashboard" : user?.role === "HOD" ? "/erp/hod" : "/erp/staff",
+          replace: true,
+        });
+      } else {
+        void navigate({ to: "/erp/profile", replace: true });
+      }
     }, 1200);
     return () => window.clearTimeout(timeout);
-  }, [completePasswordChange, forced, logout, success]);
+  }, [completePasswordChange, forced, navigate, success, user?.role]);
 
-  const submit = () => {
-    if (canSubmit) setSuccess(true);
+  const submit = async () => {
+    if (!canSubmit || submitting) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to change password.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -117,6 +139,11 @@ function ChangePassword() {
         >
           Update Password
         </Button>
+        {error && (
+          <p role="alert" className="text-base font-semibold text-destructive">
+            {error}
+          </p>
+        )}
         {success && (
           <p role="status" className="text-base font-semibold text-ok">
             Password updated successfully.

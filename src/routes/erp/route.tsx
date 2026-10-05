@@ -11,6 +11,8 @@ import {
   unreadCount,
 } from "@/lib/noticeStore";
 import { initializeRequestAuditObserver } from "@/lib/requestAuditObserver";
+import { api, isMockApi } from "@/api";
+import { useApi } from "@/api/use-api";
 
 export const Route = createFileRoute("/erp")({
   component: ErpRoute,
@@ -63,13 +65,25 @@ function ErpLayout() {
     staffOnlyPaths.has(location.pathname);
   const isStudentOnlyRoute = studentOnlyPaths.has(location.pathname);
 
+  const unreadCountQuery = useApi(
+    ["notices", "unread-count"],
+    api.getUnreadNoticeCount,
+    { enabled: !isMockApi && user?.role === "STUDENT" },
+  );
+
   useEffect(() => {
-    initializeRequestAuditObserver();
+    if (isMockApi) {
+      initializeRequestAuditObserver();
+    }
   }, []);
 
   useEffect(() => {
     if (isLogin) return;
     if (!user) {
+      return;
+    }
+    if (user.mustChangePassword && location.pathname !== "/erp/password") {
+      void navigate({ to: "/erp/password", replace: true });
       return;
     }
     if (isStaffRoute && user.role === "STUDENT") {
@@ -252,7 +266,9 @@ function ErpLayout() {
                 <span>{label}</span>
                 {user.role === "STUDENT" && label === "Notices" && user.identifier && (
                   <span className="ml-auto rounded-full border border-border px-3 py-1 text-sm">
-                    {unreadCount(user.identifier)}
+                    {isMockApi
+                      ? unreadCount(user.identifier)
+                      : (unreadCountQuery.data?.unread ?? 0)}
                   </span>
                 )}
               </Link>

@@ -1,10 +1,11 @@
-import { getAuthToken } from "@/lib/auth-session";
+import { getAuthToken, setAuthToken } from "@/lib/auth-session";
 import type {
   AssignmentFrontPageResponse,
   AssignmentOptions,
   ChangePasswordResponse,
   Dashboard,
   FeeSummary,
+  LoginResponse,
   ResultsResponse,
   StudentProfile,
   TimetableDay,
@@ -30,12 +31,13 @@ const baseUrl = `${configuredBaseUrl}/api/v1`;
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();
   let response: Response;
+  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
         Accept: "application/json",
-        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        ...(init?.body && !isFormData ? { "Content-Type": "application/json" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
@@ -54,14 +56,27 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const body: unknown = await response.json();
       if (typeof body === "object" && body !== null) {
-        const payload = body as { message?: unknown; code?: unknown };
-        if (typeof payload.message === "string") message = payload.message;
+        const payload = body as { message?: unknown; code?: unknown; detail?: unknown };
+        if (typeof payload.message === "string") {
+          message = payload.message;
+        } else if (typeof payload.detail === "string") {
+          message = payload.detail;
+        } else if (Array.isArray(payload.detail) && payload.detail.length > 0) {
+          const first = payload.detail[0] as { msg?: unknown };
+          if (first && typeof first.msg === "string") {
+            message = first.msg;
+          }
+        }
         if (typeof payload.code === "string") code = payload.code;
       }
     } catch {
       // Keep the HTTP status message when the response has no JSON error body.
     }
     throw new ApiError(message, response.status, code);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   try {
@@ -75,7 +90,79 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const token = getAuthToken();
+  const url =
+    path.startsWith("http://") || path.startsWith("https://")
+      ? path
+      : `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+  let response: Response;
+  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        ...(init?.body && !isFormData ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    });
+  } catch (error) {
+    throw new ApiError(
+      error instanceof Error ? error.message : "Unable to reach the API.",
+      0,
+      "NETWORK_ERROR",
+    );
+  }
+
+  if (!response.ok) {
+    let message = `API request failed (${response.status}).`;
+    let code: string | undefined;
+    try {
+      const body: unknown = await response.json();
+      if (typeof body === "object" && body !== null) {
+        const payload = body as { message?: unknown; code?: unknown; detail?: unknown };
+        if (typeof payload.message === "string") {
+          message = payload.message;
+        } else if (typeof payload.detail === "string") {
+          message = payload.detail;
+        } else if (Array.isArray(payload.detail) && payload.detail.length > 0) {
+          const first = payload.detail[0] as { msg?: unknown };
+          if (first && typeof first.msg === "string") {
+            message = first.msg;
+          }
+        }
+        if (typeof payload.code === "string") code = payload.code;
+      }
+    } catch {
+      // Keep the HTTP status message when the response has no JSON error body.
+    }
+    throw new ApiError(message, response.status, code);
+  }
+
+  return response.blob();
+}
+
 export const httpApi = {
+  login: async (username: string, password: string, portal?: "student" | "staff" | "hod") => {
+    const res = await request<LoginResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password, portal }),
+    });
+    if (res.accessToken) {
+      setAuthToken(res.accessToken);
+    }
+    return res;
+  },
+  logout: async () => {
+    try {
+      await request<void>("/auth/logout", {
+        method: "POST",
+      });
+    } finally {
+      setAuthToken(null);
+    }
+  },
   getProfile: () => request<StudentProfile>("/profile"),
   getDashboard: () => request<Dashboard>("/dashboard"),
   getTimetable: (date?: string) =>
@@ -88,26 +175,129 @@ export const httpApi = {
       method: "POST",
       body: JSON.stringify({ subjectCode, no }),
     }),
-  changePassword: (current: string, next: string) =>
-    request<ChangePasswordResponse>("/password", {
+  getAssignmentFrontPageBlob: (subjectCode: string, no: number) =>
+    requestBlob("/assignments/front-page", {
+      method: "POST",
+      body: JSON.stringify({ subjectCode, no }),
+    }),
+  submitLeave: (formData: FormData) =>
+    request<import("@/types/leave").Request>("/leave", {
+      method: "POST",
+      body: formData,
+    }),
+  getMyLeaves: () => request<import("@/types/leave").Request[]>("/leave/mine"),
+  getLeaveLetterBlob: (leaveId: string | number) =>
+    requestBlob(`/leave/${leaveId}/letter`),
+  getBlob: (urlOrPath: string, init?: RequestInit) => requestBlob(urlOrPath, init),
+  changePassword: async (current: string, next: string) => {
+    const result = await request<ChangePasswordResponse>("/auth/change-password", {
       method: "POST",
       body: JSON.stringify({ current, next }),
-    }),
-  getLeaveQueue: (counsellorId: string) =>
-    request<import("@/types/leave").LeaveRequest[]>(
-      `/staff/leave-queue?counsellorId=${encodeURIComponent(counsellorId)}`,
+    });
+    if (result.accessToken) {
+      setAuthToken(result.accessToken);
+    }
+    return result;
+  },
+  getLeaveQueue: (_counsellorId?: string) =>
+    request<import("@/types/leave").Request[]>("/leave/queue"),
+  getAssignedStudents: (_counsellorId?: string, q?: string, belowMin?: boolean) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (belowMin) params.set("below_min", "true");
+    const qs = params.toString();
+    return request<import("@/types/staff-dashboard").AssignedStudent[]>(
+      `/staff/students${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getStaffStudentSummary: (registerNo: string) =>
+    request<import("@/api/types").StaffStudentSummary>(
+      `/staff/students/${encodeURIComponent(registerNo)}`,
     ),
-  getAssignedStudents: (counsellorId: string) =>
-    request<import("@/types/staff-dashboard").AssignedStudent[]>(
-      `/staff/students?counsellorId=${encodeURIComponent(counsellorId)}`,
-    ),
-  getLeaveHistory: (counsellorId: string, filter: StaffHistoryFilter = "ALL") =>
-    request<import("@/api/types").StaffLeaveHistory[]>(
-      `/staff/leave-history?counsellorId=${encodeURIComponent(counsellorId)}&filter=${filter}`,
-    ),
+  getLeaveHistory: (_counsellorId?: string, filter: StaffHistoryFilter = "ALL") =>
+    request<import("@/api/types").StaffLeaveHistory[]>(`/leave/history?filter=${filter}`),
   decideLeaveRequest: (id: string, decision: LeaveDecision, remark?: string) =>
-    request<import("@/types/leave").LeaveRequest>(`/staff/leave-requests/${encodeURIComponent(id)}`, {
+    request<import("@/types/leave").Request>(`/leave/${encodeURIComponent(id)}/decision`, {
       method: "POST",
       body: JSON.stringify({ decision, remark }),
     }),
+  reassignLeaveRequest: (id: string, counsellorId: string) =>
+    request<import("@/types/leave").Request>(`/leave/${encodeURIComponent(id)}/reassign`, {
+      method: "POST",
+      body: JSON.stringify({ counsellorId }),
+    }),
+  getHodOverview: () =>
+    request<import("@/api/types").HodOverviewResponse>("/hod/overview"),
+  getHodCounsellors: () =>
+    request<import("@/api/types").HodCounsellor[]>("/hod/counsellors"),
+  getHodStudents: () =>
+    request<import("@/api/types").HodStudent[]>("/hod/students"),
+  assignStudents: (counsellorId: string, registerNos: string[]) =>
+    request<import("@/api/types").AssignStudentsResponse>("/hod/assign", {
+      method: "POST",
+      body: JSON.stringify({ counsellorId, registerNos }),
+    }),
+  assignSection: (counsellorId: string, section: string) =>
+    request<import("@/api/types").AssignSectionResponse>("/hod/assign-section", {
+      method: "POST",
+      body: JSON.stringify({ counsellorId, section }),
+    }),
+  unassignStudent: (registerNo: string) =>
+    request<import("@/api/types").UnassignStudentResponse>(
+      `/hod/assign/${encodeURIComponent(registerNo)}`,
+      { method: "DELETE" },
+    ),
+  getHodLeaveReportBlob: (params?: { from?: string; to?: string; status?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    if (params?.status && params.status !== "ALL") qs.set("status", params.status);
+    const q = qs.toString();
+    return requestBlob(`/hod/reports/leave.csv${q ? `?${q}` : ""}`);
+  },
+  getHodShortageReportBlob: () =>
+    requestBlob("/hod/reports/attendance-shortage.csv"),
+  getAuditLog: (params?: { action?: string; from?: string; to?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.action && params.action !== "ALL") qs.set("action", params.action);
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return request<import("@/api/types").AuditEntry[]>(`/audit${q ? `?${q}` : ""}`);
+  },
+  createNotice: (formData: FormData) =>
+    request<import("@/api/types").CreateNoticeResponse>("/notices", {
+      method: "POST",
+      body: formData,
+    }),
+  getNoticeInbox: (category?: string) => {
+    const qs = category && category !== "All" ? `?category=${encodeURIComponent(category)}` : "";
+    return request<import("@/api/types").NoticeInboxItem[]>(`/notices/inbox${qs}`);
+  },
+  getUnreadNoticeCount: () =>
+    request<import("@/api/types").UnreadNoticeCountResponse>("/notices/unread-count"),
+  markNoticeRead: (noticeId: number | string) =>
+    request<void>(`/notices/${encodeURIComponent(noticeId)}/read`, {
+      method: "POST",
+    }),
+  getSentNotices: () =>
+    request<import("@/api/types").NoticeSentItem[]>("/notices/sent"),
+  withdrawNotice: (noticeId: number | string) =>
+    request<{ id: number; withdrawn: boolean }>(
+      `/notices/${encodeURIComponent(noticeId)}/withdraw`,
+      { method: "POST" },
+    ),
+  pinNotice: (noticeId: number | string, pinned: boolean) =>
+    request<{ id: number; pinned: boolean }>(
+      `/notices/${encodeURIComponent(noticeId)}/pin`,
+      {
+        method: "POST",
+        body: JSON.stringify({ pinned }),
+      },
+    ),
+  getNoticeAttachmentBlob: (noticeId: number | string, attachmentId: number | string) =>
+    requestBlob(
+      `/notices/${encodeURIComponent(noticeId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    ),
 };

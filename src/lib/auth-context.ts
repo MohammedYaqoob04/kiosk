@@ -4,8 +4,8 @@ import type { Role, User } from "@/types/erp";
 
 export interface AuthContextValue {
   user: User | null;
-  login: (role: Role, identifier: string, pin: string) => void;
-  logout: () => void;
+  login: (role: Role, identifier: string, pin: string) => Promise<void> | void;
+  logout: () => Promise<void> | void;
   completePasswordChange: () => void;
   warningOpen: boolean;
   staySignedIn: () => void;

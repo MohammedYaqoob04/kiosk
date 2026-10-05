@@ -6,7 +6,6 @@ import { KioskKeyboard } from "@/components/KioskKeyboard";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { getCurrentUser } from "@/lib/auth-session";
-import { getStudentLoginLockRemainingSeconds } from "@/lib/student-login-lock";
 
 const loginRoles = ["student", "staff", "hod"] as const;
 type LoginRole = (typeof loginRoles)[number];
@@ -21,8 +20,14 @@ export const Route = createFileRoute("/erp/login")({
   beforeLoad: () => {
     const user = getCurrentUser();
     if (user) {
+      if (user.mustChangePassword) {
+        throw redirect({
+          to: "/erp/password",
+          replace: true,
+        });
+      }
       throw redirect({
-        to: user.role === "STUDENT" ? "/erp/dashboard" : "/erp/staff",
+        to: user.role === "STUDENT" ? "/erp/dashboard" : user.role === "HOD" ? "/erp/hod" : "/erp/staff",
         replace: true,
       });
     }
@@ -116,11 +121,17 @@ function ErpLogin() {
     setError("");
   };
 
-  const submit = () => {
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
-      login(details.authRole, identifier.trim(), credential);
+      await login(details.authRole, identifier.trim(), credential);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to sign in.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -285,24 +296,6 @@ function StudentLogin({
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
   const [attempted, setAttempted] = useState(false);
-  const [, refreshLock] = useState(0);
-  const registerNumber = `5104${registerSuffix}`;
-  const lockRemaining = getStudentLoginLockRemainingSeconds(registerNumber);
-
-  useEffect(() => {
-    if (lockRemaining === 0) return;
-    const interval = window.setInterval(() => {
-      refreshLock((current) => current + 1);
-      if (getStudentLoginLockRemainingSeconds(registerNumber) === 0) {
-        window.clearInterval(interval);
-      }
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [lockRemaining, registerNumber]);
-
-  useEffect(() => {
-    if (lockRemaining === 0 && error.startsWith("Too many attempts.")) setError("");
-  }, [error, lockRemaining]);
   const setField = (field: LoginField) => {
     setActiveField(field);
   };
@@ -316,30 +309,36 @@ function StudentLogin({
     else setPassword((value) => value.slice(0, -1));
     setError("");
   };
+  const [loading, setLoading] = useState(false);
+
   const appendDigit = (digit: string) => {
     if (activeField === "identifier") {
       setRegisterSuffix((value) => (value.length < 8 ? `${value}${digit}` : value));
     } else {
-      setPassword((value) => (value.length < 4 ? `${value}${digit}` : value));
+      setPassword((value) => (value.length < 32 ? `${value}${digit}` : value));
     }
     setError("");
   };
-  const canSubmit = registerSuffix.length === 8 && /^\d{4}$/.test(password) && lockRemaining === 0;
+  const canSubmit = registerSuffix.length === 8 && password.length >= 4 && !loading;
 
-  const submit = () => {
+  const submit = async () => {
+    if (loading) return;
     setAttempted(true);
     if (!/^5104\d{8}$/.test(`5104${registerSuffix}`)) {
       setError("Register number must be 12 digits starting with 5104");
       return;
     }
-    if (!/^\d{4}$/.test(password)) {
-      setError("Password must be 4 digits (DDMM)");
+    if (password.length < 4) {
+      setError("Password must be at least 4 digits");
       return;
     }
+    setLoading(true);
     try {
-      login("STUDENT", `5104${registerSuffix}`, password);
+      await login("STUDENT", `5104${registerSuffix}`, password);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Incorrect register number or password");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -394,12 +393,9 @@ function StudentLogin({
             className={`student-register-input ${activeField === "identifier" ? "is-selected" : ""}`}
           >
             <span className="student-prefix">5104</span>
-            <span className="student-suffix">
-              {registerSuffix || <span className="text-muted-foreground">23243001</span>}
-            </span>
+            <span className="student-suffix">{registerSuffix}</span>
             <span className="student-counter">{registerSuffix.length}/8</span>
           </button>
-          <span className="text-sm text-muted-foreground">Example: 510423243001</span>
           {attempted && registerSuffix.length !== 8 && (
             <span className="text-sm text-destructive">
               Register number must be 12 digits starting with 5104
@@ -420,7 +416,7 @@ function StudentLogin({
               aria-pressed={activeField === "pin"}
               className={`student-password-cells ${activeField === "pin" ? "is-selected" : ""}`}
             >
-              {Array.from({ length: 4 }, (_, index) => (
+              {Array.from({ length: Math.max(4, password.length) }, (_, index) => (
                 <span key={index} className="student-password-cell">
                   {passwordVisible ? (password[index] ?? "") : password[index] ? "●" : ""}
                 </span>
@@ -493,7 +489,7 @@ function StudentLogin({
           Sign in <ArrowRight aria-hidden="true" />
         </Button>
         <p role="alert" className="erp-login-error">
-          {lockRemaining > 0 ? `Too many attempts. Try again in ${lockRemaining} seconds.` : error}
+          {error}
         </p>
       </form>
     </div>

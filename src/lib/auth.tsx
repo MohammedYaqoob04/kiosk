@@ -3,19 +3,19 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { AuthContext, type AuthContextValue } from "@/lib/auth-context";
+import { isMockApi } from "@/api";
+import { httpApi } from "@/api/http";
 import {
   completePasswordChange as clearForcedPasswordChange,
+  getAuthToken,
+  getCurrentUser,
   setAuthToken,
   setCurrentUser,
 } from "@/lib/auth-session";
 import { getDemoUser } from "@/mock/erp";
 import type { Role, User } from "@/types/erp";
 import { clearKioskSessionData } from "@/lib/privacy";
-import {
-  clearStudentLoginAttempts,
-  getStudentLoginLockRemainingSeconds,
-  recordStudentLoginFailure,
-} from "@/lib/student-login-lock";
+
 
 const STANDARD_IDLE_LIMIT_MS = 2 * 60_000;
 const EXTENDED_IDLE_LIMIT_MS = 10 * 60_000;
@@ -28,7 +28,7 @@ function readSessionSetting(key: string): boolean {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => getCurrentUser());
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [warningOpen, setWarningOpen] = useState(false);
   const [largeText, setLargeText] = useState(() => readSessionSetting("kiosk-large-text"));
@@ -53,14 +53,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   }, [queryClient]);
 
-  const logout = useCallback(() => {
-    clearSession();
-    void navigate({ to: "/erp", replace: true });
+  const logout = useCallback(async () => {
+    try {
+      if (!isMockApi && getAuthToken()) {
+        await httpApi.logout();
+      }
+    } catch {
+      // Ignore network failures on logout
+    } finally {
+      clearSession();
+      void navigate({ to: "/erp", replace: true });
+    }
   }, [clearSession, navigate]);
 
-  const expireSession = useCallback(() => {
-    clearSession();
-    void navigate({ to: "/erp", replace: true });
+  const expireSession = useCallback(async () => {
+    try {
+      if (!isMockApi && getAuthToken()) {
+        await httpApi.logout();
+      }
+    } catch {
+      // Ignore network failures on session expiration
+    } finally {
+      clearSession();
+      void navigate({ to: "/erp", replace: true });
+    }
   }, [clearSession, navigate]);
 
   const completePasswordChange = useCallback(() => {
@@ -69,51 +85,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    (role: Role, identifier: string, pin: string) => {
-      if (role === "STUDENT") {
-        if (!/^5104\d{8}$/.test(identifier)) {
-          throw new Error("Register number must be 12 digits starting with 5104");
+    async (role: Role, identifier: string, pin: string) => {
+      if (isMockApi) {
+        if (role === "STUDENT") {
+          if (!/^5104\d{8}$/.test(identifier)) {
+            throw new Error("Register number must be 12 digits starting with 5104");
+          }
+          if (pin.length < 4) {
+            throw new Error("Password must be at least 4 digits");
+          }
+        } else if (!identifier.trim()) {
+          throw new Error("Enter your ID to sign in.");
         }
-        if (!/^\d{4}$/.test(pin)) {
-          throw new Error("Password must be 4 digits (DDMM)");
+        if (role !== "STUDENT" && !pin.trim()) {
+          throw new Error("Enter your password to sign in.");
         }
-        const remainingLock = getStudentLoginLockRemainingSeconds(identifier);
-        if (remainingLock > 0) {
-          throw new Error(`Too many attempts. Try again in ${remainingLock} seconds.`);
+        const demoUser = getDemoUser(role);
+        const signedInUser =
+          role === "STUDENT"
+            ? {
+                ...demoUser,
+                identifier: identifier.trim(),
+              }
+            : {
+                ...demoUser,
+                identifier: identifier.trim().toUpperCase(),
+              };
+        setCurrentUser(signedInUser);
+        setAuthToken(`mock-session-${signedInUser.identifier}`);
+        setUser(signedInUser);
+        setLastActivity(Date.now());
+        setWarningOpen(false);
+        if (signedInUser.mustChangePassword) {
+          void navigate({ to: "/erp/password", replace: true });
+        } else {
+          void navigate({
+            to: role === "STUDENT" ? "/erp/dashboard" : role === "HOD" ? "/erp/hod" : "/erp/staff",
+            replace: true,
+          });
         }
-        if (identifier !== "510423243001" || pin !== "0101") {
-          const lockSeconds = recordStudentLoginFailure(identifier);
-          if (lockSeconds > 0)
-            throw new Error(`Too many attempts. Try again in ${lockSeconds} seconds.`);
-          throw new Error("Incorrect register number or password");
-        }
-        clearStudentLoginAttempts(identifier);
-      } else if (!identifier.trim()) {
-        throw new Error("Enter your ID to sign in.");
+        return;
       }
-      if (role !== "STUDENT" && !pin.trim()) {
-        throw new Error("Enter your password to sign in.");
-      }
-      const demoUser = getDemoUser(role);
-      const signedInUser =
-        role === "STUDENT"
-          ? {
-              ...demoUser,
-              identifier: identifier.trim(),
-            }
-          : {
-              ...demoUser,
-              identifier: identifier.trim().toUpperCase(),
-            };
+
+      // Backend login
+      const portal = role === "STUDENT" ? "student" : role === "HOD" ? "hod" : "staff";
+      const res = await httpApi.login(identifier.trim(), pin, portal);
+      setAuthToken(res.accessToken);
+      const signedInUser: User = {
+        id: String(res.user.id),
+        name: res.user.fullName || res.user.username,
+        role: res.user.role as Role,
+        identifier: res.user.username,
+        department: res.user.department || "",
+        departmentCode: res.user.department || "",
+        year: "",
+        mustChangePassword: Boolean(res.user.mustChangePassword),
+      };
       setCurrentUser(signedInUser);
-      setAuthToken(`mock-session-${signedInUser.identifier}`);
       setUser(signedInUser);
       setLastActivity(Date.now());
       setWarningOpen(false);
-      void navigate({
-        to: role === "STUDENT" ? "/erp/dashboard" : "/erp/staff",
-        replace: true,
-      });
+      if (signedInUser.mustChangePassword) {
+        void navigate({ to: "/erp/password", replace: true });
+      } else {
+        void navigate({
+          to: role === "STUDENT" ? "/erp/dashboard" : role === "HOD" ? "/erp/hod" : "/erp/staff",
+          replace: true,
+        });
+      }
     },
     [navigate],
   );

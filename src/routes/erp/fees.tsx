@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CreditCard, ReceiptText } from "lucide-react";
 
+import { api } from "@/api";
+import { useApi } from "@/api/use-api";
 import type { FeeSummary, StudentProfile } from "@/api";
 import { DataTable } from "@/components/erp/DataTable";
+import { ErrorState } from "@/components/erp/ErrorState";
 import { PageBanner } from "@/components/erp/PageBanner";
+import { Skeleton } from "@/components/erp/Skeleton";
 import { Button } from "@/components/ui/button";
-import { fakeFees, fakeProfile } from "@/lib/erpData";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/erp/fees")({
@@ -37,7 +40,32 @@ function formatAmount(value: number): string {
 }
 
 function FeesPage() {
-  return <FeeDetails fees={fakeFees} student={fakeProfile} />;
+  const feesQuery = useApi(["erp", "fees"], api.getFees);
+  const profileQuery = useApi(["erp", "profile"], api.getProfile);
+
+  if (feesQuery.loading || profileQuery.loading) {
+    return <Skeleton rows={5} className="flex-1 p-4" />;
+  }
+
+  if (feesQuery.error || profileQuery.error || !feesQuery.data || !profileQuery.data) {
+    return (
+      <div className="p-4">
+        <ErrorState
+          message={
+            feesQuery.error?.message ??
+            profileQuery.error?.message ??
+            "Fee details are unavailable."
+          }
+          onRetry={() => {
+            feesQuery.reload();
+            profileQuery.reload();
+          }}
+        />
+      </div>
+    );
+  }
+
+  return <FeeDetails fees={feesQuery.data} student={profileQuery.data} />;
 }
 
 function FeeDetails({ fees, student }: { fees: FeeSummary; student: StudentProfile }) {

@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, LockKeyhole, Mail, MapPin, Phone, UserRound } from "lucide-react";
 
+import { api } from "@/api";
+import { useApi } from "@/api/use-api";
+import { ErrorState } from "@/components/erp/ErrorState";
 import { PageBanner } from "@/components/erp/PageBanner";
-import { fakeProfile } from "@/lib/erpData";
+import { Skeleton } from "@/components/erp/Skeleton";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/erp/profile")({
@@ -16,7 +19,7 @@ export const Route = createFileRoute("/erp/profile")({
 type PrivateField = "dateOfBirth" | "mobile" | "email";
 
 function StudentProfile() {
-  const profile = fakeProfile;
+  const { data: profile, loading, error, reload } = useApi(["erp", "profile"], api.getProfile);
   const [revealed, setRevealed] = useState<Partial<Record<PrivateField, boolean>>>({});
   const timers = useRef<Partial<Record<PrivateField, number>>>({});
 
@@ -34,6 +37,15 @@ function StudentProfile() {
       delete timers.current[field];
     }, 15_000);
   };
+
+  if (loading) return <Skeleton rows={5} className="flex-1 p-4" />;
+  if (error || !profile) {
+    return (
+      <div className="p-4">
+        <ErrorState message={error?.message ?? "Profile is unavailable."} onRetry={reload} />
+      </div>
+    );
+  }
 
   const lastLoginDate = profile.lastLoginAt ? new Date(profile.lastLoginAt) : null;
   const lastLogin = lastLoginDate
