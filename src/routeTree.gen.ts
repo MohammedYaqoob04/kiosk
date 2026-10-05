@@ -50,6 +50,7 @@ import { Route as ErpStaffAnnouncementsRouteImport } from './routes/erp/staff.an
 import { Route as ErpStaffHistoryRouteImport } from './routes/erp/staff.history'
 import { Route as ErpStaffLeaveRouteImport } from './routes/erp/staff.leave'
 import { Route as ErpStaffStudentsRouteImport } from './routes/erp/staff.students'
+import { Route as ErpHodStudentsUploadRouteImport } from './routes/erp/hod.students.upload'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -256,6 +257,11 @@ const ErpStaffStudentsRoute = ErpStaffStudentsRouteImport.update({
   path: '/students',
   getParentRoute: () => ErpStaffRoute,
 } as any)
+const ErpHodStudentsUploadRoute = ErpHodStudentsUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => ErpHodStudentsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -294,11 +300,12 @@ export interface FileRoutesByFullPath {
   '/erp/hod/activity': typeof ErpHodActivityRoute
   '/erp/hod/approvals': typeof ErpHodApprovalsRoute
   '/erp/hod/reports': typeof ErpHodReportsRoute
-  '/erp/hod/students': typeof ErpHodStudentsRoute
+  '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
+  '/erp/hod/students/upload': typeof ErpHodStudentsUploadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -337,11 +344,12 @@ export interface FileRoutesByTo {
   '/erp/hod/activity': typeof ErpHodActivityRoute
   '/erp/hod/approvals': typeof ErpHodApprovalsRoute
   '/erp/hod/reports': typeof ErpHodReportsRoute
-  '/erp/hod/students': typeof ErpHodStudentsRoute
+  '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
+  '/erp/hod/students/upload': typeof ErpHodStudentsUploadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -381,11 +389,12 @@ export interface FileRoutesById {
   '/erp/hod/activity': typeof ErpHodActivityRoute
   '/erp/hod/approvals': typeof ErpHodApprovalsRoute
   '/erp/hod/reports': typeof ErpHodReportsRoute
-  '/erp/hod/students': typeof ErpHodStudentsRoute
+  '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
+  '/erp/hod/students/upload': typeof ErpHodStudentsUploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -431,6 +440,7 @@ export interface FileRouteTypes {
     | '/erp/staff/history'
     | '/erp/staff/leave'
     | '/erp/staff/students'
+    | '/erp/hod/students/upload'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -474,6 +484,7 @@ export interface FileRouteTypes {
     | '/erp/staff/history'
     | '/erp/staff/leave'
     | '/erp/staff/students'
+    | '/erp/hod/students/upload'
   id:
     | '__root__'
     | '/'
@@ -517,6 +528,7 @@ export interface FileRouteTypes {
     | '/erp/staff/history'
     | '/erp/staff/leave'
     | '/erp/staff/students'
+    | '/erp/hod/students/upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -827,21 +839,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpStaffStudentsRouteImport
       parentRoute: typeof ErpStaffRoute
     }
+    '/erp/hod/students/upload': {
+      id: '/erp/hod/students/upload'
+      path: '/upload'
+      fullPath: '/erp/hod/students/upload'
+      preLoaderRoute: typeof ErpHodStudentsUploadRouteImport
+      parentRoute: typeof ErpHodStudentsRoute
+    }
   }
 }
+
+interface ErpHodStudentsRouteChildren {
+  ErpHodStudentsUploadRoute: typeof ErpHodStudentsUploadRoute
+}
+
+const ErpHodStudentsRouteChildren: ErpHodStudentsRouteChildren = {
+  ErpHodStudentsUploadRoute: ErpHodStudentsUploadRoute,
+}
+
+const ErpHodStudentsRouteWithChildren = ErpHodStudentsRoute._addFileChildren(
+  ErpHodStudentsRouteChildren,
+)
 
 interface ErpHodRouteChildren {
   ErpHodActivityRoute: typeof ErpHodActivityRoute
   ErpHodApprovalsRoute: typeof ErpHodApprovalsRoute
   ErpHodReportsRoute: typeof ErpHodReportsRoute
-  ErpHodStudentsRoute: typeof ErpHodStudentsRoute
+  ErpHodStudentsRoute: typeof ErpHodStudentsRouteWithChildren
 }
 
 const ErpHodRouteChildren: ErpHodRouteChildren = {
   ErpHodActivityRoute: ErpHodActivityRoute,
   ErpHodApprovalsRoute: ErpHodApprovalsRoute,
   ErpHodReportsRoute: ErpHodReportsRoute,
-  ErpHodStudentsRoute: ErpHodStudentsRoute,
+  ErpHodStudentsRoute: ErpHodStudentsRouteWithChildren,
 }
 
 const ErpHodRouteWithChildren =

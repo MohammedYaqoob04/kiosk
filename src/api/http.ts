@@ -25,6 +25,19 @@ export class ApiError extends Error {
   }
 }
 
+export function formatServerError(
+  err: unknown,
+  fallback = "An unexpected error occurred.",
+): string {
+  if (err instanceof ApiError) {
+    return err.code ? `[${err.code}] ${err.message}` : err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return fallback;
+}
+
 const configuredBaseUrl = (import.meta.env["VITE_API_URL"] ?? "").replace(/\/$/, "");
 const baseUrl = `${configuredBaseUrl}/api/v1`;
 
@@ -208,8 +221,23 @@ export const httpApi = {
   },
   getLeaveQueue: (_counsellorId?: string) =>
     request<import("@/types/leave").Request[]>("/leave/queue"),
-  getAssignedStudents: (_counsellorId?: string, q?: string, belowMin?: boolean) => {
+  getAssignedStudents: (
+    counsellorIdOrParams?: string | { q?: string; belowMin?: boolean },
+    qParam?: string,
+    belowMinParam?: boolean,
+  ) => {
     const params = new URLSearchParams();
+    let q: string | undefined;
+    let belowMin: boolean | undefined;
+
+    if (typeof counsellorIdOrParams === "object" && counsellorIdOrParams !== null) {
+      q = counsellorIdOrParams.q;
+      belowMin = counsellorIdOrParams.belowMin;
+    } else {
+      q = qParam;
+      belowMin = belowMinParam;
+    }
+
     if (q) params.set("q", q);
     if (belowMin) params.set("below_min", "true");
     const qs = params.toString();
@@ -221,13 +249,31 @@ export const httpApi = {
     request<import("@/api/types").StaffStudentSummary>(
       `/staff/students/${encodeURIComponent(registerNo)}`,
     ),
-  getLeaveHistory: (_counsellorId?: string, filter: StaffHistoryFilter = "ALL") =>
-    request<import("@/api/types").StaffLeaveHistory[]>(`/leave/history?filter=${filter}`),
-  decideLeaveRequest: (id: string, decision: LeaveDecision, remark?: string) =>
-    request<import("@/types/leave").Request>(`/leave/${encodeURIComponent(id)}/decision`, {
+  getLeaveHistory: (
+    filterOrCounsellorId?: StaffHistoryFilter | string,
+    maybeFilter: StaffHistoryFilter = "ALL",
+  ) => {
+    const filter: StaffHistoryFilter =
+      filterOrCounsellorId === "ALL" ||
+      filterOrCounsellorId === "APPROVED" ||
+      filterOrCounsellorId === "REJECTED"
+        ? filterOrCounsellorId
+        : maybeFilter;
+    return request<import("@/api/types").StaffLeaveHistory[]>(`/leave/history?filter=${filter}`);
+  },
+  decideLeaveRequest: (id: string, decision: LeaveDecision, remark?: string) => {
+    if (decision === "REJECT" && (!remark || remark.trim().length < 10)) {
+      throw new ApiError(
+        "Rejection reason must be at least 10 characters.",
+        400,
+        "INVALID_REASON",
+      );
+    }
+    return request<import("@/types/leave").Request>(`/leave/${encodeURIComponent(id)}/decision`, {
       method: "POST",
-      body: JSON.stringify({ decision, remark }),
-    }),
+      body: JSON.stringify({ decision, remark: remark?.trim() }),
+    });
+  },
   reassignLeaveRequest: (id: string, counsellorId: string) =>
     request<import("@/types/leave").Request>(`/leave/${encodeURIComponent(id)}/reassign`, {
       method: "POST",
@@ -262,8 +308,16 @@ export const httpApi = {
     const q = qs.toString();
     return requestBlob(`/hod/reports/leave.csv${q ? `?${q}` : ""}`);
   },
-  getHodShortageReportBlob: () =>
-    requestBlob("/hod/reports/attendance-shortage.csv"),
+  getHodShortageReportBlob: async () => {
+    try {
+      return await requestBlob("/hod/reports/attendance-shortage.csv");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        return await requestBlob("/attendance-shortage.csv");
+      }
+      throw err;
+    }
+  },
   getAuditLog: (params?: { action?: string; from?: string; to?: string; limit?: number }) => {
     const qs = new URLSearchParams();
     if (params?.action && params.action !== "ALL") qs.set("action", params.action);
@@ -307,4 +361,64 @@ export const httpApi = {
     requestBlob(
       `/notices/${encodeURIComponent(noticeId)}/attachments/${encodeURIComponent(attachmentId)}`,
     ),
+  importStudents: async (
+    file: File,
+    dryRun: boolean,
+    assignTo?: string,
+  ): Promise<import("@/api/types").StudentImportResponse> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("dryRun", String(dryRun));
+    formData.append("dry_run", String(dryRun));
+    if (assignTo) {
+      formData.append("assignTo", assignTo);
+      formData.append("assign_to", assignTo);
+    }
+
+    const qs = new URLSearchParams();
+    qs.set("dryRun", String(dryRun));
+    qs.set("dry_run", String(dryRun));
+    if (assignTo) {
+      qs.set("assignTo", assignTo);
+      qs.set("assign_to", assignTo);
+    }
+
+    const raw = await request<any>(`/hod/students/import?${qs.toString()}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const rowsRead = raw?.rowsRead ?? raw?.rows_read ?? 0;
+    const errorsRaw = raw?.errors ?? [];
+    const errors: import("@/api/types").StudentImportError[] = Array.isArray(errorsRaw)
+      ? errorsRaw.map((e: any) => ({
+          row: e.row ?? e.rowNumber ?? e.row_number ?? e.line ?? 0,
+          message: e.message ?? e.msg ?? e.error ?? String(e),
+        }))
+      : [];
+    const warnings: string[] = Array.isArray(raw?.warnings)
+      ? raw.warnings.map((w: any) =>
+          typeof w === "string" ? w : w.message ?? w.msg ?? JSON.stringify(w),
+        )
+      : [];
+    const ignoredSensitiveColumns: string[] = Array.isArray(
+      raw?.ignoredSensitiveColumns ?? raw?.ignored_sensitive_columns,
+    )
+      ? (raw.ignoredSensitiveColumns ?? raw.ignored_sensitive_columns)
+      : [];
+    const created = raw?.created ?? raw?.inserted ?? 0;
+    const updated = raw?.updated ?? 0;
+    const assigned = raw?.assigned ?? 0;
+
+    return {
+      dryRun: Boolean(raw?.dryRun ?? raw?.dry_run ?? dryRun),
+      rowsRead,
+      errors,
+      warnings,
+      ignoredSensitiveColumns,
+      created,
+      updated,
+      assigned,
+    };
+  },
 };

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { CampusMap } from "@/components/campus/CampusMap";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { TouchTextInput } from "@/components/TouchTextInput";
 import { campusLocations } from "@/config/campusLocations";
 import { SHOW_PLACEHOLDERS } from "@/config/home";
 import { siteContent } from "@/config/siteContent";
@@ -26,15 +27,15 @@ export function CampusPage() {
         <h1 className="campus-page-title">{siteContent.campusPage.title}</h1>
         <div className="campus-explorer">
           <section className="campus-location-panel">
-            <label className="campus-search-label">
-              {siteContent.campusPage.searchLabel}
-              <input
-                className="campus-search-input"
-                type="search"
+            <div className="campus-search-box">
+              <TouchTextInput
+                label={siteContent.campusPage.searchLabel}
                 value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
+                onChange={setSearch}
+                placeholder="Tap to search"
+                layout="full"
               />
-            </label>
+            </div>
             <h2>{siteContent.campusPage.listLabel}</h2>
             {filteredLocations.length > 0 ? (
               <div className="campus-location-list">

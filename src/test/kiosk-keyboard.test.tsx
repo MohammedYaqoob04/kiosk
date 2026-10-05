@@ -146,4 +146,54 @@ describe("KioskKeyboard", () => {
     const hideButton = screen.getByRole("button", { name: /hide password/i });
     expect(hideButton).toBeInTheDocument();
   });
+
+  it("can type a date with hyphen '14-05-2006' in numeric layout", () => {
+    render(<NumericKeyboardHarness />);
+
+    const chars = ["1", "4", "-", "0", "5", "-", "2", "0", "0", "6"];
+    for (const char of chars) {
+      fireEvent.click(screen.getByRole("button", { name: char }));
+    }
+
+    expect(screen.getByTestId("result-input")).toHaveValue("14-05-2006");
+  });
+
+  it("keeps '-' and symbol keys visible when toggling ?123 in full layout", () => {
+    render(<FullKeyboardHarness />);
+
+    const symToggle = screen.getByRole("button", { name: "?123" });
+    fireEvent.click(symToggle);
+
+    // In symbol mode:
+    expect(screen.getByRole("button", { name: "-" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "_" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "@" })).toBeInTheDocument();
+
+    // Toggle back to ABC
+    const abcToggle = screen.getByRole("button", { name: "ABC" });
+    fireEvent.click(abcToggle);
+    expect(screen.getByRole("button", { name: "-" })).toBeInTheDocument();
+  });
+
+  it("supports password show/hide toggle in numeric layout", () => {
+    let visible = false;
+    render(
+      <KioskKeyboard
+        layout="numeric"
+        onCharacter={() => {}}
+        onBackspace={() => {}}
+        onClear={() => {}}
+        isPassword={true}
+        passwordVisible={false}
+        onTogglePassword={() => {
+          visible = !visible;
+        }}
+      />
+    );
+
+    const toggleBtn = screen.getByRole("button", { name: /show password/i });
+    expect(toggleBtn).toBeInTheDocument();
+    fireEvent.click(toggleBtn);
+    expect(visible).toBe(true);
+  });
 });

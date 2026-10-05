@@ -4,9 +4,10 @@ import { ArrowLeft, UsersRound } from "lucide-react";
 
 import { TouchTextInput } from "@/components/TouchTextInput";
 import { PageBanner } from "@/components/erp/PageBanner";
-import { ATTENDANCE_MIN } from "@/lib/staffData";
 import { api } from "@/api";
 import { useApi } from "@/api/use-api";
+
+const ATTENDANCE_MIN = 75;
 
 interface StudentsPageProps {
   regNo: string | undefined;

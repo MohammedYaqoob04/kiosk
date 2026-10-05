@@ -273,6 +273,9 @@ function ChangePassword() {
         <div className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
           <p className="font-semibold text-foreground">Password rules:</p>
           <p className="mt-1">{rulesText}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Students: 6 to 32 characters • Staff and HOD: 8 to 64 characters with at least one letter and one digit
+          </p>
         </div>
 
         {!forced && (

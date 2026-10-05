@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Delete, Eye, EyeOff, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Eye, EyeOff, ShieldAlert, ShieldCheck } from "lucide-react";
 
 import { KioskKeyboard } from "@/components/KioskKeyboard";
 import { Button } from "@/components/ui/button";
@@ -160,6 +160,8 @@ function ErpLogin() {
     return <StudentLogin onBack={goBack} login={login} />;
   }
 
+  const isHod = role === "hod";
+
   return (
     <div className="erp-login-layout is-text-login">
       <section className="erp-login-details">
@@ -167,21 +169,27 @@ function ErpLogin() {
           <button
             type="button"
             onClick={goBack}
-            className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-border bg-card px-4 text-base font-semibold text-foreground active:bg-accent"
+            className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-border bg-card px-4 text-base font-semibold text-foreground active:bg-accent"
           >
             <ArrowLeft aria-hidden="true" className="size-5" />
             Back
           </button>
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Arunai ERP System
+          </span>
         </div>
 
         <div className="erp-login-heading">
           <h1 className="font-display text-3xl font-bold leading-tight text-foreground">
             {details.label} Login
           </h1>
+          <p className="text-sm text-muted-foreground">
+            {isHod ? "Head of Department Administrative Access" : "Faculty Counsellor Portal"}
+          </p>
         </div>
 
         <div className="erp-login-fields">
-          <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
+          <label className="grid min-w-0 gap-1.5 text-sm font-semibold text-foreground">
             {details.identifierLabel}
             <input
               aria-label={details.identifierLabel}
@@ -201,7 +209,7 @@ function ErpLogin() {
               onChange={(event) => setIdentifierValue(event.currentTarget.value)}
             />
           </label>
-          <label className="grid min-w-0 gap-2 text-base font-semibold text-foreground">
+          <label className="grid min-w-0 gap-1.5 text-sm font-semibold text-foreground">
             {details.credentialLabel}
             <div className="relative flex items-center">
               <input
@@ -235,6 +243,40 @@ function ErpLogin() {
               </button>
             </div>
           </label>
+        </div>
+
+        {/* Informative details filling empty space */}
+        <div className="erp-login-info-card">
+          <div className="flex items-center gap-2 mb-1.5 font-semibold text-foreground text-sm">
+            <ShieldCheck aria-hidden="true" className="size-4 text-accent" strokeWidth={1.5} />
+            <span>{isHod ? "Department Administration & Governance" : "Counsellor & Faculty Desk"}</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {isHod
+              ? "Oversee department operations, approve escalated student leave/OD applications, manage counsellor allocations, and review attendance logs."
+              : "Review student leave and on-duty requests, verify official documentation, monitor mentee attendance rates, and broadcast department announcements."}
+          </p>
+          <div className="mt-2.5 pt-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Clock aria-hidden="true" className="size-3.5 text-accent" strokeWidth={1.5} />
+              <span>60s Kiosk Auto-lock</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ShieldAlert aria-hidden="true" className="size-3.5 text-accent" strokeWidth={1.5} />
+              <span>Authorized Faculty Only</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            {isHod ? "HOD ID: " : "Staff ID: "}
+          </span>
+          <span>
+            {isHod
+              ? "Enter your department HOD username (e.g. HOD-AIDS, HOD-CSE)."
+              : "Enter your official staff username (e.g. anitha-staff or AEC-CS-042)."}
+          </span>
         </div>
       </section>
 
@@ -344,123 +386,121 @@ function StudentLogin({
 
   return (
     <div className="student-login-layout">
-      <section className="student-login-intro">
-        <div>
+      <div className="student-login-container">
+        <header className="student-login-header">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex min-h-14 items-center gap-2 rounded-xl border border-border bg-card px-4 text-base font-semibold text-foreground active:bg-accent"
+            className="student-back-btn inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-sm font-semibold text-foreground active:bg-accent"
           >
-            <ArrowLeft aria-hidden="true" className="size-5" />
+            <ArrowLeft aria-hidden="true" className="size-4" />
             Back
           </button>
-          <p className="text-base font-semibold text-muted-foreground">
-            Arunai Engineering College
-          </p>
-          <h1 className="mt-2 font-display text-4xl font-semibold text-foreground">
-            Student Login
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">Authorized users only • Arunai ERP</p>
-        </div>
-        <ol className="student-login-steps">
-          <li>
-            <span>1</span> Enter register number
-          </li>
-          <li>
-            <span>2</span> Enter DOB (DDMMYYYY or DD-MM-YYYY)
-          </li>
-          <li>
-            <span>3</span> Sign in
-          </li>
-        </ol>
-      </section>
-
-      <form
-        className="student-login-card"
-        autoComplete="off"
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
-      >
-        <div className="student-login-field student-register-field">
-          <span className="font-semibold text-foreground">Register number</span>
-          <button
-            type="button"
-            aria-label={`Register number: 5104${registerSuffix || " locked prefix, enter 8 digits"}`}
-            aria-pressed={activeField === "identifier"}
-            onClick={() => setField("identifier")}
-            className={`student-register-input ${activeField === "identifier" ? "is-selected" : ""}`}
-          >
-            <span className="student-prefix">5104</span>
-            <span className="student-suffix">{registerSuffix}</span>
-            <span className="student-counter">{registerSuffix.length}/8</span>
-          </button>
-          {attempted && registerSuffix.length !== 8 && (
-            <span className="text-sm text-destructive">
-              Register number must be 12 digits starting with 5104
-            </span>
-          )}
-        </div>
-
-        <div className="student-login-field student-password-field">
-          <label htmlFor="student-password" className="font-semibold text-foreground">
-            Password = date of birth (e.g. 14052006 or 14-05-2006)
-          </label>
-          <div className="student-password-box">
-            <button
-              id="student-password"
-              type="button"
-              onClick={() => setField("pin")}
-              aria-label="Password: date of birth"
-              aria-pressed={activeField === "pin"}
-              className={`student-password-cells px-4 font-display text-xl tracking-wider ${activeField === "pin" ? "is-selected" : ""}`}
-            >
-              {password ? (
-                passwordVisible ? (
-                  password
-                ) : (
-                  "●".repeat(password.length)
-                )
-              ) : (
-                <span className="text-muted-foreground font-sans text-sm tracking-normal">
-                  DDMMYYYY or DD-MM-YYYY
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              aria-label={passwordVisible ? "Hide password" : "Show password"}
-              aria-pressed={passwordVisible}
-              onClick={() => setPasswordVisible((visible) => !visible)}
-              className="student-password-toggle"
-            >
-              {passwordVisible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-            </button>
+          <div className="student-login-titles text-center flex-1">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Arunai Engineering College
+            </p>
+            <h1 className="font-display text-xl font-bold text-foreground">
+              Student Login
+            </h1>
           </div>
-          {attempted && password.length < 4 && (
-            <span className="text-sm text-destructive">Password must be at least 4 characters</span>
-          )}
-        </div>
+          <div className="w-14" aria-hidden="true" />
+        </header>
 
-        <div className="student-login-keypad-wrapper w-full">
-          <KioskKeyboard
-            layout="numeric"
-            onCharacter={appendCharacter}
-            onBackspace={backspace}
-            onClear={clear}
-            isPassword={activeField === "pin"}
-            passwordVisible={passwordVisible}
-            onTogglePassword={() => setPasswordVisible((v) => !v)}
-          />
-        </div>
-        <Button type="submit" disabled={!canSubmit} className="student-login-submit">
-          Sign in <ArrowRight aria-hidden="true" />
-        </Button>
-        <p role="alert" className="erp-login-error">
-          {error}
-        </p>
-      </form>
+        <form
+          className="student-login-card"
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <div className="student-login-field student-register-field">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-foreground">Register number</span>
+              <span className="text-muted-foreground">5104 + 8 digits</span>
+            </div>
+            <button
+              type="button"
+              aria-label={`Register number: 5104${registerSuffix || " locked prefix, enter 8 digits"}`}
+              aria-pressed={activeField === "identifier"}
+              onClick={() => setField("identifier")}
+              className={`student-register-input ${activeField === "identifier" ? "is-selected" : ""}`}
+            >
+              <span className="student-prefix">5104</span>
+              <span className="student-suffix">{registerSuffix}</span>
+              <span className="student-counter">{registerSuffix.length}/8</span>
+            </button>
+            {attempted && registerSuffix.length !== 8 && (
+              <span className="text-xs text-destructive">
+                Register number must be 12 digits starting with 5104
+              </span>
+            )}
+          </div>
+
+          <div className="student-login-field student-password-field">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <label htmlFor="student-password" className="text-foreground">
+                Password = date of birth
+              </label>
+              <span className="text-muted-foreground font-normal">DDMMYYYY or DD-MM-YYYY</span>
+            </div>
+            <div className="student-password-box">
+              <button
+                id="student-password"
+                type="button"
+                onClick={() => setField("pin")}
+                aria-label="Password: date of birth"
+                aria-pressed={activeField === "pin"}
+                className={`student-password-cells px-3 font-display text-lg tracking-wider ${activeField === "pin" ? "is-selected" : ""}`}
+              >
+                {password ? (
+                  passwordVisible ? (
+                    password
+                  ) : (
+                    "●".repeat(password.length)
+                  )
+                ) : (
+                  <span className="text-muted-foreground font-sans text-xs tracking-normal">
+                    Enter DOB (e.g. 14052006 or 14-05-2006)
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                aria-label={passwordVisible ? "Hide password" : "Show password"}
+                aria-pressed={passwordVisible}
+                onClick={() => setPasswordVisible((visible) => !visible)}
+                className="student-password-toggle"
+              >
+                {passwordVisible ? <EyeOff aria-hidden="true" className="size-5" /> : <Eye aria-hidden="true" className="size-5" />}
+              </button>
+            </div>
+            {attempted && password.length < 4 && (
+              <span className="text-xs text-destructive">Password must be at least 4 characters</span>
+            )}
+          </div>
+
+          <div className="student-login-keypad-wrapper">
+            <KioskKeyboard
+              layout="numeric"
+              onCharacter={appendCharacter}
+              onBackspace={backspace}
+              onClear={clear}
+              isPassword={false}
+            />
+          </div>
+
+          <Button type="submit" disabled={!canSubmit} className="student-login-submit min-h-14 w-full text-base font-semibold">
+            Sign in <ArrowRight aria-hidden="true" className="size-5" />
+          </Button>
+          {error && (
+            <p role="alert" className="erp-login-error text-center text-xs font-medium text-destructive">
+              {error}
+            </p>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

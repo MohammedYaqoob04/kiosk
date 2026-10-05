@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Activity } from "lucide-react";
 
 import { PageBanner } from "@/components/erp/PageBanner";
 import { useAuth } from "@/lib/auth-context";
-import { subscribeToAudit, type AuditAction } from "@/lib/auditLog";
-import { api, isMockApi } from "@/api";
+import { api, formatServerError } from "@/api";
 import { useApi } from "@/api/use-api";
+import type { AuditAction } from "@/api/types";
 
 const actions: Array<AuditAction | "ALL"> = [
   "ALL",
@@ -43,11 +43,6 @@ export function ActivityLogPage({ role }: { role: "COUNSELLOR" | "HOD" }) {
         ...(toDate ? { to: toDate } : {}),
       }),
   );
-
-  useEffect(() => {
-    if (!isMockApi) return;
-    return subscribeToAudit(auditQuery.reload);
-  }, [auditQuery.reload]);
 
   const filtered = useMemo(() => {
     const list = auditQuery.data ?? [];
@@ -100,6 +95,8 @@ export function ActivityLogPage({ role }: { role: "COUNSELLOR" | "HOD" }) {
       <section className="erp-surface min-h-0 flex-1 overflow-auto">
         {auditQuery.loading ? (
           <p className="p-6 text-center text-muted-foreground">Loading activity log...</p>
+        ) : auditQuery.error ? (
+          <p className="p-6 text-center text-destructive">{formatServerError(auditQuery.error)}</p>
         ) : filtered.length === 0 ? (
           <p className="p-6 text-center text-muted-foreground">No activity recorded.</p>
         ) : (

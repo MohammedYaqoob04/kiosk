@@ -223,14 +223,41 @@ export interface UnassignStudentResponse {
   updated: number;
 }
 
+export type AuditAction =
+  | "REQUEST_SUBMIT"
+  | "COUNSELLOR_APPROVE"
+  | "COUNSELLOR_REJECT"
+  | "HOD_APPROVE"
+  | "HOD_REJECT"
+  | "COUNSELLOR_REASSIGN"
+  | "STUDENT_ASSIGN"
+  | "STUDENT_UNASSIGN"
+  | "NOTICE_CREATE"
+  | "NOTICE_WITHDRAW";
+
 export interface AuditEntry {
   id: string;
   actor: string;
   role: string;
-  action: string;
+  action: AuditAction | string;
   targetId: string;
   time: string;
   reason?: string;
+}
+
+export const noticeCategories = ["Event", "Circular", "Notice", "Exam", "Holiday"] as const;
+export type NoticeCategory = (typeof noticeCategories)[number];
+export type NoticeRole = "COUNSELLOR" | "HOD";
+export type NoticeAudience =
+  | "MY_STUDENTS"
+  | `SELECTED_STUDENTS:${string}`
+  | "ALL_STUDENTS"
+  | "SECTION:A"
+  | "SECTION:B"
+  | "ALL_COUNSELLORS";
+
+export function noticeAudienceSelection(regNos: string[]): NoticeAudience {
+  return `SELECTED_STUDENTS:${[...new Set(regNos)].join(",")}`;
 }
 
 export interface NoticeAttachmentResponse {
@@ -278,6 +305,22 @@ export interface CreateNoticeResponse {
 
 export interface UnreadNoticeCountResponse {
   unread: number;
+}
+
+export interface StudentImportError {
+  row: number;
+  message: string;
+}
+
+export interface StudentImportResponse {
+  dryRun: boolean;
+  rowsRead: number;
+  errors: StudentImportError[];
+  warnings: string[];
+  ignoredSensitiveColumns: string[];
+  created: number;
+  updated: number;
+  assigned: number;
 }
 
 export type { AssignedStudent, LeaveDecision, LeaveRequest };

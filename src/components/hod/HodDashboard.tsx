@@ -1,27 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Activity, CalendarDays, GraduationCap, UsersRound } from "lucide-react";
 
 import { PageBanner } from "@/components/erp/PageBanner";
-import { api, isMockApi } from "@/api";
+import { api } from "@/api";
 import { useApi } from "@/api/use-api";
-import { subscribeToRequests } from "@/lib/leaveStore";
-import { subscribeToNotices } from "@/lib/noticeStore";
-
 const approvalPath = "/erp/hod/approvals";
 
 export function HodDashboard() {
   const { data: overview, reload } = useApi(["hodOverview"], () => api.getHodOverview());
-
-  useEffect(() => {
-    if (!isMockApi) return;
-    const unsubLeaves = subscribeToRequests(reload);
-    const unsubNotices = subscribeToNotices(reload);
-    return () => {
-      unsubLeaves();
-      unsubNotices();
-    };
-  }, [reload]);
 
   const metrics = useMemo(
     () => [

@@ -11,11 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { subscribeToRequests } from "@/lib/leaveStore";
 import { useAuth } from "@/lib/auth-context";
-import { counsellors, counsellorOf } from "@/lib/staffData";
 import type { Request } from "@/types/leave";
-import { api, isMockApi } from "@/api";
+import { api, formatServerError } from "@/api";
 import { useApi } from "@/api/use-api";
 
 type DeskRole = "COUNSELLOR" | "HOD";
@@ -47,18 +45,10 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
   const [reassignError, setReassignError] = useState("");
 
   const queueQuery = useApi(["leaveQueue", role], () => api.getLeaveQueue());
-  const historyQuery = useApi(["leaveHistory", role], () => api.getLeaveHistory(undefined, "ALL"));
+  const historyQuery = useApi(["leaveHistory", role], () => api.getLeaveHistory("ALL"));
   const counsellorsQuery = useApi(["hodCounsellors"], () => api.getHodCounsellors(), {
     enabled: role === "HOD",
   });
-
-  useEffect(() => {
-    if (!isMockApi) return;
-    return subscribeToRequests(() => {
-      queueQuery.reload();
-      historyQuery.reload();
-    });
-  }, [queueQuery, historyQuery]);
 
   const pending = useMemo<Request[]>(() => {
     const raw = queueQuery.data ?? [];
@@ -106,7 +96,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
         name: c.name,
       }));
     }
-    return counsellors;
+    return [];
   }, [role, counsellorsQuery.data]);
 
   const openLetter = async () => {
@@ -125,7 +115,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
       const objUrl = URL.createObjectURL(blob);
       setLetterUrl(objUrl);
     } catch (err) {
-      setLetterError(err instanceof Error ? err.message : "Failed to load letter preview.");
+      setLetterError(formatServerError(err, "Failed to load letter preview."));
     } finally {
       setLetterLoading(false);
     }
@@ -138,9 +128,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
       setReassignError("");
       queueQuery.reload();
     } catch (cause) {
-      setReassignError(
-        cause instanceof Error ? cause.message : "The request could not be reassigned.",
-      );
+      setReassignError(formatServerError(cause, "The request could not be reassigned."));
     }
   };
 
@@ -152,7 +140,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
       historyQuery.reload();
       setActionError("");
     } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : "The request could not be approved.");
+      setActionError(formatServerError(cause, "The request could not be approved."));
     }
   };
 
@@ -166,7 +154,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
       setRemark("");
       setActionError("");
     } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : "The request could not be rejected.");
+      setActionError(formatServerError(cause, "The request could not be rejected."));
     }
   };
 
@@ -374,7 +362,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
               <label className="grid gap-2 text-sm font-medium text-foreground">
                 Reassign counsellor
                 <select
-                  value={selected.counsellorId ?? counsellorOf(selected.studentRegNo) ?? ""}
+                  value={selected.counsellorId ?? ""}
                   onChange={(event) => void reassign(event.target.value)}
                   className="min-h-14 rounded-lg border border-border bg-surface px-3"
                 >

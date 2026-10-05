@@ -3,7 +3,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { AuthContext, type AuthContextValue } from "@/lib/auth-context";
-import { isMockApi } from "@/api";
 import { httpApi } from "@/api/http";
 import {
   completePasswordChange as clearForcedPasswordChange,
@@ -12,7 +11,6 @@ import {
   setAuthToken,
   setCurrentUser,
 } from "@/lib/auth-session";
-import { getDemoUser } from "@/mock/erp";
 import type { Role, User } from "@/types/erp";
 import { clearKioskSessionData } from "@/lib/privacy";
 
@@ -43,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearKioskSessionData();
     skipSessionSettingsPersistence.current = true;
     setCurrentUser(null);
+    setAuthToken(null);
     setUser(null);
     setWarningOpen(false);
     setLargeText(false);
@@ -55,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      if (!isMockApi && getAuthToken()) {
+      if (getAuthToken()) {
         await httpApi.logout();
       }
     } catch {
@@ -68,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const expireSession = useCallback(async () => {
     try {
-      if (!isMockApi && getAuthToken()) {
+      if (getAuthToken()) {
         await httpApi.logout();
       }
     } catch {
@@ -86,47 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (role: Role, identifier: string, pin: string) => {
-      if (isMockApi) {
-        if (role === "STUDENT") {
-          if (!/^5104\d{8}$/.test(identifier)) {
-            throw new Error("Register number must be 12 digits starting with 5104");
-          }
-          if (pin.length < 4) {
-            throw new Error("Password must be at least 4 digits");
-          }
-        } else if (!identifier.trim()) {
-          throw new Error("Enter your ID to sign in.");
-        }
-        if (role !== "STUDENT" && !pin.trim()) {
-          throw new Error("Enter your password to sign in.");
-        }
-        const demoUser = getDemoUser(role);
-        const signedInUser =
-          role === "STUDENT"
-            ? {
-                ...demoUser,
-                identifier: identifier.trim(),
-              }
-            : {
-                ...demoUser,
-                identifier: identifier.trim().toUpperCase(),
-              };
-        setCurrentUser(signedInUser);
-        setAuthToken(`mock-session-${signedInUser.identifier}`);
-        setUser(signedInUser);
-        setLastActivity(Date.now());
-        setWarningOpen(false);
-        if (signedInUser.mustChangePassword) {
-          void navigate({ to: "/erp/password", replace: true });
-        } else {
-          void navigate({
-            to: role === "STUDENT" ? "/erp/dashboard" : role === "HOD" ? "/erp/hod" : "/erp/staff",
-            replace: true,
-          });
-        }
-        return;
-      }
-
       // Backend login
       const portal = role === "STUDENT" ? "student" : role === "HOD" ? "hod" : "staff";
       const res = await httpApi.login(identifier.trim(), pin, portal);

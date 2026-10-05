@@ -18,7 +18,7 @@ export function ErpSectionPage({ title, description }: { title: string; descript
               <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-border bg-card text-icon">
                 <Icon aria-hidden="true" className="size-6" />
               </span>
-              <span className="text-lg text-foreground">Demo information</span>
+              <span className="text-lg text-foreground">Portal service</span>
             </div>
           ))}
         </div>

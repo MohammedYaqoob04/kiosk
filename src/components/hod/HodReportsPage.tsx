@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 
 import { PageBanner } from "@/components/erp/PageBanner";
 import type { Status } from "@/types/leave";
-import { api } from "@/api";
+import { api, formatServerError } from "@/api";
 
 type ReportType = "leave-log" | "attendance-shortage";
 
@@ -48,7 +48,7 @@ export function HodReportsPage() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to download report.");
+      setError(formatServerError(err, "Failed to download report."));
     } finally {
       setDownloading(false);
     }

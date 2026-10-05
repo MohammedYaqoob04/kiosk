@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { UsersRound } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Upload, UsersRound } from "lucide-react";
 
 import { PageBanner } from "@/components/erp/PageBanner";
-import { api } from "@/api";
+import { api, formatServerError } from "@/api";
 import { useApi } from "@/api/use-api";
 import type { HodStudent } from "@/api/types";
 
@@ -27,7 +28,7 @@ export function StudentsAssignmentPage() {
       setMessage(`Section ${section} assigned (${res.updated} students).`);
       refresh();
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Assignment failed.");
+      setMessage(formatServerError(cause, "Assignment failed."));
     }
   };
 
@@ -38,7 +39,7 @@ export function StudentsAssignmentPage() {
       setMessage(`${student.name} assigned.`);
       refresh();
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Assignment failed.");
+      setMessage(formatServerError(cause, "Assignment failed."));
     }
   };
 
@@ -48,7 +49,7 @@ export function StudentsAssignmentPage() {
       setMessage(`${student.name} unassigned.`);
       refresh();
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Unassignment failed.");
+      setMessage(formatServerError(cause, "Unassignment failed."));
     }
   };
 
@@ -87,6 +88,13 @@ export function StudentsAssignmentPage() {
             Assign Section {section}
           </button>
         ))}
+        <Link
+          to="/erp/hod/students/upload"
+          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 font-semibold text-foreground hover:bg-surface-2"
+        >
+          <Upload className="size-4 text-accent" strokeWidth={1.5} />
+          Upload sheet
+        </Link>
         {message && (
           <p role="status" className="w-full text-sm text-muted-foreground">
             {message}

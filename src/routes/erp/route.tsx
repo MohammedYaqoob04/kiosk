@@ -1,17 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, GraduationCap, Grid2X2, LogOut, UserRound, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth-context";
-import {
-  getNoticesSnapshot,
-  subscribeToNotices,
-  unreadCount,
-} from "@/lib/noticeStore";
-import { initializeRequestAuditObserver } from "@/lib/requestAuditObserver";
-import { api, isMockApi } from "@/api";
+import { api } from "@/api";
 import { useApi } from "@/api/use-api";
 
 export const Route = createFileRoute("/erp")({
@@ -54,7 +48,6 @@ function ErpRoute() {
 
 function ErpLayout() {
   const { user, logout } = useAuth();
-  useSyncExternalStore(subscribeToNotices, getNoticesSnapshot, getNoticesSnapshot);
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -68,14 +61,9 @@ function ErpLayout() {
   const unreadCountQuery = useApi(
     ["notices", "unread-count"],
     api.getUnreadNoticeCount,
-    { enabled: !isMockApi && user?.role === "STUDENT" },
+    { enabled: user?.role === "STUDENT" },
   );
 
-  useEffect(() => {
-    if (isMockApi) {
-      initializeRequestAuditObserver();
-    }
-  }, []);
 
   useEffect(() => {
     if (isLogin) return;
@@ -109,7 +97,7 @@ function ErpLayout() {
   if (!user) {
     return (
       <div className="grid min-h-[60svh] place-items-center px-5 text-lg text-muted-foreground">
-        Opening secure demo portal…
+        Opening secure portal…
       </div>
     );
   }
@@ -201,7 +189,14 @@ function ErpLayout() {
             { label: "My Students", to: "/erp/staff/students" },
             { label: "Announcements", to: "/erp/staff/announcements" },
           ] as const)
-        : ([{ label: "HOD Office", to: "/erp/hod" }] as const);
+        : ([
+            { label: "Dashboard", to: "/erp/hod" },
+            { label: "Approvals", to: "/erp/hod/approvals" },
+            { label: "Students & Assignment", to: "/erp/hod/students" },
+            { label: "Upload Students", to: "/erp/hod/students/upload" },
+            { label: "Reports", to: "/erp/hod/reports" },
+            { label: "Activity Log", to: "/erp/hod/activity" },
+          ] as const);
   return (
     <div className="erp-app-shell">
       <div className="erp-brand-heading">
@@ -265,11 +260,9 @@ function ErpLayout() {
                 className="erp-menu-item"
               >
                 <span>{label}</span>
-                {user.role === "STUDENT" && label === "Notices" && user.identifier && (
+                {user.role === "STUDENT" && label === "Notices" && (
                   <span className="ml-auto rounded-full border border-border px-3 py-1 text-sm">
-                    {isMockApi
-                      ? unreadCount(user.identifier)
-                      : (unreadCountQuery.data?.unread ?? 0)}
+                    {unreadCountQuery.data?.unread ?? 0}
                   </span>
                 )}
               </Link>

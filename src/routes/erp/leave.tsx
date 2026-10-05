@@ -1,15 +1,22 @@
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FileText } from "lucide-react";
+import { ExternalLink, FileText, Loader2 } from "lucide-react";
 
-import { api, isMockApi } from "@/api";
+import { api } from "@/api";
+import { ApiError } from "@/api/http";
 import { useApi } from "@/api/use-api";
 import { ErrorState } from "@/components/erp/ErrorState";
 import { Skeleton } from "@/components/erp/Skeleton";
 import { TouchTextInput } from "@/components/TouchTextInput";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
-import { getRequestsSnapshot, subscribeToRequests } from "@/lib/leaveStore";
 import { requireAuth } from "@/lib/require-auth";
 import type {
   LeaveCategory,
@@ -31,6 +38,7 @@ const odCategories: OdCategory[] = [
   "NCC/NSS",
   "Other",
 ];
+
 function isSupportedLetterType(type: string): type is LeaveLetterInput["type"] {
   return type === "application/pdf" || type === "image/jpeg" || type === "image/png";
 }
@@ -51,40 +59,41 @@ export const Route = createFileRoute("/erp/leave")({
 });
 
 function formatDate(date: string): string {
-  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(
-    new Date(`${date}T00:00:00`),
-  );
+  try {
+    return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(
+      new Date(`${date}T00:00:00`),
+    );
+  } catch {
+    return date;
+  }
 }
 
-function rejectionInfo(request: Request): { authority: string; reason: string } | null {
-  if (request.status === "REJECTED_BY_COUNSELLOR") {
-    return {
-      authority: "Counsellor",
-      reason: request.counsellorDecision?.remark || request.rejectionReason || "No remark provided.",
-    };
+function formatDateTime(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(d);
+  } catch {
+    return dateStr;
   }
-  if (request.status === "REJECTED_BY_HOD") {
-    return {
-      authority: "HOD",
-      reason: request.hodDecision?.remark || request.rejectionReason || "No remark provided.",
-    };
+}
+
+function formatServerError(err: unknown): string {
+  if (err instanceof ApiError) {
+    return err.code ? `[${err.code}] ${err.message}` : err.message;
   }
-  return null;
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "An unexpected error occurred.";
 }
 
 function StudentLeavePage() {
   const { user } = useAuth();
-  const mockRequests = useSyncExternalStore(
-    subscribeToRequests,
-    getRequestsSnapshot,
-    getRequestsSnapshot,
-  );
   const myLeavesQuery = useApi(["erp", "leave", "mine"], api.getMyLeaves, {
-    enabled: !isMockApi && Boolean(user),
+    enabled: Boolean(user),
   });
-  const requests = isMockApi
-    ? mockRequests.filter((request) => request.studentRegNo === user?.identifier)
-    : (myLeavesQuery.data ?? []);
+  const requests = myLeavesQuery.data ?? [];
 
   const [kind, setKind] = useState<RequestKind>("LEAVE");
   const [leaveCategory, setLeaveCategory] = useState<LeaveCategory | "">("");
@@ -99,15 +108,22 @@ function StudentLeavePage() {
   const [letter, setLetter] = useState<LeaveLetterInput | null>(null);
   const [fileObject, setFileObject] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [letterLoadingId, setLetterLoadingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+
+  // OD Letter Dialog state
+  const [letterOpen, setLetterOpen] = useState(false);
+  const [activeLetterUrl, setActiveLetterUrl] = useState<string | null>(null);
+  const [activeLetterName, setActiveLetterName] = useState<string>("");
+  const [activeLetterType, setActiveLetterType] = useState<string>("application/pdf");
+  const [letterLoadingId, setLetterLoadingId] = useState<string | null>(null);
 
   const onTextChange = (setter: (value: string) => void) => (value: string) => {
     setter(value);
     setError("");
     setSent(false);
   };
+
   const dateRangeValid = Boolean(fromDate && toDate && toDate >= fromDate);
   const canSubmit =
     Boolean(user) &&
@@ -119,17 +135,24 @@ function StudentLeavePage() {
           eventName.trim() &&
           organizer.trim() &&
           venue.trim() &&
-          letter &&
-          letter.size > 0 &&
-          letter.size <= 2 * 1024 * 1024,
+          fileObject &&
+          fileObject.size <= 2 * 1024 * 1024,
         ));
 
   const uploadLetter = (file: File | undefined) => {
     if (!file) return;
     setLetter(null);
     setFileObject(null);
-    const letterType = file.type;
-    if (!isSupportedLetterType(letterType)) {
+    const letterType = file.type.toLowerCase();
+    const isPdf = letterType === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isJpg =
+      letterType === "image/jpeg" ||
+      letterType === "image/jpg" ||
+      file.name.toLowerCase().endsWith(".jpg") ||
+      file.name.toLowerCase().endsWith(".jpeg");
+    const isPng = letterType === "image/png" || file.name.toLowerCase().endsWith(".png");
+
+    if (!isPdf && !isJpg && !isPng) {
       setError("OD letter must be a PDF, JPG, or PNG file.");
       return;
     }
@@ -138,23 +161,14 @@ function StudentLeavePage() {
       return;
     }
     setFileObject(file);
-    const reader = new FileReader();
-    reader.onerror = () => setError("OD letter could not be read. Please upload it again.");
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        setError("OD letter could not be read. Please upload it again.");
-        return;
-      }
-      setLetter({
-        name: file.name,
-        type: letterType,
-        size: file.size,
-        dataUrl: reader.result,
-      });
-      setError("");
-      setSent(false);
-    };
-    reader.readAsDataURL(file);
+    setLetter({
+      name: file.name,
+      type: isPdf ? "application/pdf" : isPng ? "image/png" : "image/jpeg",
+      size: file.size,
+      dataUrl: "",
+    });
+    setError("");
+    setSent(false);
   };
 
   const submit = async () => {
@@ -169,23 +183,23 @@ function StudentLeavePage() {
       formData.append("fromDate", fromDate);
       formData.append("toDate", toDate);
       if (kind === "LEAVE") {
-        formData.append("reason", reason);
+        formData.append("reason", reason.trim());
         if (address.trim()) {
           formData.append("residentialAddress", address.trim());
           formData.append("address", address.trim());
         }
       } else {
-        formData.append("eventName", eventName);
-        formData.append("organizer", organizer);
-        formData.append("venue", venue);
+        formData.append("eventName", eventName.trim());
+        formData.append("organizer", organizer.trim());
+        formData.append("venue", venue.trim());
         if (fileObject) {
           formData.append("letter", fileObject);
         }
       }
+
       await api.submitLeave(formData);
-      if (!isMockApi) {
-        await myLeavesQuery.reload();
-      }
+      await myLeavesQuery.reload();
+
       setFromDate("");
       setToDate("");
       setReason("");
@@ -197,9 +211,11 @@ function StudentLeavePage() {
       setFileObject(null);
       setLeaveCategory("");
       setOdCategory("");
+      const fileInput = document.getElementById("od-letter") as HTMLInputElement | null;
+      if (fileInput) fileInput.value = "";
       setSent(true);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Your request could not be submitted.");
+      setError(formatServerError(cause));
     } finally {
       setSubmitting(false);
     }
@@ -207,19 +223,21 @@ function StudentLeavePage() {
 
   const openLetter = async (request: Request) => {
     if (!request.letter) return;
-    if (request.letter.dataUrl) {
-      const win = window.open(request.letter.dataUrl, "_blank");
-      win?.focus();
-      return;
-    }
     setLetterLoadingId(request.id);
+    setError("");
     try {
       const blob = await api.getLeaveLetterBlob(request.id);
       const url = URL.createObjectURL(blob);
-      const win = window.open(url, "_blank");
-      win?.focus();
+      if (activeLetterUrl) {
+        URL.revokeObjectURL(activeLetterUrl);
+      }
+      setActiveLetterUrl(url);
+      setActiveLetterName(request.letter.name || "OD-Letter");
+      const mime = request.letter.type || blob.type || "application/pdf";
+      setActiveLetterType(mime);
+      setLetterOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load letter.");
+      setError(formatServerError(err));
     } finally {
       setLetterLoadingId(null);
     }
@@ -375,7 +393,7 @@ function StudentLeavePage() {
           ) : (
             <div className="grid gap-2">
               <label htmlFor="od-letter" className="font-semibold text-foreground">
-                Upload official OD letter
+                Upload official OD letter (PDF, JPG, or PNG, max 2 MB)
               </label>
               <input
                 id="od-letter"
@@ -392,6 +410,8 @@ function StudentLeavePage() {
                     onClick={() => {
                       setLetter(null);
                       setFileObject(null);
+                      const inputEl = document.getElementById("od-letter") as HTMLInputElement | null;
+                      if (inputEl) inputEl.value = "";
                     }}
                     className="min-h-12 px-3 font-semibold text-foreground underline"
                   >
@@ -403,20 +423,20 @@ function StudentLeavePage() {
           )}
 
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm font-medium text-destructive">
               {error}
             </p>
           )}
           {sent && (
-            <p role="status" className="font-semibold text-foreground">
-              Sent to Counsellor
+            <p role="status" className="font-semibold text-ok">
+              Leave/OD request submitted successfully.
             </p>
           )}
           <Button
             type="button"
             onClick={submit}
             disabled={!canSubmit || submitting}
-            className="w-full"
+            className="w-full min-h-14 text-base font-semibold"
           >
             {submitting ? "Submitting request…" : "Submit request"}
           </Button>
@@ -426,11 +446,11 @@ function StudentLeavePage() {
           <h2 className="shrink-0 font-display text-xl font-semibold text-foreground">
             My requests
           </h2>
-          {!isMockApi && myLeavesQuery.loading ? (
+          {myLeavesQuery.loading ? (
             <Skeleton rows={3} className="py-2" />
-          ) : !isMockApi && myLeavesQuery.error ? (
+          ) : myLeavesQuery.error ? (
             <ErrorState
-              message={myLeavesQuery.error.message}
+              message={formatServerError(myLeavesQuery.error)}
               onRetry={myLeavesQuery.reload}
             />
           ) : requests.length === 0 ? (
@@ -438,7 +458,11 @@ function StudentLeavePage() {
           ) : (
             <div className="leave-history-list">
               {requests.map((request) => {
-                const rejection = rejectionInfo(request);
+                const isRejected =
+                  request.status === "REJECTED_BY_COUNSELLOR" ||
+                  request.status === "REJECTED_BY_HOD";
+                const isApproved = request.status === "APPROVED";
+
                 return (
                   <article
                     key={request.id}
@@ -454,49 +478,118 @@ function StudentLeavePage() {
                           {request.days ? ` (${request.days} ${request.days === 1 ? "day" : "days"})` : ""}
                         </p>
                       </div>
-                      <span className="inline-flex min-h-10 items-center rounded-full border border-border px-3 text-sm font-medium text-foreground">
+                      <span
+                        className={`inline-flex min-h-10 items-center rounded-full px-3 text-xs font-semibold ${
+                          isApproved
+                            ? "border border-ok/40 bg-ok/10 text-ok"
+                            : isRejected
+                              ? "border border-destructive/40 bg-destructive/10 text-destructive"
+                              : "border border-border bg-surface-2 text-foreground"
+                        }`}
+                      >
                         {statusLabels[request.status]}
                       </span>
                     </div>
+
                     {request.kind === "OD" && (
                       <p className="mt-2 text-sm text-muted-foreground">
-                        {request.eventName}
+                        <span className="font-medium text-foreground">{request.eventName}</span>
                         {request.organizer ? ` · ${request.organizer}` : ""}
                         {request.venue ? ` · ${request.venue}` : ""}
                       </p>
                     )}
+
                     {request.kind === "LEAVE" && request.reason && (
                       <p className="mt-2 text-sm text-muted-foreground">{request.reason}</p>
                     )}
-                    {request.letter && (
+
+                    {/* OD Letter Action */}
+                    {request.kind === "OD" && request.letter && (
                       <div className="mt-3 flex items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
                           disabled={letterLoadingId === request.id}
                           onClick={() => openLetter(request)}
-                          className="min-h-10 gap-2 text-sm font-semibold"
+                          className="min-h-10 gap-2 text-xs font-semibold"
                         >
-                          <FileText aria-hidden="true" className="size-4" />
+                          {letterLoadingId === request.id ? (
+                            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                          ) : (
+                            <FileText aria-hidden="true" className="size-4" />
+                          )}
                           {letterLoadingId === request.id
-                            ? "Opening letter…"
+                            ? "Loading letter…"
                             : `View Letter (${request.letter.name})`}
                         </Button>
                       </div>
                     )}
-                    {rejection && (
-                      <p className="mt-2 text-sm text-destructive">
-                        Rejected by {rejection.authority}: {rejection.reason}
+
+                    {/* Counsellor Decision */}
+                    {request.counsellorDecision && (
+                      <div className="mt-3 rounded-lg border border-border bg-surface-2/60 p-2.5 text-xs text-foreground">
+                        <div className="flex items-center justify-between gap-2 font-semibold">
+                          <span>Counsellor Decision</span>
+                          {request.counsellorDecision.at && (
+                            <span className="text-[11px] font-normal text-muted-foreground">
+                              {formatDateTime(request.counsellorDecision.at)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-muted-foreground">
+                          <span className="font-medium text-foreground">By:</span>{" "}
+                          {request.counsellorDecision.by}
+                        </p>
+                        {request.counsellorDecision.remark && (
+                          <p className="mt-1 text-muted-foreground">
+                            <span className="font-medium text-foreground">Remark:</span> &ldquo;
+                            {request.counsellorDecision.remark}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* HOD Decision */}
+                    {request.hodDecision && (
+                      <div className="mt-2 rounded-lg border border-border bg-surface-2/60 p-2.5 text-xs text-foreground">
+                        <div className="flex items-center justify-between gap-2 font-semibold">
+                          <span>HOD Decision</span>
+                          {request.hodDecision.at && (
+                            <span className="text-[11px] font-normal text-muted-foreground">
+                              {formatDateTime(request.hodDecision.at)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-muted-foreground">
+                          <span className="font-medium text-foreground">By:</span>{" "}
+                          {request.hodDecision.by}
+                        </p>
+                        {request.hodDecision.remark && (
+                          <p className="mt-1 text-muted-foreground">
+                            <span className="font-medium text-foreground">Remark:</span> &ldquo;
+                            {request.hodDecision.remark}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Rejection Reason */}
+                    {request.rejectionReason && (
+                      <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
+                        <span className="font-semibold">Rejection reason:</span>{" "}
+                        {request.rejectionReason}
+                      </div>
+                    )}
+
+                    {/* Pending Guidance */}
+                    {request.status === "PENDING_COUNSELLOR" && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Waiting for assigned counsellor verification.
                       </p>
                     )}
-                    {request.status === "PENDING_HOD" && request.counsellorDecision && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Verified by Counsellor{request.counsellorDecision.by ? ` (${request.counsellorDecision.by})` : ""}, waiting for HOD approval.
-                      </p>
-                    )}
-                    {request.status === "APPROVED" && (
-                      <p className="mt-2 text-sm text-ok">
-                        Approved{request.hodDecision?.by ? ` by HOD (${request.hodDecision.by})` : ""}
+                    {request.status === "PENDING_HOD" && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Verified by Counsellor, awaiting Head of Department approval.
                       </p>
                     )}
                   </article>
@@ -506,6 +599,66 @@ function StudentLeavePage() {
           )}
         </section>
       </div>
+
+      {/* OD Letter Preview Dialog */}
+      <Dialog
+        open={letterOpen}
+        onOpenChange={(open) => {
+          setLetterOpen(open);
+          if (!open && activeLetterUrl) {
+            URL.revokeObjectURL(activeLetterUrl);
+            setActiveLetterUrl(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90svh] max-w-3xl overflow-y-auto border-border bg-surface text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Official OD Letter</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground truncate">
+              {activeLetterName}
+            </DialogDescription>
+          </DialogHeader>
+
+          {activeLetterUrl ? (
+            <div className="grid gap-3">
+              {activeLetterType === "application/pdf" ? (
+                <iframe
+                  title={`OD letter: ${activeLetterName}`}
+                  src={activeLetterUrl}
+                  className="h-[60svh] w-full rounded-lg border border-border bg-background"
+                />
+              ) : (
+                <img
+                  src={activeLetterUrl}
+                  alt={`OD letter: ${activeLetterName}`}
+                  className="max-h-[60svh] w-auto max-w-full rounded-lg object-contain mx-auto"
+                />
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <a
+                  href={activeLetterUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground active:bg-secondary"
+                >
+                  <ExternalLink aria-hidden="true" className="size-4" />
+                  Open in New Tab
+                </a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLetterOpen(false)}
+                  className="min-h-11"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No letter to display.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

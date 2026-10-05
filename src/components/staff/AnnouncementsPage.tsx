@@ -6,18 +6,16 @@ import { PageBanner } from "@/components/erp/PageBanner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
-import { api, isMockApi } from "@/api";
+import { api, formatServerError, noticeAudienceSelection, noticeCategories } from "@/api";
 import { useApi } from "@/api/use-api";
-import type { NoticeAttachmentResponse, NoticeInboxItem, NoticeSentItem } from "@/api/types";
-import {
-  noticeAudienceSelection,
-  noticeCategories,
-  subscribeToNotices,
-  type NoticeAudience,
-  type NoticeCategory,
-  type NoticeRole,
-} from "@/lib/noticeStore";
-import { listAllStudents, listStudents } from "@/lib/staffData";
+import type {
+  NoticeAttachmentResponse,
+  NoticeAudience,
+  NoticeCategory,
+  NoticeInboxItem,
+  NoticeRole,
+  NoticeSentItem,
+} from "@/api/types";
 
 type Tab = "compose" | "sent" | "from-hod";
 
@@ -40,14 +38,6 @@ export function AnnouncementsPage({ role }: { role: NoticeRole }) {
     () => (role === "COUNSELLOR" ? api.getAssignedStudents() : api.getHodStudents()),
   );
 
-  useEffect(() => {
-    if (!isMockApi) return;
-    return subscribeToNotices(() => {
-      sentQuery.reload();
-      hodInboxQuery.reload();
-    });
-  }, [sentQuery.reload, hodInboxQuery.reload]);
-
   const students = useMemo(() => {
     if (studentsQuery.data && studentsQuery.data.length > 0) {
       return studentsQuery.data.map((s) => ({
@@ -56,8 +46,8 @@ export function AnnouncementsPage({ role }: { role: NoticeRole }) {
         section: s.section,
       }));
     }
-    return role === "COUNSELLOR" ? listStudents(user?.id ?? "") : listAllStudents();
-  }, [role, studentsQuery.data, user?.id]);
+    return [];
+  }, [studentsQuery.data]);
 
   const sent = sentQuery.data ?? [];
   const inbox = hodInboxQuery.data ?? [];
@@ -164,8 +154,7 @@ function ComposeNotice({
 
   const isSelectedAudience = audience.startsWith("SELECTED_STUDENTS:");
   const selectedAudience = noticeAudienceSelection(selectedRegNos);
-  const currentAudience =
-    role === "COUNSELLOR" && isSelectedAudience ? selectedAudience : audience;
+  const currentAudience = isSelectedAudience ? selectedAudience : audience;
   const isValid =
     title.trim().length > 0 &&
     title.trim().length <= 80 &&
@@ -244,7 +233,7 @@ function ComposeNotice({
       setPinned(false);
       onSent?.();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The notice could not be sent.");
+      setError(formatServerError(cause, "The notice could not be sent."));
     } finally {
       setSubmitting(false);
     }
@@ -444,7 +433,7 @@ function NoticeList({
       await api.withdrawNotice(id);
       onReload?.();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not withdraw notice.");
+      setActionError(formatServerError(err, "Could not withdraw notice."));
     }
   };
 
@@ -454,7 +443,7 @@ function NoticeList({
       await api.pinNotice(id, nextPin);
       onReload?.();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not update pin.");
+      setActionError(formatServerError(err, "Could not update pin."));
     }
   };
 
@@ -475,7 +464,7 @@ function NoticeList({
         blobUrl,
       });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Unable to load attachment.");
+      setActionError(formatServerError(err, "Unable to load attachment."));
     } finally {
       setLoadingAttachmentId(null);
     }

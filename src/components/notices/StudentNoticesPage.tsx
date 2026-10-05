@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, Bell, FileText, Loader2 } from "lucide-react";
 
 import { PageBanner } from "@/components/erp/PageBanner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { api, isMockApi } from "@/api";
+import { api, formatServerError, noticeCategories } from "@/api";
 import { useApi } from "@/api/use-api";
-import type { NoticeAttachmentResponse, NoticeInboxItem } from "@/api/types";
-import { noticeCategories, subscribeToNotices, type NoticeCategory } from "@/lib/noticeStore";
+import type { NoticeAttachmentResponse, NoticeInboxItem, NoticeCategory } from "@/api/types";
 
 type CategoryFilter = "All" | NoticeCategory;
 
@@ -29,11 +28,6 @@ export function StudentNoticesPage() {
     ["noticeInbox", category],
     () => api.getNoticeInbox(category),
   );
-
-  useEffect(() => {
-    if (!isMockApi) return;
-    return subscribeToNotices(reload);
-  }, [reload]);
 
   const [selected, setSelected] = useState<NoticeInboxItem | null>(null);
   const [activeAttachment, setActiveAttachment] = useState<{
@@ -71,7 +65,7 @@ export function StudentNoticesPage() {
         blobUrl,
       });
     } catch (err) {
-      setAttachmentError(err instanceof Error ? err.message : "Unable to load attachment.");
+      setAttachmentError(formatServerError(err, "Unable to load attachment."));
     } finally {
       setAttachmentLoading(false);
     }
@@ -116,7 +110,7 @@ export function StudentNoticesPage() {
         ) : error ? (
           <div className="erp-surface flex flex-col items-center justify-center gap-3 p-6 text-center text-danger">
             <AlertCircle className="size-8" />
-            <p className="font-semibold">{error.message}</p>
+            <p className="font-semibold">{formatServerError(error)}</p>
             <Button type="button" variant="outline" onClick={reload}>
               Try again
             </Button>

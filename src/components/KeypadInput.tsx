@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { KioskKeyboard } from "@/components/KioskKeyboard";
+import { KioskKeyboard, type KioskKeyboardProps } from "@/components/KioskKeyboard";
+
+export { KioskKeyboard };
+export type { KioskKeyboardProps };
 
 interface KeypadInputProps {
   label: string;

@@ -37,15 +37,25 @@ export function KioskKeyboard({
   className = "",
 }: KioskKeyboardProps) {
   const [internalShift, setInternalShift] = useState(false);
+  const [internalPasswordVisible, setInternalPasswordVisible] = useState(false);
   const [symbolMode, setSymbolMode] = useState(false);
 
   const isShifted = shift !== undefined ? shift : internalShift;
+  const isPassVisible = passwordVisible !== undefined ? passwordVisible : internalPasswordVisible;
 
   const toggleShift = () => {
     if (onShift) {
       onShift();
     } else {
       setInternalShift((prev) => !prev);
+    }
+  };
+
+  const handleTogglePassword = () => {
+    if (onTogglePassword) {
+      onTogglePassword();
+    } else {
+      setInternalPasswordVisible((prev) => !prev);
     }
   };
 
@@ -121,19 +131,19 @@ export function KioskKeyboard({
             <span>Backspace</span>
           </button>
         </div>
-        {isPassword && onTogglePassword && (
+        {isPassword && (
           <button
             type="button"
-            onClick={onTogglePassword}
+            onClick={handleTogglePassword}
             className="kiosk-keyboard-key utility-key min-h-14 w-full mt-2 font-medium text-base gap-2"
-            aria-label={passwordVisible ? "Hide password" : "Show password"}
+            aria-label={isPassVisible ? "Hide password" : "Show password"}
           >
-            {passwordVisible ? (
+            {isPassVisible ? (
               <EyeOff aria-hidden="true" className="size-5" strokeWidth={1.5} />
             ) : (
               <Eye aria-hidden="true" className="size-5" strokeWidth={1.5} />
             )}
-            <span>{passwordVisible ? "Hide password" : "Show password"}</span>
+            <span>{isPassVisible ? "Hide password" : "Show password"}</span>
           </button>
         )}
       </div>
@@ -301,20 +311,20 @@ export function KioskKeyboard({
           <span>Clear</span>
         </button>
 
-        {isPassword && onTogglePassword && (
+        {isPassword && (
           <button
             type="button"
             className="kiosk-keyboard-key utility-key min-h-14 px-3 font-semibold text-base gap-1"
             style={{ flex: "1.4" }}
-            onClick={onTogglePassword}
-            aria-label={passwordVisible ? "Hide password" : "Show password"}
+            onClick={handleTogglePassword}
+            aria-label={isPassVisible ? "Hide password" : "Show password"}
           >
-            {passwordVisible ? (
+            {isPassVisible ? (
               <EyeOff aria-hidden="true" className="size-5" strokeWidth={1.5} />
             ) : (
               <Eye aria-hidden="true" className="size-5" strokeWidth={1.5} />
             )}
-            <span>{passwordVisible ? "Hide" : "Show"}</span>
+            <span>{isPassVisible ? "Hide" : "Show"}</span>
           </button>
         )}
       </div>

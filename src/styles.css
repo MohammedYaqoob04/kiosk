@@ -636,67 +636,48 @@
 }
 
 .student-login-layout {
-  display: grid;
-  width: 100%;
-  min-height: 0;
-  flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: clamp(1rem, 4vw, 4rem);
+  justify-content: center;
+  width: 100%;
+  min-height: 100svh;
+  max-height: 100svh;
   overflow: hidden;
-  padding: clamp(1rem, 4vw, 4rem);
+  padding: 0.75rem 1rem;
 }
 
-.student-login-intro {
-  display: grid;
-  align-content: center;
-  justify-items: start;
-  gap: 2rem;
+.student-login-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  gap: 0.5rem;
 }
 
-.student-login-steps {
-  display: grid;
-  gap: 0.9rem;
-  margin: 0;
-  padding: 0;
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  list-style: none;
-}
-
-.student-login-steps li {
+.student-login-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.student-login-steps li > span {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 9999px;
-  color: var(--accent);
-  font-weight: 600;
+  justify-content: space-between;
+  width: 100%;
+  padding-inline: 0.25rem;
 }
 
 .student-login-card {
   display: grid;
   min-width: 0;
-  gap: 1rem;
+  gap: 0.55rem;
   border: 1px solid var(--border);
   border-radius: 1rem;
   background: var(--surface);
-  padding: clamp(1rem, 2vw, 1.5rem);
+  padding: 1rem 1.25rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .student-login-field {
   display: grid;
   min-width: 0;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .student-register-input {
@@ -789,15 +770,38 @@
   color: var(--text-muted);
 }
 
-.student-login-keypad {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+.student-login-keypad-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
-.student-login-keypad .erp-login-key {
-  height: clamp(56px, calc((100svh - 480px) / 4), 64px);
+.student-login-keypad-wrapper .kiosk-keyboard-numeric {
+  width: 100%;
+  max-width: 330px;
+}
+
+.student-login-keypad-wrapper .kiosk-keyboard-numeric .grid {
+  gap: 0.35rem;
+}
+
+.student-login-keypad-wrapper .kiosk-keyboard-key {
+  height: 56px;
   min-height: 56px;
+  border-radius: 0.65rem;
+  font-size: 1.15rem;
+}
+
+.student-login-keypad-wrapper .kiosk-keyboard-key.utility-key {
+  font-size: 0.9rem;
+}
+
+.erp-login-info-card {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .student-login-submit {
