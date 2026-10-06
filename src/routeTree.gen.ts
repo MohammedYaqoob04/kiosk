@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as CampusRouteImport } from './routes/campus'
+import { Route as CampusEditorRouteImport } from './routes/campus-editor'
 import { Route as CampusNavigationRouteImport } from './routes/campus-navigation'
 import { Route as CoeRouteImport } from './routes/coe'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -65,6 +66,11 @@ const AboutRoute = AboutRouteImport.update({
 const CampusRoute = CampusRouteImport.update({
   id: '/campus',
   path: '/campus',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampusEditorRoute = CampusEditorRouteImport.update({
+  id: '/campus-editor',
+  path: '/campus-editor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CampusNavigationRoute = CampusNavigationRouteImport.update({
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/campus': typeof CampusRoute
+  '/campus-editor': typeof CampusEditorRoute
   '/campus-navigation': typeof CampusNavigationRoute
   '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
@@ -312,6 +319,7 @@ export interface FileRoutesByTo {
   '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/campus': typeof CampusRoute
+  '/campus-editor': typeof CampusEditorRoute
   '/campus-navigation': typeof CampusNavigationRoute
   '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
@@ -357,6 +365,7 @@ export interface FileRoutesById {
   '/erp': typeof ErpRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/campus': typeof CampusRoute
+  '/campus-editor': typeof CampusEditorRoute
   '/campus-navigation': typeof CampusNavigationRoute
   '/coe': typeof CoeRouteWithChildren
   '/contact': typeof ContactRoute
@@ -403,6 +412,7 @@ export interface FileRouteTypes {
     | '/erp'
     | '/about'
     | '/campus'
+    | '/campus-editor'
     | '/campus-navigation'
     | '/coe'
     | '/contact'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/erp'
     | '/about'
     | '/campus'
+    | '/campus-editor'
     | '/campus-navigation'
     | '/coe'
     | '/contact'
@@ -491,6 +502,7 @@ export interface FileRouteTypes {
     | '/erp'
     | '/about'
     | '/campus'
+    | '/campus-editor'
     | '/campus-navigation'
     | '/coe'
     | '/contact'
@@ -536,6 +548,7 @@ export interface RootRouteChildren {
   ErpRouteRoute: typeof ErpRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
   CampusRoute: typeof CampusRoute
+  CampusEditorRoute: typeof CampusEditorRoute
   CampusNavigationRoute: typeof CampusNavigationRoute
   CoeRoute: typeof CoeRouteWithChildren
   ContactRoute: typeof ContactRoute
@@ -571,6 +584,13 @@ declare module '@tanstack/react-router' {
       path: '/campus'
       fullPath: '/campus'
       preLoaderRoute: typeof CampusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campus-editor': {
+      id: '/campus-editor'
+      path: '/campus-editor'
+      fullPath: '/campus-editor'
+      preLoaderRoute: typeof CampusEditorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campus-navigation': {
@@ -953,6 +973,7 @@ const rootRouteChildren: RootRouteChildren = {
   ErpRouteRoute: ErpRouteRouteWithChildren,
   AboutRoute: AboutRoute,
   CampusRoute: CampusRoute,
+  CampusEditorRoute: CampusEditorRoute,
   CampusNavigationRoute: CampusNavigationRoute,
   CoeRoute: CoeRouteWithChildren,
   ContactRoute: ContactRoute,

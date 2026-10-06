@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PlaceholderPage } from "@/components/placeholder-page";
+
+import { CampusPage } from "@/components/campus/CampusPage";
+import "@/components/campus/campus-page.css";
 
 export const Route = createFileRoute("/campus-navigation")({
-  component: () => <PlaceholderPage title="Campus Navigation" />,
+  component: CampusPage,
+  head: () => ({ meta: [{ title: "Campus Navigation | KIOSK" }] }),
 });

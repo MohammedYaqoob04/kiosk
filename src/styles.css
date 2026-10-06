@@ -35,6 +35,12 @@
   --color-surface: var(--surface);
   --color-ok: var(--ok);
   --color-danger: var(--danger);
+  --color-cat-academic: var(--cat-academic);
+  --color-cat-hostel: var(--cat-hostel);
+  --color-cat-food: var(--cat-food);
+  --color-cat-sports: var(--cat-sports);
+  --color-cat-landmark: var(--cat-landmark);
+  --color-cat-gate: var(--cat-gate);
 }
 
 :root {
@@ -59,6 +65,12 @@
   --on-accent: #ffffff;
   --ok: #15803d;
   --danger: #b91c1c;
+  --cat-academic: #0f766e;
+  --cat-hostel: #6d28d9;
+  --cat-food: #c2410c;
+  --cat-sports: #15803d;
+  --cat-landmark: #be185d;
+  --cat-gate: #b91c1c;
   --background: var(--bg-base);
   --foreground: var(--text);
   --muted-foreground: var(--text-muted);

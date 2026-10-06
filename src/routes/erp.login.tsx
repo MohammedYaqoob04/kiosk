@@ -274,8 +274,8 @@ function ErpLogin() {
           </span>
           <span>
             {isHod
-              ? "Enter your department HOD username (e.g. HOD-AIDS, HOD-CSE)."
-              : "Enter your official staff username (e.g. anitha-staff or AEC-CS-042)."}
+              ? "Enter your department HOD username (e.g. noorulhassan-hod, HOD-AIDS)."
+              : "Enter your official staff username (e.g. anitha-staff1 or AEC-CS-042)."}
           </span>
         </div>
       </section>
