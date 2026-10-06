@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays } from "lucide-react";
 
@@ -7,108 +8,213 @@ import { EmptyState } from "@/components/erp/EmptyState";
 import { ErrorState } from "@/components/erp/ErrorState";
 import { PageBanner } from "@/components/erp/PageBanner";
 import { Skeleton } from "@/components/erp/Skeleton";
-import { useAuth } from "@/lib/auth-context";
 import { requireAuth } from "@/lib/require-auth";
+import { useAuth } from "@/lib/auth-context";
+import { subscribeToTimetableUpdates } from "@/lib/timetable-store";
+import type { TimetableWeekDay } from "@/api/types";
 
 export const Route = createFileRoute("/erp/timetable")({
   beforeLoad: requireAuth,
   component: TimetablePage,
-  head: () => ({ meta: [{ title: "Today's Timetable | Student ERP" }] }),
+  head: () => ({ meta: [{ title: "Weekly Timetable | Student ERP" }] }),
 });
+
+const WEEKDAY_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
 
 function TimetablePage() {
   const { user } = useAuth();
-  const profile = useApi(["erp", "profile"], api.getProfile);
-  const { data, loading, error, reload } = useApi(["erp", "timetable"], () => api.getTimetable());
+  const studentClass =
+    user?.year === "4" || user?.year === "IV"
+      ? "IV-A"
+      : user?.year === "2" || user?.year === "II"
+        ? "II-A"
+        : "III-A";
 
-  if (profile.loading || loading) return <Skeleton rows={5} className="flex-1 p-4" />;
-  if (profile.error || error || !profile.data || !data) {
+  const { data, loading, error, reload } = useApi(
+    ["erp", "timetable", studentClass],
+    () => api.getTimetable(undefined, studentClass),
+  );
+
+  useEffect(() => {
+    return subscribeToTimetableUpdates(() => {
+      void reload();
+    });
+  }, [reload]);
+  const [selectedDay, setSelectedDay] = useState<string>("ALL");
+
+  if (loading) return <Skeleton rows={5} className="flex-1 p-4" />;
+  if (error || !data) {
     return (
       <div className="p-4">
         <ErrorState
-          message={profile.error?.message ?? error?.message ?? "Timetable is unavailable."}
-          onRetry={() => {
-            profile.reload();
-            reload();
-          }}
+          message={error?.message ?? "Timetable is unavailable."}
+          onRetry={reload}
         />
       </div>
     );
   }
 
-  const formattedDate = new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(`${data.date}T00:00:00`));
+  // Ensure we have full week data Monday to Saturday
+  const fullWeekDays: TimetableWeekDay[] =
+    data.days && data.days.length > 0
+      ? data.days
+      : WEEKDAY_NAMES.map((name, index) => ({
+          dayName: name,
+          weekday: index,
+          hall: data.hall ?? null,
+          hours: data.hours,
+        }));
+
+  const visibleDays =
+    selectedDay === "ALL"
+      ? fullWeekDays
+      : fullWeekDays.filter((d) => d.dayName.toLowerCase() === selectedDay.toLowerCase());
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
       <PageBanner
-        title="Today's Timetable"
-        subtitle="View your hour-wise class schedule"
+        title="Weekly Timetable"
+        subtitle="Complete weekly schedule (Monday to Saturday)"
         icon={CalendarDays}
         chip={
-          <span className="rounded-full border border-border px-3 py-2 text-sm">
-            {data.dayName}
-          </span>
+          data.hall ? (
+            <span className="rounded-full border border-border px-3 py-1.5 text-sm font-medium text-foreground">
+              Room / Lab: {data.hall}
+            </span>
+          ) : undefined
         }
       />
-      <section className="erp-surface shrink-0 p-4">
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Student Information</h2>
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Info label="STUDENT" value={user?.name ?? profile.data.name} />
-          <Info label="ROLL NO" value={profile.data.registerNo} />
-          <Info label="DEPARTMENT" value={profile.data.department} />
-          <Info label="COURSE" value={profile.data.course} />
-          <Info label="YEAR" value={String(profile.data.year)} />
-          <Info label="SEMESTER" value={String(profile.data.semester)} />
-          <Info label="SECTION" value={profile.data.section} />
-          <Info label="ACADEMIC YEAR" value={profile.data.academicYear} />
-        </dl>
-      </section>
-      <section className="erp-surface flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">{data.dayName}</h2>
-            <p className="text-sm text-muted-foreground">{formattedDate}</p>
-          </div>
-          <span className="rounded-full border border-border px-3 py-2 text-sm text-foreground">
-            {data.hours.length} Hours
-          </span>
-        </div>
-        <h3 className="mb-2 text-base font-semibold text-foreground">Hour-wise Schedule</h3>
-        {data.hours.length === 0 ? (
-          <div className="grid flex-1 place-items-center">
-            <EmptyState
-              title="No Classes Scheduled"
-              description="There is no timetable entry for your section today."
-            />
-          </div>
-        ) : (
-          <ol className="grid min-h-0 gap-2 overflow-y-auto sm:grid-cols-2">
-            {data.hours.map((entry) => (
-              <li key={entry.hour} className="rounded-xl border border-border bg-surface p-4">
-                <p className="font-semibold text-muted-foreground">HOUR {entry.hour}</p>
-                <p className="mt-1 text-lg font-semibold text-foreground">{entry.subjectName}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{entry.subjectCode}</p>
-                {entry.staffName && (
-                  <p className="mt-1 text-sm text-muted-foreground">{entry.staffName}</p>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-    </div>
-  );
-}
 
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
-      <dd className="truncate font-medium text-foreground">{value}</dd>
+      {/* Day Filter Tabs - Touch Friendly (>= 56px min hit area) */}
+      <div
+        role="tablist"
+        aria-label="Filter by day"
+        className="erp-surface flex shrink-0 flex-wrap items-center gap-2 p-2"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={selectedDay === "ALL"}
+          onClick={() => setSelectedDay("ALL")}
+          className={`inline-flex min-h-14 min-w-[70px] items-center justify-center rounded-lg px-4 text-sm font-semibold transition-colors ${
+            selectedDay === "ALL"
+              ? "bg-primary text-primary-foreground"
+              : "border border-border bg-card text-foreground hover:bg-surface-2"
+          }`}
+        >
+          Full Week
+        </button>
+        {WEEKDAY_NAMES.map((dayName) => (
+          <button
+            key={dayName}
+            type="button"
+            role="tab"
+            aria-selected={selectedDay === dayName}
+            onClick={() => setSelectedDay(dayName)}
+            className={`inline-flex min-h-14 min-w-[90px] items-center justify-center rounded-lg px-4 text-sm font-semibold transition-colors ${
+              selectedDay === dayName
+                ? "bg-primary text-primary-foreground"
+                : "border border-border bg-card text-foreground hover:bg-surface-2"
+            }`}
+          >
+            {dayName}
+          </button>
+        ))}
+      </div>
+
+      {/* Schedule Container */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+        {visibleDays.map((day) => {
+          const activeSlots = day.hours.filter((h) => !h.isFree);
+          return (
+            <section
+              key={day.dayName}
+              className="erp-surface shrink-0 p-4"
+              aria-label={`${day.dayName} schedule`}
+            >
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold text-foreground">{day.dayName}</h2>
+                  {(day.hall || data.hall) && (
+                    <span className="rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium text-foreground">
+                      Room / Lab: {day.hall || data.hall}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {activeSlots.length} {activeSlots.length === 1 ? "Period" : "Periods"} Scheduled
+                </span>
+              </div>
+
+              {activeSlots.length === 0 ? (
+                <div className="py-6 text-center">
+                  <EmptyState
+                    title={`No Classes on ${day.dayName}`}
+                    description={`There are no scheduled classes for ${day.dayName}.`}
+                  />
+                </div>
+              ) : (
+                <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {activeSlots.map((entry) => {
+                    const timeRange =
+                      entry.time ||
+                      (entry.startTime && entry.endTime
+                        ? `${entry.startTime} - ${entry.endTime}`
+                        : "");
+                    const roomInfo = entry.room || day.hall || data.hall;
+
+                    return (
+                      <li
+                        key={`${day.dayName}-hour-${entry.hour}`}
+                        className="flex flex-col justify-between rounded-xl border border-border bg-surface p-4"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                            <span>PERIOD {entry.hour}</span>
+                            {timeRange && (
+                              <span className="font-mono text-foreground">{timeRange}</span>
+                            )}
+                          </div>
+                          <p className="mt-2 text-base font-semibold text-foreground">
+                            {entry.subjectName || entry.subjectCode || "Class"}
+                          </p>
+                          {entry.subjectCode && (
+                            <p className="mt-0.5 text-xs font-mono text-muted-foreground">
+                              {entry.subjectCode}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">Faculty: </span>
+                            <span className="font-medium text-foreground">
+                              {entry.staffName || "Not assigned"}
+                            </span>
+                          </div>
+                          {roomInfo && (
+                            <div>
+                              <span className="text-muted-foreground">Room/Lab: </span>
+                              <span className="font-medium text-foreground">{roomInfo}</span>
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

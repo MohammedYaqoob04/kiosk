@@ -10,6 +10,7 @@ import type {
   StudentProfile,
   TimetableDay,
   StaffHistoryFilter,
+  RegisteredSubjectsResponse,
 } from "@/api/types";
 import type { LeaveDecision } from "@/types/leave";
 
@@ -185,8 +186,14 @@ export const httpApi = {
   },
   getProfile: () => request<StudentProfile>("/profile"),
   getDashboard: () => request<Dashboard>("/dashboard"),
-  getTimetable: (date?: string) =>
-    request<TimetableDay>(`/timetable${date ? `?date=${encodeURIComponent(date)}` : ""}`),
+  getTimetable: (date?: string, className?: string) => {
+    const params = new URLSearchParams();
+    if (date) params.set("date", date);
+    if (className) params.set("className", className);
+    const qs = params.toString();
+    return request<TimetableDay>(`/timetable${qs ? `?${qs}` : ""}`);
+  },
+  getRegisteredSubjects: () => request<RegisteredSubjectsResponse>("/subjects"),
   getFees: () => request<FeeSummary>("/fees"),
   getResults: () => request<ResultsResponse>("/results"),
   getAssignmentOptions: () => request<AssignmentOptions>("/assignments/options"),

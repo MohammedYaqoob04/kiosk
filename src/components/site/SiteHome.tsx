@@ -623,15 +623,13 @@ export function SiteHome() {
               <div>
                 <h3>{siteContent.contact.addressLabel}</h3>
                 <p>{siteContent.address}</p>
-                <a
+                <Link
                   className="site-text-link"
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(siteContent.address)}`}
-                  target="_blank"
-                  rel="noreferrer"
+                  to="/campus"
                 >
                   {siteContent.contact.mapsLabel}
                   <ExternalLink aria-hidden="true" strokeWidth={1.5} />
-                </a>
+                </Link>
               </div>
               {(SHOW_PLACEHOLDERS || !isPlaceholder(siteContent.contact.phone)) && (
                 <div>

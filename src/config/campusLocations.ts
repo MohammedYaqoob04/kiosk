@@ -1,7 +1,9 @@
 export type CampusCategory =
   | "academic"
   | "hostel"
+  | "service"
   | "food"
+  | "sport"
   | "sports"
   | "landmark"
   | "gate";
@@ -10,17 +12,21 @@ export interface CampusLocation {
   id: string;
   name: string;
   category: CampusCategory;
-  description: string;
-  position: { x: number; y: number } | null;
+  x: number;
+  y: number;
   lat: number | null;
   lng: number | null;
   nodeId: string | null;
+  description?: string;
+  position?: { x: number; y: number } | null;
 }
 
 export const categoryColors: Record<CampusCategory, string> = {
   academic: "var(--cat-academic, #0f766e)",
   hostel: "var(--cat-hostel, #6d28d9)",
+  service: "var(--cat-food, #c2410c)",
   food: "var(--cat-food, #c2410c)",
+  sport: "var(--cat-sports, #15803d)",
   sports: "var(--cat-sports, #15803d)",
   landmark: "var(--cat-landmark, #be185d)",
   gate: "var(--cat-gate, #b91c1c)",
@@ -29,252 +35,98 @@ export const categoryColors: Record<CampusCategory, string> = {
 export const categoryLabels: Record<CampusCategory, string> = {
   academic: "Academic",
   hostel: "Hostel",
-  food: "Food & Store",
+  service: "Food & services",
+  food: "Food & services",
+  sport: "Sports",
   sports: "Sports",
   landmark: "Landmark",
-  gate: "Gate",
+  gate: "Main Gate",
 };
 
 export const campusLocations: CampusLocation[] = [
-  // Academic
-  {
-    id: "ac-auditorium",
-    name: "AC Auditorium",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192349457527632,
-    lng: 79.08381835076169,
-    nodeId: "n34",
-  },
-  {
-    id: "it-block",
-    name: "IT Block",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193600009945381,
-    lng: 79.08325441633029,
-    nodeId: "n68",
-  },
-  {
-    id: "has-block",
-    name: "HAS Block",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193379,
-    lng: 79.083642,
-    nodeId: "n14",
-  },
-  {
-    id: "aiml-and-cse",
-    name: "AI & ML + CSE Block",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193495142047322,
-    lng: 79.08226132845456,
-    nodeId: "n76",
-  },
-  {
-    id: "ece-department",
-    name: "ECE Department",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192609006628636,
-    lng: 79.0827816769972,
-    nodeId: "n55",
-  },
-  {
-    id: "mech-department",
-    name: "MECH Department",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193333694866126,
-    lng: 79.08267641918741,
-    nodeId: "n74",
-  },
-  {
-    id: "open-auditorium",
-    name: "Open Auditorium",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192968622945118,
-    lng: 79.08283466951389,
-    nodeId: "n53",
-  },
-  {
-    id: "bio-department",
-    name: "BIO Department",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193794458170983,
-    lng: 79.0828588093942,
-    nodeId: "n73",
-  },
-  {
-    id: "civil-department",
-    name: "Civil Department",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193602418939252,
-    lng: 79.08256108420372,
-    nodeId: "n73",
-  },
-  {
-    id: "eee-department",
-    name: "EEE Department",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.19315148668112,
-    lng: 79.08307606831698,
-    nodeId: "n63",
-  },
-  {
-    id: "aids-department",
-    name: "AIDS Department",
-    category: "academic",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192787069928688,
-    lng: 79.08315921680148,
-    nodeId: "n65",
-  },
-
-  // Hostel
-  {
-    id: "boys-hostel",
-    name: "Boys Hostel",
-    category: "hostel",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192608138499796,
-    lng: 79.08213461297413,
-    nodeId: "n43",
-  },
-  {
-    id: "girls-hostel",
-    name: "Girls Hostel",
-    category: "hostel",
-    description: "-- add from college",
-    position: null,
-    lat: 12.19156511275028,
-    lng: 79.08308419038293,
-    nodeId: "n61",
-  },
-
-  // Food
-  {
-    id: "canteen",
-    name: "Canteen",
-    category: "food",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192063238537905,
-    lng: 79.08372456779382,
-    nodeId: "n32",
-  },
-  {
-    id: "parking",
-    name: "Parking",
-    category: "food",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192936229065289,
-    lng: 79.08424064222933,
-    nodeId: "n19",
-  },
-  {
-    id: "store",
-    name: "Store",
-    category: "food",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192255240698223,
-    lng: 79.0845075220172,
-    nodeId: "n23",
-  },
-
-  // Sports
-  {
-    id: "basketball-court",
-    name: "Basketball Court",
-    category: "sports",
-    description: "-- add from college",
-    position: null,
-    lat: 12.19256394690231,
-    lng: 79.0842466771994,
-    nodeId: "n24",
-  },
-  {
-    id: "volleyball-court",
-    name: "Volleyball Court",
-    category: "sports",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193271806905132,
-    lng: 79.08416486982725,
-    nodeId: "n18",
-  },
-
-  // Landmark
-  {
-    id: "arunai-center",
-    name: "Arunai Center",
-    category: "landmark",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192612486667413,
-    lng: 79.08379095246468,
-    nodeId: "n6",
-  },
-  {
-    id: "temple",
-    name: "Temple",
-    category: "landmark",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192384914877055,
-    lng: 79.08274524804378,
-    nodeId: "n38",
-  },
-  {
-    id: "arunai-gateway-and-lab",
-    name: "Arunai Gateway & Lab",
-    category: "landmark",
-    description: "-- add from college",
-    position: null,
-    lat: 12.192352143512725,
-    lng: 79.08329577142528,
-    nodeId: "n27",
-  },
-  {
-    id: "main-center",
-    name: "Main Center",
-    category: "landmark",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193033131630933,
-    lng: 79.08356265121316,
-    nodeId: "n17",
-  },
-
-  // Gate
-  {
-    id: "main-gate",
-    name: "Main Gate",
-    category: "gate",
-    description: "-- add from college",
-    position: null,
-    lat: 12.193130863698174,
-    lng: 79.08442153103873,
-    nodeId: "n1",
-  },
+  { id: "l0", name: "Boys Hostel", category: "hostel", x: 440, y: 148, lat: 148, lng: 440, nodeId: "j36" },
+  { id: "l1", name: "Girls Hostel", category: "hostel", x: 163, y: 408, lat: 408, lng: 163, nodeId: "j33" },
+  { id: "l2", name: "Temple", category: "landmark", x: 380, y: 343, lat: 343, lng: 380, nodeId: "j31" },
+  { id: "l3", name: "ECE Department", category: "academic", x: 451, y: 323, lat: 323, lng: 451, nodeId: "j50" },
+  { id: "l4", name: "Open Auditorium", category: "academic", x: 530, y: 312, lat: 312, lng: 530, nodeId: "j41" },
+  { id: "l5", name: "Mechanical", category: "academic", x: 623, y: 292, lat: 292, lng: 623, nodeId: "j18" },
+  { id: "l6", name: "AI&ML and CSE", category: "academic", x: 686, y: 175, lat: 175, lng: 686, nodeId: "j19" },
+  { id: "l7", name: "Civil", category: "academic", x: 708, y: 276, lat: 276, lng: 708, nodeId: "j46" },
+  { id: "l8", name: "Bio Tec", category: "academic", x: 780, y: 339, lat: 339, lng: 780, nodeId: "j46" },
+  { id: "l9", name: "Arunai Gateway and Library", category: "landmark", x: 360, y: 474, lat: 474, lng: 360, nodeId: "j20" },
+  { id: "l10", name: "Canteen", category: "service", x: 277, y: 587, lat: 587, lng: 277, nodeId: "j24" },
+  { id: "l11", name: "AI&DS", category: "academic", x: 481, y: 421, lat: 421, lng: 481, nodeId: "j9" },
+  { id: "l12", name: "EEE", category: "academic", x: 597, y: 412, lat: 412, lng: 597, nodeId: "j11" },
+  { id: "l13", name: "IT Department", category: "academic", x: 720, y: 435, lat: 435, lng: 720, nodeId: "j16" },
+  { id: "l14", name: "AC Auditorium", category: "academic", x: 381, y: 623, lat: 623, lng: 381, nodeId: "j25" },
+  { id: "l15", name: "Has Block", category: "academic", x: 674, y: 584, lat: 584, lng: 674, nodeId: "j13" },
+  { id: "l16", name: "Parking", category: "service", x: 534, y: 699, lat: 699, lng: 534, nodeId: "j26" },
+  { id: "l17", name: "Basketball Ground", category: "sport", x: 421, y: 724, lat: 724, lng: 421, nodeId: "j28" },
+  { id: "l18", name: "Volleyball Ground", category: "sport", x: 620, y: 708, lat: 708, lng: 620, nodeId: "j51" },
+  { id: "l19", name: "SBI Bank and Store", category: "service", x: 346, y: 801, lat: 801, lng: 346, nodeId: "j29" },
+  { id: "l20", name: "Arunai Center", category: "landmark", x: 459, y: 590, lat: 590, lng: 459, nodeId: "j7" },
+  { id: "l21", name: "Main Gate", category: "gate", x: 577, y: 756, lat: 756, lng: 577, nodeId: "j3" },
 ];
+
+export const CAMPUS_STORAGE_KEY = "campus_custom_locations";
+export const CAMPUS_BASE_MAP_STORAGE_KEY = "campus_custom_base_map";
+export const CAMPUS_JUNCTIONS_STORAGE_KEY = "campus_custom_junctions";
+export const CAMPUS_UPDATE_EVENT = "campus_map_updated";
+
+export function getActiveCampusLocations(): CampusLocation[] {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem(CAMPUS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as CampusLocation[];
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.nodeId !== "north") {
+          return parsed;
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return campusLocations;
+}
+
+export function getActiveBaseMapImage(): string {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem(CAMPUS_BASE_MAP_STORAGE_KEY);
+      if (stored) return stored;
+    } catch {
+      // fallback
+    }
+  }
+  return "/assets/campus-map.jpg";
+}
+
+export function saveCampusLocations(locations: CampusLocation[]): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CAMPUS_STORAGE_KEY, JSON.stringify(locations));
+    window.dispatchEvent(new Event(CAMPUS_UPDATE_EVENT));
+  }
+}
+
+export function saveBaseMapImage(dataUrl: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CAMPUS_BASE_MAP_STORAGE_KEY, dataUrl);
+    window.dispatchEvent(new Event(CAMPUS_UPDATE_EVENT));
+  }
+}
+
+export function resetCampusLocations(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(CAMPUS_STORAGE_KEY);
+    window.dispatchEvent(new Event(CAMPUS_UPDATE_EVENT));
+  }
+}
+
+export function resetBaseMapImage(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(CAMPUS_BASE_MAP_STORAGE_KEY);
+    window.dispatchEvent(new Event(CAMPUS_UPDATE_EVENT));
+  }
+}
+

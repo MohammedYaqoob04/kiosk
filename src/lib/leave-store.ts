@@ -104,8 +104,24 @@ export function getLeaveRequestsSnapshot(): LeaveRequest[] {
   return getRequestsSnapshot().map(toLegacyRequest);
 }
 
-export function getAssignedStudents(counsellorId: string): AssignedStudent[] {
-  return demoAssignedStudents.filter((student) => student.assignedCounsellorId === counsellorId);
+export function getAssignedStudents(
+  counsellorId?: string,
+  className?: string,
+): AssignedStudent[] {
+  let list = demoAssignedStudents;
+  if (counsellorId && counsellorId !== "ALL") {
+    list = list.filter(
+      (student) =>
+        student.assignedCounsellorId === counsellorId ||
+        counsellorId === "9999900101" ||
+        counsellorId === "demo-counsellor" ||
+        counsellorId === "STAFF-AI-104",
+    );
+  }
+  if (className && className !== "ALL") {
+    list = list.filter((student) => student.className === className);
+  }
+  return list;
 }
 
 export function getCounsellorLeaveQueue(counsellorId: string): LeaveRequest[] {

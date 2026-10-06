@@ -3,7 +3,7 @@ import { StudentsPage } from "@/components/staff/StudentsPage";
 import { getCurrentUser } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/erp/staff/students")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { regNo?: string | undefined } => ({
     regNo: typeof search["regNo"] === "string" ? search["regNo"] : undefined,
   }),
   beforeLoad: () => {

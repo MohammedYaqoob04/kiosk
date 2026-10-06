@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect, useLocation } from "@tanstack/react-router";
 
-import { LeaveApprovalDesk } from "@/components/erp/LeaveApprovalDesk";
+import { StaffDashboard } from "@/components/staff/StaffDashboard";
+import { StaffClassProvider } from "@/lib/staff-class-context";
 import { getCurrentUser } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/erp/staff")({
@@ -13,10 +14,14 @@ export const Route = createFileRoute("/erp/staff")({
   },
   shouldReload: true,
   component: CounsellorRoute,
-  head: () => ({ meta: [{ title: "Counsellor Desk | Arunai ERP" }] }),
+  head: () => ({ meta: [{ title: "Staff Dashboard | Arunai ERP" }] }),
 });
 
 function CounsellorRoute() {
   const { pathname } = useLocation();
-  return pathname === "/erp/staff" ? <LeaveApprovalDesk role="COUNSELLOR" /> : <Outlet />;
+  return (
+    <StaffClassProvider>
+      {pathname === "/erp/staff" ? <StaffDashboard /> : <Outlet />}
+    </StaffClassProvider>
+  );
 }

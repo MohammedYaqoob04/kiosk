@@ -443,7 +443,7 @@ function StudentLogin({
               <label htmlFor="student-password" className="text-foreground">
                 Password = date of birth
               </label>
-              <span className="text-muted-foreground font-normal">DDMMYYYY or DD-MM-YYYY</span>
+              <span className="text-muted-foreground font-normal">DDMM</span>
             </div>
             <div className="student-password-box">
               <button
@@ -462,7 +462,7 @@ function StudentLogin({
                   )
                 ) : (
                   <span className="text-muted-foreground font-sans text-xs tracking-normal">
-                    Enter DOB (e.g. 14052006 or 14-05-2006)
+                    Enter DOB (DDMM)
                   </span>
                 )}
               </button>

@@ -97,10 +97,15 @@ export const fakeAssignmentOptions: AssignmentOptions = {
 };
 
 const fakeSchedule: TimetableDay["hours"] = [
-  { hour: 1, subjectCode: "XX1001", subjectName: "Subject One", staffName: "Faculty Demo" },
-  { hour: 2, subjectCode: "XX1002", subjectName: "Subject Two", staffName: "Faculty Demo" },
-  { hour: 3, subjectCode: "XX1003", subjectName: "Subject Three", staffName: "Faculty Demo" },
+  { hour: 1, period: 1, time: "09:20 - 10:10", startTime: "09:20", endTime: "10:10", subjectCode: "A13021", subjectName: "IT in Agricultural System", staffName: "Mrs. V. Anitha", room: "C14" },
+  { hour: 2, period: 2, time: "10:10 - 11:00", startTime: "10:10", endTime: "11:00", subjectCode: "CME365", subjectName: "Renewable Energy Technologies", staffName: "Mr. E. Prakash", room: "C14" },
+  { hour: 3, period: 3, time: "11:20 - 12:10", startTime: "11:20", endTime: "12:10", subjectCode: "GE3752", subjectName: "Total Quality Management", staffName: "Mr. R. Senthil", room: "C14" },
+  { hour: 4, period: 4, time: "12:10 - 13:00", startTime: "12:10", endTime: "13:00", subjectCode: "GE3791", subjectName: "Human Values and Ethics", staffName: "Ms. T. Subathra", room: "C14" },
+  { hour: 5, period: 5, time: "13:50 - 14:40", startTime: "13:50", endTime: "14:40", subjectCode: "OBT357", subjectName: "Biotechnology in Healthcare", staffName: "Ms. N. Rithi Priyanka", room: "C14" },
+  { hour: 6, period: 6, time: "14:40 - 15:30", startTime: "14:40", endTime: "15:30", subjectCode: "SKILL", subjectName: "Skill Development", staffName: "Faculty Demo", room: "C14" },
 ];
+
+const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
 export function getFakeTimetable(date?: string): TimetableDay {
   const now = new Date();
@@ -109,9 +114,19 @@ export function getFakeTimetable(date?: string): TimetableDay {
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const localDate = new Date(`${dateValue}T00:00:00`);
   const weekday = localDate.getDay();
+
+  const days = WEEKDAY_NAMES.map((dayName, index) => ({
+    dayName,
+    weekday: index,
+    hall: "C14",
+    hours: index === 5 ? [] : fakeSchedule,
+  }));
+
   return {
     date: dateValue,
     dayName: new Intl.DateTimeFormat("en", { weekday: "long" }).format(localDate),
+    hall: "C14",
     hours: weekday === 0 || weekday === 6 ? [] : fakeSchedule,
+    days,
   };
 }

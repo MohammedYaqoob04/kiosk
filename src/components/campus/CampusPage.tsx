@@ -4,7 +4,8 @@ import { CampusMap } from "@/components/campus/CampusMap";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { TouchTextInput } from "@/components/TouchTextInput";
 import {
-  campusLocations,
+  CAMPUS_UPDATE_EVENT,
+  getActiveCampusLocations,
   categoryColors,
   categoryLabels,
   type CampusLocation,
@@ -12,9 +13,22 @@ import {
 import { siteContent } from "@/config/siteContent";
 
 export function CampusPage() {
+  const [locations, setLocations] = useState<CampusLocation[]>(() => getActiveCampusLocations());
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(campusLocations[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => getActiveCampusLocations()[0]?.id ?? null);
   const [resetTrigger, setResetTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setLocations(getActiveCampusLocations());
+    };
+    window.addEventListener(CAMPUS_UPDATE_EVENT, handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener(CAMPUS_UPDATE_EVENT, handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
 
   // Requirement 8: After 60 seconds without touch, clear the selection and reset the view.
   useEffect(() => {
@@ -42,13 +56,13 @@ export function CampusPage() {
 
   const filteredLocations = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
-    if (!normalizedSearch) return campusLocations;
-    return campusLocations.filter((location) =>
-      `${location.name} ${location.category} ${location.description}`
+    if (!normalizedSearch) return locations;
+    return locations.filter((location) =>
+      `${location.name} ${location.category} ${location.description ?? ""}`
         .toLocaleLowerCase()
         .includes(normalizedSearch),
     );
-  }, [search]);
+  }, [search, locations]);
 
   const handleSelectLocation = (location: CampusLocation) => {
     setSelectedId(location.id);
@@ -114,7 +128,7 @@ export function CampusPage() {
           </section>
 
           <CampusMap
-            locations={campusLocations}
+            locations={locations}
             selectedId={selectedId}
             onSelect={handleSelectLocation}
             onClose={handleCloseSelected}

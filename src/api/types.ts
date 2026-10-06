@@ -51,15 +51,48 @@ export interface Dashboard {
   marks: SubjectMarks[];
 }
 
+export interface TimetableSlot {
+  hour: number;
+  period?: number;
+  time?: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  subjectCode?: string | null;
+  subjectName?: string | null;
+  staffName?: string | null;
+  room?: string | null;
+  isFree?: boolean;
+}
+
+export interface TimetableWeekDay {
+  dayName: string;
+  weekday: number;
+  hall?: string | null;
+  breaks?: { name: string; startTime: string; endTime: string }[];
+  hours: TimetableSlot[];
+}
+
 export interface TimetableDay {
   date: string;
   dayName: string;
-  hours: {
-    hour: 1 | 2 | 3 | 4 | 5 | 6 | 7;
-    subjectCode: string;
-    subjectName: string;
-    staffName?: string;
-  }[];
+  hall?: string | null;
+  breaks?: { name: string; startTime: string; endTime: string }[];
+  hours: TimetableSlot[];
+  days?: TimetableWeekDay[];
+  className?: string;
+  isCustom?: boolean;
+}
+
+export interface RegisteredSubject {
+  code: string;
+  title: string;
+  credits: number;
+}
+
+export interface RegisteredSubjectsResponse {
+  subjects: RegisteredSubject[];
+  totalSubjects: number;
+  totalCredits: number;
 }
 
 export interface FeeSummary {

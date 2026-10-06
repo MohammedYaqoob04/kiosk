@@ -12,8 +12,14 @@ export interface AssignedStudent {
   year: number;
   section: string;
   mobile: string;
+  parentMobile?: string;
+  fatherMobile?: string;
+  motherMobile?: string;
   email: string;
   gender: string;
+  className?: string;
+  leaveCount?: number;
+  pendingCount?: number;
 }
 
 export interface DepartmentCounsellor {

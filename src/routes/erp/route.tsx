@@ -15,6 +15,7 @@ export const Route = createFileRoute("/erp")({
 const studentNavigation = [
   { label: "Dashboard", to: "/erp/dashboard" },
   { label: "Timetable", to: "/erp/timetable" },
+  { label: "Registered Subjects", to: "/erp/subjects" },
   { label: "Leave & OD", to: "/erp/leave" },
   { label: "Notices", to: "/erp/notices" },
   { label: "Assignment Front Page", to: "/erp/assignment" },
@@ -27,6 +28,7 @@ const studentNavigation = [
 const studentOnlyPaths = new Set([
   "/erp/dashboard",
   "/erp/timetable",
+  "/erp/subjects",
   "/erp/assignment",
   "/erp/book-verification-form",
   "/erp/results",
@@ -40,6 +42,13 @@ const staffOnlyPaths = new Set(["/erp/leave-requests"]);
 const counsellorOnlyPaths = new Set([
   "/erp/staff",
   "/erp/staff/students",
+  "/erp/staff/marks",
+  "/erp/staff/attendance",
+  "/erp/staff/timetable",
+  "/erp/staff/timetable-upload",
+  "/erp/staff/leave",
+  "/erp/staff/announcements",
+  "/erp/staff/password",
   "/erp/staff/history",
 ]);
 function ErpRoute() {
@@ -185,9 +194,15 @@ function ErpLayout() {
       ? studentNavigation
       : user.role === "COUNSELLOR"
         ? ([
-            { label: "Approvals", to: "/erp/staff" },
-            { label: "My Students", to: "/erp/staff/students" },
+            { label: "Dashboard", to: "/erp/staff" },
+            { label: "Student Details", to: "/erp/staff/students" },
+            { label: "Marks Showcase", to: "/erp/staff/marks" },
+            { label: "Attendance", to: "/erp/staff/attendance" },
+            { label: "Timetable", to: "/erp/staff/timetable" },
+            { label: "Timetable Upload", to: "/erp/staff/timetable-upload" },
+            { label: "Leave & Approvals", to: "/erp/staff/leave" },
             { label: "Announcements", to: "/erp/staff/announcements" },
+            { label: "Change Password", to: "/erp/staff/password" },
           ] as const)
         : ([
             { label: "Dashboard", to: "/erp/hod" },

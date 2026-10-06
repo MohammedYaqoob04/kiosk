@@ -7,6 +7,7 @@ import type {
   ResultsResponse,
   StudentProfile,
   TimetableDay,
+  RegisteredSubjectsResponse,
 } from "@/api/types";
 import {
   getMockTimetable,
@@ -14,6 +15,7 @@ import {
   mockDashboard,
   mockFees,
   mockProfile,
+  mockRegisteredSubjects,
   mockResults,
   mockResultsPublished,
 } from "@/api/mock/data";
@@ -39,9 +41,17 @@ export const mockApi = {
     await delay();
     return structuredClone(mockDashboard);
   },
-  async getTimetable(date?: string): Promise<TimetableDay> {
+  async getTimetable(date?: string, className?: string): Promise<TimetableDay> {
     await delay();
-    return structuredClone(getMockTimetable(date));
+    return structuredClone(getMockTimetable(date, className));
+  },
+  async getRegisteredSubjects(): Promise<RegisteredSubjectsResponse> {
+    await delay();
+    return {
+      subjects: structuredClone(mockRegisteredSubjects),
+      totalSubjects: mockRegisteredSubjects.length,
+      totalCredits: mockRegisteredSubjects.reduce((acc, s) => acc + s.credits, 0),
+    };
   },
   async getFees(): Promise<FeeSummary> {
     await delay();

@@ -39,6 +39,7 @@ import { Route as ErpPasswordRouteImport } from './routes/erp/password'
 import { Route as ErpProfileRouteImport } from './routes/erp/profile'
 import { Route as ErpResultsRouteImport } from './routes/erp/results'
 import { Route as ErpStaffRouteImport } from './routes/erp/staff'
+import { Route as ErpSubjectsRouteImport } from './routes/erp/subjects'
 import { Route as ErpTimetableRouteImport } from './routes/erp/timetable'
 import { Route as LoginHodRouteImport } from './routes/login.hod'
 import { Route as LoginStaffRouteImport } from './routes/login.staff'
@@ -48,9 +49,14 @@ import { Route as ErpHodApprovalsRouteImport } from './routes/erp/hod.approvals'
 import { Route as ErpHodReportsRouteImport } from './routes/erp/hod.reports'
 import { Route as ErpHodStudentsRouteImport } from './routes/erp/hod.students'
 import { Route as ErpStaffAnnouncementsRouteImport } from './routes/erp/staff.announcements'
+import { Route as ErpStaffAttendanceRouteImport } from './routes/erp/staff.attendance'
 import { Route as ErpStaffHistoryRouteImport } from './routes/erp/staff.history'
 import { Route as ErpStaffLeaveRouteImport } from './routes/erp/staff.leave'
+import { Route as ErpStaffMarksRouteImport } from './routes/erp/staff.marks'
+import { Route as ErpStaffPasswordRouteImport } from './routes/erp/staff.password'
 import { Route as ErpStaffStudentsRouteImport } from './routes/erp/staff.students'
+import { Route as ErpStaffTimetableRouteImport } from './routes/erp/staff.timetable'
+import { Route as ErpStaffTimetableUploadRouteImport } from './routes/erp/staff.timetable-upload'
 import { Route as ErpHodStudentsUploadRouteImport } from './routes/erp/hod.students.upload'
 
 const IndexRoute = IndexRouteImport.update({
@@ -203,6 +209,11 @@ const ErpStaffRoute = ErpStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => ErpRouteRoute,
 } as any)
+const ErpSubjectsRoute = ErpSubjectsRouteImport.update({
+  id: '/subjects',
+  path: '/subjects',
+  getParentRoute: () => ErpRouteRoute,
+} as any)
 const ErpTimetableRoute = ErpTimetableRouteImport.update({
   id: '/timetable',
   path: '/timetable',
@@ -248,6 +259,11 @@ const ErpStaffAnnouncementsRoute = ErpStaffAnnouncementsRouteImport.update({
   path: '/announcements',
   getParentRoute: () => ErpStaffRoute,
 } as any)
+const ErpStaffAttendanceRoute = ErpStaffAttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
 const ErpStaffHistoryRoute = ErpStaffHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -258,9 +274,29 @@ const ErpStaffLeaveRoute = ErpStaffLeaveRouteImport.update({
   path: '/leave',
   getParentRoute: () => ErpStaffRoute,
 } as any)
+const ErpStaffMarksRoute = ErpStaffMarksRouteImport.update({
+  id: '/marks',
+  path: '/marks',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
+const ErpStaffPasswordRoute = ErpStaffPasswordRouteImport.update({
+  id: '/password',
+  path: '/password',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
 const ErpStaffStudentsRoute = ErpStaffStudentsRouteImport.update({
   id: '/students',
   path: '/students',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
+const ErpStaffTimetableRoute = ErpStaffTimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => ErpStaffRoute,
+} as any)
+const ErpStaffTimetableUploadRoute = ErpStaffTimetableUploadRouteImport.update({
+  id: '/timetable-upload',
+  path: '/timetable-upload',
   getParentRoute: () => ErpStaffRoute,
 } as any)
 const ErpHodStudentsUploadRoute = ErpHodStudentsUploadRouteImport.update({
@@ -300,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/erp/profile': typeof ErpProfileRoute
   '/erp/results': typeof ErpResultsRoute
   '/erp/staff': typeof ErpStaffRouteWithChildren
+  '/erp/subjects': typeof ErpSubjectsRoute
   '/erp/timetable': typeof ErpTimetableRoute
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
@@ -309,9 +346,14 @@ export interface FileRoutesByFullPath {
   '/erp/hod/reports': typeof ErpHodReportsRoute
   '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
+  '/erp/staff/attendance': typeof ErpStaffAttendanceRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
+  '/erp/staff/marks': typeof ErpStaffMarksRoute
+  '/erp/staff/password': typeof ErpStaffPasswordRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
+  '/erp/staff/timetable': typeof ErpStaffTimetableRoute
+  '/erp/staff/timetable-upload': typeof ErpStaffTimetableUploadRoute
   '/erp/hod/students/upload': typeof ErpHodStudentsUploadRoute
 }
 export interface FileRoutesByTo {
@@ -345,6 +387,7 @@ export interface FileRoutesByTo {
   '/erp/profile': typeof ErpProfileRoute
   '/erp/results': typeof ErpResultsRoute
   '/erp/staff': typeof ErpStaffRouteWithChildren
+  '/erp/subjects': typeof ErpSubjectsRoute
   '/erp/timetable': typeof ErpTimetableRoute
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
@@ -354,9 +397,14 @@ export interface FileRoutesByTo {
   '/erp/hod/reports': typeof ErpHodReportsRoute
   '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
+  '/erp/staff/attendance': typeof ErpStaffAttendanceRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
+  '/erp/staff/marks': typeof ErpStaffMarksRoute
+  '/erp/staff/password': typeof ErpStaffPasswordRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
+  '/erp/staff/timetable': typeof ErpStaffTimetableRoute
+  '/erp/staff/timetable-upload': typeof ErpStaffTimetableUploadRoute
   '/erp/hod/students/upload': typeof ErpHodStudentsUploadRoute
 }
 export interface FileRoutesById {
@@ -391,6 +439,7 @@ export interface FileRoutesById {
   '/erp/profile': typeof ErpProfileRoute
   '/erp/results': typeof ErpResultsRoute
   '/erp/staff': typeof ErpStaffRouteWithChildren
+  '/erp/subjects': typeof ErpSubjectsRoute
   '/erp/timetable': typeof ErpTimetableRoute
   '/login/hod': typeof LoginHodRoute
   '/login/staff': typeof LoginStaffRoute
@@ -400,9 +449,14 @@ export interface FileRoutesById {
   '/erp/hod/reports': typeof ErpHodReportsRoute
   '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
+  '/erp/staff/attendance': typeof ErpStaffAttendanceRoute
   '/erp/staff/history': typeof ErpStaffHistoryRoute
   '/erp/staff/leave': typeof ErpStaffLeaveRoute
+  '/erp/staff/marks': typeof ErpStaffMarksRoute
+  '/erp/staff/password': typeof ErpStaffPasswordRoute
   '/erp/staff/students': typeof ErpStaffStudentsRoute
+  '/erp/staff/timetable': typeof ErpStaffTimetableRoute
+  '/erp/staff/timetable-upload': typeof ErpStaffTimetableUploadRoute
   '/erp/hod/students/upload': typeof ErpHodStudentsUploadRoute
 }
 export interface FileRouteTypes {
@@ -438,6 +492,7 @@ export interface FileRouteTypes {
     | '/erp/profile'
     | '/erp/results'
     | '/erp/staff'
+    | '/erp/subjects'
     | '/erp/timetable'
     | '/login/hod'
     | '/login/staff'
@@ -447,9 +502,14 @@ export interface FileRouteTypes {
     | '/erp/hod/reports'
     | '/erp/hod/students'
     | '/erp/staff/announcements'
+    | '/erp/staff/attendance'
     | '/erp/staff/history'
     | '/erp/staff/leave'
+    | '/erp/staff/marks'
+    | '/erp/staff/password'
     | '/erp/staff/students'
+    | '/erp/staff/timetable'
+    | '/erp/staff/timetable-upload'
     | '/erp/hod/students/upload'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -483,6 +543,7 @@ export interface FileRouteTypes {
     | '/erp/profile'
     | '/erp/results'
     | '/erp/staff'
+    | '/erp/subjects'
     | '/erp/timetable'
     | '/login/hod'
     | '/login/staff'
@@ -492,9 +553,14 @@ export interface FileRouteTypes {
     | '/erp/hod/reports'
     | '/erp/hod/students'
     | '/erp/staff/announcements'
+    | '/erp/staff/attendance'
     | '/erp/staff/history'
     | '/erp/staff/leave'
+    | '/erp/staff/marks'
+    | '/erp/staff/password'
     | '/erp/staff/students'
+    | '/erp/staff/timetable'
+    | '/erp/staff/timetable-upload'
     | '/erp/hod/students/upload'
   id:
     | '__root__'
@@ -528,6 +594,7 @@ export interface FileRouteTypes {
     | '/erp/profile'
     | '/erp/results'
     | '/erp/staff'
+    | '/erp/subjects'
     | '/erp/timetable'
     | '/login/hod'
     | '/login/staff'
@@ -537,9 +604,14 @@ export interface FileRouteTypes {
     | '/erp/hod/reports'
     | '/erp/hod/students'
     | '/erp/staff/announcements'
+    | '/erp/staff/attendance'
     | '/erp/staff/history'
     | '/erp/staff/leave'
+    | '/erp/staff/marks'
+    | '/erp/staff/password'
     | '/erp/staff/students'
+    | '/erp/staff/timetable'
+    | '/erp/staff/timetable-upload'
     | '/erp/hod/students/upload'
   fileRoutesById: FileRoutesById
 }
@@ -775,6 +847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpStaffRouteImport
       parentRoute: typeof ErpRouteRoute
     }
+    '/erp/subjects': {
+      id: '/erp/subjects'
+      path: '/subjects'
+      fullPath: '/erp/subjects'
+      preLoaderRoute: typeof ErpSubjectsRouteImport
+      parentRoute: typeof ErpRouteRoute
+    }
     '/erp/timetable': {
       id: '/erp/timetable'
       path: '/timetable'
@@ -838,6 +917,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpStaffAnnouncementsRouteImport
       parentRoute: typeof ErpStaffRoute
     }
+    '/erp/staff/attendance': {
+      id: '/erp/staff/attendance'
+      path: '/attendance'
+      fullPath: '/erp/staff/attendance'
+      preLoaderRoute: typeof ErpStaffAttendanceRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
     '/erp/staff/history': {
       id: '/erp/staff/history'
       path: '/history'
@@ -852,11 +938,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpStaffLeaveRouteImport
       parentRoute: typeof ErpStaffRoute
     }
+    '/erp/staff/marks': {
+      id: '/erp/staff/marks'
+      path: '/marks'
+      fullPath: '/erp/staff/marks'
+      preLoaderRoute: typeof ErpStaffMarksRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
+    '/erp/staff/password': {
+      id: '/erp/staff/password'
+      path: '/password'
+      fullPath: '/erp/staff/password'
+      preLoaderRoute: typeof ErpStaffPasswordRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
     '/erp/staff/students': {
       id: '/erp/staff/students'
       path: '/students'
       fullPath: '/erp/staff/students'
       preLoaderRoute: typeof ErpStaffStudentsRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
+    '/erp/staff/timetable': {
+      id: '/erp/staff/timetable'
+      path: '/timetable'
+      fullPath: '/erp/staff/timetable'
+      preLoaderRoute: typeof ErpStaffTimetableRouteImport
+      parentRoute: typeof ErpStaffRoute
+    }
+    '/erp/staff/timetable-upload': {
+      id: '/erp/staff/timetable-upload'
+      path: '/timetable-upload'
+      fullPath: '/erp/staff/timetable-upload'
+      preLoaderRoute: typeof ErpStaffTimetableUploadRouteImport
       parentRoute: typeof ErpStaffRoute
     }
     '/erp/hod/students/upload': {
@@ -900,16 +1014,26 @@ const ErpHodRouteWithChildren =
 
 interface ErpStaffRouteChildren {
   ErpStaffAnnouncementsRoute: typeof ErpStaffAnnouncementsRoute
+  ErpStaffAttendanceRoute: typeof ErpStaffAttendanceRoute
   ErpStaffHistoryRoute: typeof ErpStaffHistoryRoute
   ErpStaffLeaveRoute: typeof ErpStaffLeaveRoute
+  ErpStaffMarksRoute: typeof ErpStaffMarksRoute
+  ErpStaffPasswordRoute: typeof ErpStaffPasswordRoute
   ErpStaffStudentsRoute: typeof ErpStaffStudentsRoute
+  ErpStaffTimetableRoute: typeof ErpStaffTimetableRoute
+  ErpStaffTimetableUploadRoute: typeof ErpStaffTimetableUploadRoute
 }
 
 const ErpStaffRouteChildren: ErpStaffRouteChildren = {
   ErpStaffAnnouncementsRoute: ErpStaffAnnouncementsRoute,
+  ErpStaffAttendanceRoute: ErpStaffAttendanceRoute,
   ErpStaffHistoryRoute: ErpStaffHistoryRoute,
   ErpStaffLeaveRoute: ErpStaffLeaveRoute,
+  ErpStaffMarksRoute: ErpStaffMarksRoute,
+  ErpStaffPasswordRoute: ErpStaffPasswordRoute,
   ErpStaffStudentsRoute: ErpStaffStudentsRoute,
+  ErpStaffTimetableRoute: ErpStaffTimetableRoute,
+  ErpStaffTimetableUploadRoute: ErpStaffTimetableUploadRoute,
 }
 
 const ErpStaffRouteWithChildren = ErpStaffRoute._addFileChildren(
@@ -930,6 +1054,7 @@ interface ErpRouteRouteChildren {
   ErpProfileRoute: typeof ErpProfileRoute
   ErpResultsRoute: typeof ErpResultsRoute
   ErpStaffRoute: typeof ErpStaffRouteWithChildren
+  ErpSubjectsRoute: typeof ErpSubjectsRoute
   ErpTimetableRoute: typeof ErpTimetableRoute
 }
 
@@ -947,6 +1072,7 @@ const ErpRouteRouteChildren: ErpRouteRouteChildren = {
   ErpProfileRoute: ErpProfileRoute,
   ErpResultsRoute: ErpResultsRoute,
   ErpStaffRoute: ErpStaffRouteWithChildren,
+  ErpSubjectsRoute: ErpSubjectsRoute,
   ErpTimetableRoute: ErpTimetableRoute,
 }
 
