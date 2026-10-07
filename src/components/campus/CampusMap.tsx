@@ -1,23 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
-import {
-  formatDistance,
-  KIOSK_START_NAME,
-  type Point,
-} from "@/config/campusMap";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, Minus, Plus, RotateCcw, X } from "lucide-react";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
+import { campusMap } from "@/config/campusMap";
 import {
   type CampusCategory,
   type CampusLocation,
   categoryColors,
   categoryLabels,
 } from "@/config/campusLocations";
-import { routeBetween } from "@/lib/campusRouting";
 import { siteContent } from "@/config/siteContent";
-import { useCampusMap } from "@/lib/useCampusMap";
-import { CampusMapStage } from "@/components/campus/CampusMapStage";
 
 export interface CampusMapProps {
-  locations?: CampusLocation[];
+  locations: CampusLocation[];
   selectedId: string | null;
   onSelect: (location: CampusLocation) => void;
   onClose?: () => void;
@@ -28,154 +22,68 @@ export interface CampusMapProps {
 const ALL_CATEGORIES: CampusCategory[] = [
   "academic",
   "hostel",
-  "service",
-  "sport",
+  "food",
+  "sports",
   "landmark",
   "gate",
 ];
 
 export function CampusMap({
-  locations: propLocations,
+  locations,
   selectedId,
   onSelect,
   onClose,
-  route: parentRoute,
+  route,
   resetTrigger = 0,
 }: CampusMapProps) {
-  void parentRoute;
+  // Route prop preserved for future navigation extensions
+  void route;
 
-  // Single source of truth for campus map data and version-stamped image
-  const { mapData, versionedImageSrc, version } = useCampusMap();
-  const W = mapData.width;
-  const H = mapData.height;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const markerLibRef = useRef<google.maps.MarkerLibrary | null>(null);
+  const markersMapRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
 
-  // Prioritize live mapData locations
-  const locations = useMemo(
-    () => (mapData.locations && mapData.locations.length > 0 ? mapData.locations : propLocations ?? []),
-    [mapData.locations, propLocations],
-  );
-
-  const defaultFromId = useMemo(() => {
-    const mainGate = locations.find((l) => l.name === KIOSK_START_NAME);
-    return mainGate ? mainGate.id : locations[0]?.id ?? "";
-  }, [locations]);
-
-  const defaultToId = useMemo(() => {
-    const aids = locations.find((l) => l.name === "AI&DS");
-    return aids ? aids.id : locations[1]?.id ?? "";
-  }, [locations]);
-
-  const [fromId, setFromId] = useState(defaultFromId);
-  const [toId, setToId] = useState(defaultToId);
-  const [routePoints, setRoutePoints] = useState<Point[]>([]);
-  const [info, setInfo] = useState("Tap a pin or select places to get directions.");
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [hiddenCategories, setHiddenCategories] = useState<Set<CampusCategory>>(new Set());
 
-  // Interactive Viewport & Zoom State
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [userZoom, setUserZoom] = useState(1.0);
-  const [isPanning, setIsPanning] = useState(false);
+  const isKeyConfigured = Boolean(campusMap.apiKey.trim());
+  const selectedLocation = locations.find((location) => location.id === selectedId) ?? null;
 
-  const isDraggingRef = useRef(false);
-  const pointerStartRef = useRef({ x: 0, y: 0 });
-  const panStartRef = useRef({ x: 0, y: 0 });
-  const hasMovedRef = useRef(false);
-  const isInitialMountRef = useRef(true);
-  const prevSelectedIdRef = useRef<string | null>(selectedId);
-
-  // Compute base scale to fit the stage exactly into the navigation frame
-  const baseScale = useMemo(() => {
-    if (!viewportSize.width || !viewportSize.height) return 1;
-    return Math.min((viewportSize.width - 24) / W, (viewportSize.height - 24) / H);
-  }, [viewportSize, W, H]);
-
-  const currentScale = baseScale * userZoom;
-
-  // Viewport resize observer to auto-fit stage
-  useEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-
-    const updateFit = () => {
-      const vw = el.clientWidth;
-      const vh = el.clientHeight;
-      if (vw <= 0 || vh <= 0) return;
-      setViewportSize({ width: vw, height: vh });
-
-      const base = Math.min((vw - 24) / W, (vh - 24) / H);
-      // If at base zoom, center within viewport
-      setUserZoom((currZoom) => {
-        if (currZoom <= 1.05) {
-          setPan({
-            x: (vw - W * base) / 2,
-            y: (vh - H * base) / 2,
-          });
-        }
-        return currZoom;
-      });
-    };
-
-    updateFit();
-    if (typeof ResizeObserver !== "undefined") {
-      const ro = new ResizeObserver(updateFit);
-      ro.observe(el);
-      return () => ro.disconnect();
-    }
-    return undefined;
-  }, [W, H]);
-
-  const centerOnLocation = useCallback(
-    (loc: CampusLocation, targetZoom = 1.65) => {
-      const el = viewportRef.current;
-      if (!el) return;
-      const vw = el.clientWidth;
-      const vh = el.clientHeight;
-      if (vw <= 0 || vh <= 0) return;
-
-      const base = Math.min((vw - 24) / W, (vh - 24) / H);
-      const targetZoomLevel = Math.max(1.0, Math.min(3.0, targetZoom));
-      const scale = base * targetZoomLevel;
-
-      const targetPanX = vw / 2 - loc.x * scale;
-      const targetPanY = vh / 2 - loc.y * scale;
-
-      setUserZoom(targetZoomLevel);
-      setPan({ x: targetPanX, y: targetPanY });
-    },
-    [W, H],
-  );
-
-  // Sync selection info & center when selected from list
-  useEffect(() => {
-    if (selectedId) {
-      setToId(selectedId);
-      const loc = locations.find((l) => l.id === selectedId);
-      if (loc) {
-        setInfo(`${loc.name} · ${categoryLabels[loc.category]}`);
-      }
-
-      // If user selected a location after initial render, move and zoom to it
-      if (!isInitialMountRef.current && loc && selectedId !== prevSelectedIdRef.current) {
-        centerOnLocation(loc, 1.65);
-      }
-      prevSelectedIdRef.current = selectedId;
-    }
-  }, [selectedId, locations, centerOnLocation]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      isInitialMountRef.current = false;
-    }, 100);
-    return () => clearTimeout(timer);
+  // Zoom controls (56px touch hit area)
+  const handleZoomIn = useCallback(() => {
+    if (!mapInstanceRef.current) return;
+    const current = mapInstanceRef.current.getZoom() ?? campusMap.zoom;
+    mapInstanceRef.current.setZoom(current + 1);
   }, []);
 
-  const selectedLocation = useMemo(
-    () => locations.find((loc) => loc.id === selectedId) ?? null,
-    [locations, selectedId],
-  );
+  const handleZoomOut = useCallback(() => {
+    if (!mapInstanceRef.current) return;
+    const current = mapInstanceRef.current.getZoom() ?? campusMap.zoom;
+    mapInstanceRef.current.setZoom(current - 1);
+  }, []);
 
+  // Reset view to default center and zoom
+  const handleResetView = useCallback(() => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setCenter({
+        lat: campusMap.center[0],
+        lng: campusMap.center[1],
+      });
+      mapInstanceRef.current.setZoom(campusMap.zoom);
+    }
+    setHiddenCategories(new Set());
+  }, []);
+
+  // Sync resetTrigger from parent (e.g. 60s idle timeout)
+  useEffect(() => {
+    if (resetTrigger > 0) {
+      handleResetView();
+    }
+  }, [resetTrigger, handleResetView]);
+
+  // Toggle category visibility
   const toggleCategory = useCallback((category: CampusCategory) => {
     setHiddenCategories((prev) => {
       const next = new Set(prev);
@@ -188,109 +96,208 @@ export function CampusMap({
     });
   }, []);
 
-  const handleShowRoute = useCallback(
-    (customFrom?: string, customTo?: string) => {
-      const startId = customFrom ?? fromId;
-      const endId = customTo ?? toId;
-
-      if (!startId || !endId || startId === endId) {
-        setRoutePoints([]);
-        setInfo("Pick two different places.");
-        return;
-      }
-
-      const res = routeBetween(startId, endId, mapData.junctions, mapData.edges, locations);
-      setRoutePoints(res.points);
-
-      const fromName = locations.find((l) => l.id === startId)?.name ?? startId;
-      const toName = locations.find((l) => l.id === endId)?.name ?? endId;
-      setInfo(`${fromName} → ${toName} · ${formatDistance(res.totalLength)}`);
-    },
-    [fromId, toId, mapData.junctions, mapData.edges, locations],
-  );
-
-  const handleClearRoute = useCallback(() => {
-    setRoutePoints([]);
-    setInfo("Route cleared.");
-  }, []);
-
-  const handleResetView = useCallback(() => {
-    setHiddenCategories(new Set());
-    setRoutePoints([]);
-    setFromId(defaultFromId);
-    setToId(defaultToId);
-    setInfo("Tap a pin or select places to get directions.");
-
-    if (viewportRef.current) {
-      const { clientWidth: vw, clientHeight: vh } = viewportRef.current;
-      if (vw > 0 && vh > 0) {
-        const base = Math.min((vw - 24) / W, (vh - 24) / H);
-        setUserZoom(1.0);
-        setPan({
-          x: (vw - W * base) / 2,
-          y: (vh - H * base) / 2,
-        });
-      }
-    }
-  }, [defaultFromId, defaultToId, W, H]);
-
+  // Initialize Map client-side only (never touch window or google at module scope)
   useEffect(() => {
-    if (resetTrigger > 0) {
-      handleResetView();
+    if (!isKeyConfigured || !mapContainerRef.current) return;
+    let isCancelled = false;
+
+    async function initGoogleMap() {
+      try {
+        setOptions({
+          key: campusMap.apiKey,
+          v: "weekly",
+        });
+
+        const [{ Map }, markerLib] = await Promise.all([
+          importLibrary("maps") as Promise<google.maps.MapsLibrary>,
+          importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
+        ]);
+
+        if (isCancelled || !mapContainerRef.current) return;
+
+        const mapOptions: google.maps.MapOptions = {
+          center: { lat: campusMap.center[0], lng: campusMap.center[1] },
+          zoom: campusMap.zoom,
+          minZoom: campusMap.minZoom,
+          maxZoom: campusMap.maxZoom,
+          mapTypeId: "satellite",
+          disableDefaultUI: true,
+          clickableIcons: false,
+          gestureHandling: "greedy",
+          keyboardShortcuts: false,
+          mapId: campusMap.mapId || "DEMO_MAP_ID",
+          ...(campusMap.bounds
+            ? {
+                restriction: {
+                  latLngBounds: campusMap.bounds,
+                  strictBounds: false,
+                },
+              }
+            : {}),
+        };
+
+        const map = new Map(mapContainerRef.current, mapOptions);
+        mapInstanceRef.current = map;
+        markerLibRef.current = markerLib;
+        setMapLoaded(true);
+      } catch (err) {
+        console.error("Failed to initialize Google Maps:", err);
+        if (!isCancelled) {
+          setLoadError(true);
+        }
+      }
     }
-  }, [resetTrigger, handleResetView]);
 
-  // Touch & Pointer pan handlers
-  const handlePointerDown = (e: React.PointerEvent) => {
-    // Only drag with left click or touch
-    if (e.button !== 0) return;
-    isDraggingRef.current = true;
-    hasMovedRef.current = false;
-    pointerStartRef.current = { x: e.clientX, y: e.clientY };
-    panStartRef.current = { ...pan };
-    setIsPanning(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
+    initGoogleMap();
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - pointerStartRef.current.x;
-    const dy = e.clientY - pointerStartRef.current.y;
+    return () => {
+      isCancelled = true;
+      markersMapRef.current.forEach((marker) => {
+        marker.map = null;
+      });
+      markersMapRef.current.clear();
+      mapInstanceRef.current = null;
+      markerLibRef.current = null;
+    };
+  }, [isKeyConfigured]);
 
-    if (Math.hypot(dx, dy) > 5) {
-      hasMovedRef.current = true;
+  // Pan when selected location has coordinates
+  useEffect(() => {
+    if (!mapInstanceRef.current || !selectedLocation) return;
+    if (selectedLocation.lat != null && selectedLocation.lng != null) {
+      mapInstanceRef.current.panTo({
+        lat: selectedLocation.lat,
+        lng: selectedLocation.lng,
+      });
+    }
+  }, [selectedLocation]);
+
+  // Render and update AdvancedMarkerElements
+  useEffect(() => {
+    if (!mapLoaded || !mapInstanceRef.current || !markerLibRef.current) return;
+    const { AdvancedMarkerElement } = markerLibRef.current;
+    const map = mapInstanceRef.current;
+
+    const validLocations = locations.filter(
+      (loc): loc is CampusLocation & { lat: number; lng: number } =>
+        loc.lat != null && loc.lng != null,
+    );
+
+    const currentMarkerIds = new Set<string>();
+
+    for (const loc of validLocations) {
+      const isVisible = !hiddenCategories.has(loc.category);
+      if (!isVisible) {
+        const existing = markersMapRef.current.get(loc.id);
+        if (existing) {
+          existing.map = null;
+          markersMapRef.current.delete(loc.id);
+        }
+        continue;
+      }
+
+      currentMarkerIds.add(loc.id);
+      const isSelected = loc.id === selectedId;
+
+      // Custom HTML element: exact coordinate anchor at center of the dot, 56px touch hit area
+      const hitArea = document.createElement("div");
+      hitArea.className = `campus-marker-hit-area ${isSelected ? "is-selected" : ""}`;
+      hitArea.style.position = "relative";
+      hitArea.style.width = "0";
+      hitArea.style.height = "0";
+      hitArea.style.cursor = "pointer";
+      hitArea.style.userSelect = "none";
+      hitArea.setAttribute("role", "button");
+      hitArea.setAttribute("aria-label", loc.name);
+
+      // 56px invisible touch hit target centered directly on the coordinate
+      const touchTarget = document.createElement("div");
+      touchTarget.style.position = "absolute";
+      touchTarget.style.top = "-28px";
+      touchTarget.style.left = "-28px";
+      touchTarget.style.width = "56px";
+      touchTarget.style.height = "56px";
+      touchTarget.style.borderRadius = "50%";
+      touchTarget.style.pointerEvents = "auto";
+
+      // Round dot centered exactly on the coordinate (0, 0)
+      const dotSize = isSelected ? 30 : 22;
+      const dotRadius = dotSize / 2;
+      const dot = document.createElement("div");
+      dot.className = `campus-marker-dot ${isSelected ? "is-selected" : ""}`;
+      dot.style.position = "absolute";
+      dot.style.top = `${-dotRadius}px`;
+      dot.style.left = `${-dotRadius}px`;
+      dot.style.width = `${dotSize}px`;
+      dot.style.height = `${dotSize}px`;
+      dot.style.borderRadius = "50%";
+      dot.style.backgroundColor = categoryColors[loc.category] || "#8B1E2D";
+      dot.style.border = isSelected ? "3px solid #FFFFFF" : "2px solid #FFFFFF";
+      dot.style.boxShadow = isSelected
+        ? "0 0 0 4px rgba(139, 30, 45, 0.45), 0 4px 12px rgba(0,0,0,0.4)"
+        : "0 2px 6px rgba(0,0,0,0.35)";
+      dot.style.transition = "transform 0.2s ease, width 0.2s ease, height 0.2s ease";
+      dot.style.pointerEvents = "none";
+
+      // 16px label on dark pill placed right below the dot, centered horizontally
+      const label = document.createElement("div");
+      label.className = `campus-marker-label ${isSelected ? "is-selected" : ""}`;
+      label.textContent = loc.name;
+      label.style.position = "absolute";
+      label.style.top = `${dotRadius + 4}px`;
+      label.style.left = "0";
+      label.style.transform = "translateX(-50%)";
+      label.style.fontSize = "16px";
+      label.style.fontWeight = isSelected ? "600" : "500";
+      label.style.color = "#FFFFFF";
+      label.style.backgroundColor = isSelected
+        ? "rgba(27, 11, 16, 0.96)"
+        : "rgba(27, 11, 16, 0.85)";
+      label.style.padding = "4px 10px";
+      label.style.borderRadius = "9999px";
+      label.style.whiteSpace = "nowrap";
+      label.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+      label.style.border = isSelected
+        ? "1.5px solid var(--accent, #8B1E2D)"
+        : "1px solid rgba(255,255,255,0.25)";
+      label.style.pointerEvents = "auto";
+      label.style.maxWidth = "220px";
+      label.style.overflow = "hidden";
+      label.style.textOverflow = "ellipsis";
+
+      hitArea.appendChild(touchTarget);
+      hitArea.appendChild(dot);
+      hitArea.appendChild(label);
+
+      hitArea.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onSelect(loc);
+      });
+
+      const existingMarker = markersMapRef.current.get(loc.id);
+      if (existingMarker) {
+        existingMarker.position = { lat: loc.lat, lng: loc.lng };
+        existingMarker.content = hitArea;
+        existingMarker.zIndex = isSelected ? 100 : 1;
+      } else {
+        const marker = new AdvancedMarkerElement({
+          map,
+          position: { lat: loc.lat, lng: loc.lng },
+          title: loc.name,
+          content: hitArea,
+          zIndex: isSelected ? 100 : 1,
+        });
+        markersMapRef.current.set(loc.id, marker);
+      }
     }
 
-    setPan({
-      x: panStartRef.current.x + dx,
-      y: panStartRef.current.y + dy,
+    markersMapRef.current.forEach((marker, id) => {
+      if (!currentMarkerIds.has(id)) {
+        marker.map = null;
+        markersMapRef.current.delete(id);
+      }
     });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
-    setIsPanning(false);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-  };
-
-  // Zoom buttons (+ and -)
-  const handleZoomIn = () => {
-    setUserZoom((prev) => Math.min(3.0, prev + 0.35));
-  };
-
-  const handleZoomOut = () => {
-    setUserZoom((prev) => Math.max(1.0, prev - 0.35));
-  };
-
-  // Wheel zoom
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.88;
-    setUserZoom((prev) => Math.min(3.0, Math.max(1.0, prev * zoomFactor)));
-  };
+  }, [mapLoaded, locations, hiddenCategories, selectedId, onSelect]);
 
   return (
     <section className="campus-map-section" aria-label={siteContent.campusPage.mapTitle}>
@@ -318,146 +325,131 @@ export function CampusMap({
         })}
       </div>
 
-      {/* Map display container */}
+      {/* Map display area */}
       <div className="campus-map-container">
-        {/* Interactive Viewport (Pannable & Zoomable) */}
-        <div
-          className={`campus-map-viewport ${isPanning ? "is-panning" : ""}`}
-          ref={viewportRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onWheel={handleWheel}
+        <div ref={mapContainerRef} className="campus-map-canvas" />
+
+        {/* Notice when key is not configured */}
+        {!isKeyConfigured && (
+          <div className="campus-map-notice" role="alert">
+            <AlertCircle className="size-8 text-accent" strokeWidth={1.5} aria-hidden="true" />
+            <h3 className="text-xl font-semibold">Map key not configured</h3>
+            <p className="text-muted-foreground text-sm max-w-md">
+              Add <code>VITE_GOOGLE_MAPS_API_KEY</code> to <code>.env</code> to load the campus
+              satellite map. The location list is fully interactive below.
+            </p>
+          </div>
+        )}
+
+        {/* Notice when map fails to load */}
+        {isKeyConfigured && loadError && (
+          <div className="campus-map-notice" role="alert">
+            <AlertCircle className="size-8 text-accent" strokeWidth={1.5} aria-hidden="true" />
+            <h3 className="text-xl font-semibold">Map unavailable</h3>
+            <p className="text-muted-foreground text-sm max-w-md">
+              Could not connect to Google Maps. Please verify your API key restrictions and internet
+              connection.
+            </p>
+          </div>
+        )}
+
+        {/* Big controls (56px touch targets) */}
+        {isKeyConfigured && !loadError && (
+          <div className="campus-map-controls" role="toolbar" aria-label="Map navigation controls">
+            <button
+              type="button"
+              className="campus-control-btn"
+              onClick={handleZoomIn}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <Plus className="size-6" strokeWidth={2} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="campus-control-btn"
+              onClick={handleZoomOut}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <Minus className="size-6" strokeWidth={2} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="campus-control-btn campus-reset-btn"
+              onClick={handleResetView}
+              aria-label="Reset view"
+              title="Reset view"
+            >
+              <RotateCcw className="size-5" strokeWidth={1.5} aria-hidden="true" />
+              <span>Reset view</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Selected-place card */}
+      {selectedLocation && (
+        <article
+          className="campus-selected-card"
+          aria-label={`Details for ${selectedLocation.name}`}
         >
-          <div
-            className="campus-map-stage"
-            style={{
-              width: `${W}px`,
-              height: `${H}px`,
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${currentScale})`,
-              transformOrigin: "0 0",
-              transition: isPanning ? "none" : "transform 0.35s cubic-bezier(0.2, 0, 0, 1)",
-            }}
-          >
-            {/* ONE shared component: CampusMapStage */}
-            <CampusMapStage
-              mapData={mapData}
-              versionedImageSrc={versionedImageSrc}
-              version={version}
-              selectedId={selectedId}
-              onSelectLocation={(loc) => {
-                if (hasMovedRef.current) return;
-                onSelect(loc);
-                centerOnLocation(loc, 1.65);
-              }}
-              routePoints={routePoints}
-              hiddenCategories={hiddenCategories}
-              showPins={true}
-              showNodes={false}
-              showEdges={false}
-              showRing={false}
-              showLabels={true}
-            />
-          </div>
-        </div>
-
-        {/* Map controls: Zoom In, Zoom Out, Reset view */}
-        <div className="campus-map-controls" role="toolbar" aria-label="Map navigation controls">
-          <button
-            type="button"
-            className="campus-control-btn"
-            onClick={handleZoomIn}
-            aria-label="Zoom in"
-            title="Zoom in"
-          >
-            <ZoomIn className="size-5" />
-          </button>
-          <button
-            type="button"
-            className="campus-control-btn"
-            onClick={handleZoomOut}
-            aria-label="Zoom out"
-            title="Zoom out"
-          >
-            <ZoomOut className="size-5" />
-          </button>
-          <button
-            type="button"
-            className="campus-control-btn"
-            onClick={handleResetView}
-            aria-label="Reset view"
-            title="Reset view"
-          >
-            <RotateCcw className="size-5" />
-          </button>
-        </div>
-
-        {/* Selected location details drawer or banner */}
-        {selectedLocation && (
-          <div className="campus-selected-popup" role="dialog" aria-label="Selected place info">
-            <div className="campus-selected-popup-header">
-              <div className="flex items-center gap-2">
+          <div className="campus-selected-card-header">
+            <div>
+              <h3 className="campus-selected-card-title">{selectedLocation.name}</h3>
+              <div className="campus-selected-badges">
                 <span
-                  className="size-3 rounded-full"
+                  className="campus-category-badge"
                   style={{
-                    backgroundColor: categoryColors[selectedLocation.category] || "var(--accent)",
+                    borderColor: categoryColors[selectedLocation.category],
+                    color: categoryColors[selectedLocation.category],
                   }}
-                  aria-hidden="true"
-                />
-                <h3 className="font-semibold text-foreground text-sm sm:text-base">
-                  {selectedLocation.name}
-                </h3>
-              </div>
-              {onClose && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Close place details"
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
                 >
-                  <X className="size-4" />
-                </button>
-              )}
+                  {categoryLabels[selectedLocation.category]}
+                </span>
+                {(selectedLocation.lat === null || selectedLocation.lng === null) && (
+                  <span className="campus-no-coords-badge">Not on the map yet</span>
+                )}
+              </div>
             </div>
-            {selectedLocation.description && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {selectedLocation.description}
-              </p>
-            )}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 text-xs font-semibold text-white shadow-xs hover:bg-accent-hover cursor-pointer"
-                onClick={() => handleShowRoute(KIOSK_START_NAME, selectedLocation.id)}
-              >
-                Directions from Main Gate
-              </button>
-              <button
-                type="button"
-                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-2 cursor-pointer"
-                onClick={() => handleShowRoute(selectedLocation.id, "l11")}
-              >
-                Directions to AI&amp;DS
-              </button>
-            </div>
+            <button
+              type="button"
+              className="campus-card-close-btn"
+              onClick={() => onClose?.()}
+              aria-label="Close location details"
+              title="Close"
+            >
+              <X className="size-5" strokeWidth={1.5} aria-hidden="true" />
+            </button>
           </div>
-        )}
-      </div>
 
-      {/* Info card at bottom */}
-      <div className="campus-map-info-card" role="status" aria-live="polite">
-        <p className="text-sm font-medium text-foreground">{info}</p>
-        {routePoints.length > 0 && (
-          <button
-            type="button"
-            onClick={handleClearRoute}
-            className="text-xs text-accent hover:underline font-semibold"
-          >
-            Clear route
-          </button>
-        )}
-      </div>
+          <p className="campus-selected-desc">
+            {selectedLocation.description === "-- add from college"
+              ? "Official location information will be updated soon."
+              : selectedLocation.description}
+          </p>
+
+          <div className="campus-selected-actions">
+            <button
+              type="button"
+              disabled
+              className="campus-action-btn campus-btn-primary"
+              aria-label="Directions here (disabled until routing exists)"
+              title="Routing feature coming soon"
+            >
+              {siteContent.campusPage.directionsLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => onClose?.()}
+              className="campus-action-btn campus-btn-secondary"
+              aria-label="Close"
+            >
+              Close
+            </button>
+          </div>
+        </article>
+      )}
     </section>
   );
 }

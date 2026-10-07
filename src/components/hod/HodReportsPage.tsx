@@ -55,7 +55,7 @@ export function HodReportsPage() {
   };
 
   return (
-    <div className="staff-portal-page">
+    <div className="staff-portal-page flex flex-col gap-5 p-4 sm:p-6 overflow-y-auto">
       <PageBanner
         title="Reports"
         subtitle="Export department leave and attendance data"

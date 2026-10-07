@@ -76,7 +76,7 @@ export function StudentUploadPage() {
   const canImport = Boolean(file && checkResult && checkResult.errors.length === 0 && !checking && !importing);
 
   return (
-    <div className="staff-portal-page">
+    <div className="staff-portal-page flex flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
       <PageBanner
         title="Upload Students"
         subtitle="Import and enroll students from an Excel (.xlsx) sheet"

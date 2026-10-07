@@ -209,6 +209,7 @@ function ErpLayout() {
             { label: "Approvals", to: "/erp/hod/approvals" },
             { label: "Students & Assignment", to: "/erp/hod/students" },
             { label: "Upload Students", to: "/erp/hod/students/upload" },
+            { label: "Notices", to: "/erp/hod/notices" },
             { label: "Reports", to: "/erp/hod/reports" },
             { label: "Activity Log", to: "/erp/hod/activity" },
           ] as const);

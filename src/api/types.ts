@@ -180,6 +180,8 @@ export interface StaffStudentRecentRequest {
   fromDate: string;
   toDate: string;
   rejectionReason?: string | null;
+  reason?: string;
+  eventName?: string;
 }
 
 export interface StaffStudentSummary {

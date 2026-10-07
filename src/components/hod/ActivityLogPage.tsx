@@ -56,7 +56,7 @@ export function ActivityLogPage({ role }: { role: "COUNSELLOR" | "HOD" }) {
   }, [auditQuery.data, role, user]);
 
   return (
-    <div className="staff-portal-page">
+    <div className="staff-portal-page flex flex-col gap-5 p-4 sm:p-6 overflow-y-auto">
       <PageBanner title="Activity Log" subtitle="Append-only portal activity" icon={Activity} />
       <section className="grid gap-3 sm:grid-cols-3">
         <label className="grid gap-2 text-sm font-semibold">
@@ -98,7 +98,7 @@ export function ActivityLogPage({ role }: { role: "COUNSELLOR" | "HOD" }) {
         ) : auditQuery.error ? (
           <p className="p-6 text-center text-destructive">{formatServerError(auditQuery.error)}</p>
         ) : filtered.length === 0 ? (
-          <p className="p-6 text-center text-muted-foreground">No activity recorded.</p>
+          <p className="p-6 text-center text-muted-foreground font-medium">No activities available</p>
         ) : (
           <table className="w-full min-w-[760px] text-left">
             <thead className="sticky top-0 bg-surface-2">

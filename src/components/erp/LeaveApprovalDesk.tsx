@@ -216,7 +216,7 @@ export function LeaveApprovalDesk({ role, initialTab = "pending" }: LeaveApprova
             <div className="grid min-h-40 place-items-center rounded-xl border border-border bg-surface p-6 text-center text-muted-foreground">
               <span className="grid justify-items-center gap-2">
                 {tab === "pending" ? <Inbox aria-hidden="true" /> : <History aria-hidden="true" />}
-                {tab === "pending" ? "No requests are waiting for review." : "No decisions yet."}
+                {tab === "pending" ? "No pending approvals" : "No approval history"}
               </span>
             </div>
           ) : (

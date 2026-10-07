@@ -1,230 +1,159 @@
-import {
-  BASE_LOCATIONS,
-  getActiveEdges,
-  getActiveJunctions,
-  H,
-  type Point,
-  RING_CENTER,
-  RING_POINTS,
-  RING_RADIUS,
-  W,
-} from "@/config/campusMap";
-import { getActiveCampusLocations, type CampusLocation } from "@/config/campusLocations";
+import type { CampusNode, CampusEdge } from "@/config/campusGraph";
 
-export { W, H };
-export type { Point };
-
-export interface RouteResult {
-  nodeIds: string[];
-  points: Point[];
-  totalLength: number;
+export interface EdgeNeighbor {
+  to: string;
+  weight: number;
 }
 
-export const distance = (a: Point, b: Point): number => Math.hypot(a[0] - b[0], a[1] - b[1]);
+export type RoutingGraph = Map<string, EdgeNeighbor[]>;
 
-export const LOCATIONS = BASE_LOCATIONS.map((location, index) => ({
-  ...location,
-  id: `l${index}`,
-}));
+export interface ShortestPathResult {
+  path: string[];
+  distance: number;
+}
 
+/**
+ * Calculates Great-circle distance between two GPS coordinates in metres using the Haversine formula.
+ */
+export function haversine(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371000; // Radius of the Earth in metres
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+/**
+ * Builds an undirected adjacency graph from nodes and edges with weights as distances in metres.
+ */
 export function buildGraph(
-  customJunctions?: Record<string, Point>,
-  customEdges?: [string, string][],
-  customLocations?: CampusLocation[],
-) {
-  const J: Record<string, Point> = { ...(customJunctions ?? getActiveJunctions()) };
-  const RC = RING_CENTER;
-  const RR = RING_RADIUS;
-  const RN = RING_POINTS;
-
-  for (let i = 0; i < RN; i += 1) {
-    const angle = (i / RN) * Math.PI * 2;
-    J[`r${i}`] = [
-      RC[0] + RR * Math.cos(angle),
-      RC[1] + RR * Math.sin(angle),
-    ];
+  nodes: CampusNode[],
+  edges: CampusEdge[],
+): RoutingGraph {
+  const nodeMap = new Map<string, CampusNode>();
+  for (const node of nodes) {
+    nodeMap.set(node.id, node);
   }
 
-  const near = (pt: Point): string => {
-    let best = 0;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (let i = 0; i < RN; i += 1) {
-      const ringPt = J[`r${i}`]!;
-      const nextDistance = distance(ringPt, pt);
-      if (nextDistance < bestDistance) {
-        bestDistance = nextDistance;
-        best = i;
-      }
-    }
-
-    return `r${best}`;
-  };
-
-  const configuredEdges = customEdges ?? getActiveEdges();
-  const edgeList: [string, string][] = [...configuredEdges];
-  if (J["ece"] && !edgeList.some(([a, b]) => (a === "ece" && b.startsWith("r")) || (b === "ece" && a.startsWith("r")))) {
-    edgeList.push(["ece", near([395, 386])]);
-  }
-  if (J["east"] && !edgeList.some(([a, b]) => (a === "east" && b.startsWith("r")) || (b === "east" && a.startsWith("r")))) {
-    edgeList.push(["east", near([633, 394])]);
-  }
-  if (J["south"] && !edgeList.some(([a, b]) => (a === "south" && b.startsWith("r")) || (b === "south" && a.startsWith("r")))) {
-    edgeList.push(["south", near([497, 556])]);
+  const graph: RoutingGraph = new Map();
+  for (const node of nodes) {
+    graph.set(node.id, []);
   }
 
-  for (let i = 0; i < RN; i += 1) {
-    edgeList.push([`r${i}`, `r${(i + 1) % RN}`]);
+  for (const [a, b] of edges) {
+    const nodeA = nodeMap.get(a);
+    const nodeB = nodeMap.get(b);
+    if (!nodeA || !nodeB) continue;
+
+    const weight = haversine(nodeA.lat, nodeA.lng, nodeB.lat, nodeB.lng);
+
+    if (!graph.has(a)) graph.set(a, []);
+    if (!graph.has(b)) graph.set(b, []);
+
+    graph.get(a)!.push({ to: b, weight });
+    graph.get(b)!.push({ to: a, weight });
   }
 
-  const rawLocs = customLocations ?? getActiveCampusLocations();
-  const mutableLocations = rawLocs.map((loc, idx) => ({
-    id: loc.id || `l${idx}`,
-    n: loc.name,
-    c: loc.category,
-    x: loc.x,
-    y: loc.y,
-    j:
-      loc.nodeId ??
-      (BASE_LOCATIONS.find((b) => b.n === loc.name)?.j === "circle"
-        ? near([loc.x, loc.y])
-        : BASE_LOCATIONS.find((b) => b.n === loc.name)?.j ?? "j3"),
-  }));
-
-  const position = (id: string): Point => {
-    const junctionPt = J[id];
-    if (junctionPt) {
-      return junctionPt;
-    }
-    const location = mutableLocations.find((item) => item.id === id);
-    return location ? [location.x, location.y] : [0, 0];
-  };
-
-  const adjacency: Record<string, [string, number][]> = {};
-
-  const link = (a: string, b: string) => {
-    const d = distance(position(a), position(b));
-    (adjacency[a] ??= []).push([b, d]);
-    (adjacency[b] ??= []).push([a, d]);
-  };
-
-  edgeList.forEach(([a, b]) => link(a, b));
-  mutableLocations.forEach((location) => link(location.id, location.j));
-
-  const shortestPath = (start: string, end: string): string[] => {
-    const distMap: Record<string, number> = { [start]: 0 };
-    const previous: Record<string, string | undefined> = {};
-    const visited = new Set<string>();
-
-    while (true) {
-      let current: string | null = null;
-
-      Object.keys(distMap).forEach((key) => {
-        const dKey = distMap[key];
-        const dCurrent = current !== null ? distMap[current] : undefined;
-        if (
-          !visited.has(key) &&
-          dKey !== undefined &&
-          (current === null || dCurrent === undefined || dKey < dCurrent)
-        ) {
-          current = key;
-        }
-      });
-
-      if (current === null || current === end) {
-        break;
-      }
-
-      visited.add(current);
-
-      const currentNode: string = current;
-      const currentDist = distMap[currentNode];
-      if (currentDist !== undefined) {
-        (adjacency[currentNode] ?? []).forEach(([next, weight]) => {
-          const nextDistance = currentDist + weight;
-          const targetDist = distMap[next];
-          if (targetDist === undefined || nextDistance < targetDist) {
-            distMap[next] = nextDistance;
-            previous[next] = currentNode;
-          }
-        });
-      }
-    }
-
-    const output: string[] = [];
-    for (let node: string | undefined = end; node; node = previous[node]) {
-      output.unshift(node);
-      if (node === start) {
-        break;
-      }
-    }
-
-    return output;
-  };
-
-  return { mutableLocations, position, shortestPath };
+  return graph;
 }
 
-export const defaultGraph = buildGraph();
-
-export function resolveLocationId(
-  idOrName: string,
-  locationsList?: CampusLocation[],
-): string {
-  const list = locationsList ?? getActiveCampusLocations();
-  const match = list.find(
-    (loc) => loc.id === idOrName || loc.name.toLowerCase() === idOrName.toLowerCase(),
-  );
-  return match ? match.id : idOrName;
-}
-
-export function routeBetween(
-  fromIdOrName: string,
-  toIdOrName: string,
-  graphOrJunctions?: ReturnType<typeof buildGraph> | Record<string, Point>,
-  customEdges?: [string, string][],
-  customLocations?: CampusLocation[],
-): RouteResult {
-  let graph: ReturnType<typeof buildGraph>;
-  let locs: CampusLocation[] | undefined = customLocations;
-
-  if (
-    graphOrJunctions &&
-    typeof graphOrJunctions === "object" &&
-    "shortestPath" in graphOrJunctions
-  ) {
-    graph = graphOrJunctions as ReturnType<typeof buildGraph>;
-  } else {
-    graph = buildGraph(
-      graphOrJunctions as Record<string, Point> | undefined,
-      customEdges,
-      customLocations,
-    );
+/**
+ * Dijkstra's shortest path algorithm.
+ * Returns the sequence of node IDs from startId to endId and the total distance in metres.
+ * Returns null if no path exists or if start/end nodes are missing.
+ */
+export function shortestPath(
+  graph: RoutingGraph,
+  startId: string,
+  endId: string,
+): ShortestPathResult | null {
+  if (!graph.has(startId) || !graph.has(endId)) {
+    return null;
   }
 
-  const fromId = resolveLocationId(fromIdOrName, locs);
-  const toId = resolveLocationId(toIdOrName, locs);
-
-  if (!fromId || !toId || fromId === toId) {
-    const pt = fromId ? graph.position(fromId) : ([0, 0] as Point);
-    return {
-      nodeIds: fromId ? [fromId] : [],
-      points: fromId ? [pt] : [],
-      totalLength: 0,
-    };
+  if (startId === endId) {
+    return { path: [startId], distance: 0 };
   }
 
-  const nodeIds = graph.shortestPath(fromId, toId);
-  const points = nodeIds.map(graph.position);
-  const totalLength = points.reduce((sum, pt, idx) => {
-    if (idx === 0) return 0;
-    const prev = points[idx - 1];
-    return prev ? sum + distance(prev, pt) : sum;
-  }, 0);
+  const distances = new Map<string, number>();
+  const previous = new Map<string, string | null>();
+  const visited = new Set<string>();
+
+  for (const node of graph.keys()) {
+    distances.set(node, Infinity);
+    previous.set(node, null);
+  }
+
+  distances.set(startId, 0);
+
+  while (visited.size < graph.size) {
+    let closestNode: string | null = null;
+    let minDistance = Infinity;
+
+    for (const [node, dist] of distances.entries()) {
+      if (!visited.has(node) && dist < minDistance) {
+        minDistance = dist;
+        closestNode = node;
+      }
+    }
+
+    if (closestNode === null || minDistance === Infinity) {
+      break;
+    }
+
+    if (closestNode === endId) {
+      break;
+    }
+
+    visited.add(closestNode);
+
+    const neighbors = graph.get(closestNode) || [];
+    for (const { to, weight } of neighbors) {
+      if (visited.has(to)) continue;
+
+      const newDist = minDistance + weight;
+      if (newDist < (distances.get(to) ?? Infinity)) {
+        distances.set(to, newDist);
+        previous.set(to, closestNode);
+      }
+    }
+  }
+
+  const finalDist = distances.get(endId);
+  if (finalDist === undefined || finalDist === Infinity) {
+    return null;
+  }
+
+  // Reconstruct path
+  const path: string[] = [];
+  let curr: string | null = endId;
+  while (curr !== null) {
+    path.unshift(curr);
+    curr = previous.get(curr) ?? null;
+  }
+
+  if (path[0] !== startId) {
+    return null;
+  }
 
   return {
-    nodeIds,
-    points,
-    totalLength,
+    path,
+    distance: finalDist,
   };
 }

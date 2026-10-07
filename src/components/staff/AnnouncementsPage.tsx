@@ -97,7 +97,7 @@ export function AnnouncementsPage({ role }: { role: NoticeRole }) {
       {tab === "sent" && (
         <NoticeList
           notices={sent}
-          empty="No notices sent yet."
+          empty="No notices available"
           loading={sentQuery.loading}
           error={sentQuery.error?.message}
           allowWithdraw
@@ -108,7 +108,7 @@ export function AnnouncementsPage({ role }: { role: NoticeRole }) {
       {tab === "from-hod" && role === "COUNSELLOR" && (
         <NoticeList
           notices={inbox}
-          empty="No notices from HOD."
+          empty="No notices available"
           loading={hodInboxQuery.loading}
           error={hodInboxQuery.error?.message}
           allowWithdraw={false}
@@ -289,10 +289,11 @@ function ComposeNotice({
             </>
           ) : (
             <>
-              <option value="ALL_STUDENTS">All students</option>
+              <option value="ALL_STUDENTS">Students (All Students)</option>
+              <option value="ALL_COUNSELLORS">Staff (All Faculty / Counsellors)</option>
+              <option value="ALL">Both (Staff &amp; Students)</option>
               <option value="SECTION:A">Section A</option>
               <option value="SECTION:B">Section B</option>
-              <option value="ALL_COUNSELLORS">All counsellors</option>
               <option value="SELECTED_STUDENTS:">Pick students</option>
             </>
           )}
