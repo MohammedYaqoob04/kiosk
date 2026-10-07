@@ -256,6 +256,28 @@ export const httpApi = {
     request<import("@/api/types").StaffStudentSummary>(
       `/staff/students/${encodeURIComponent(registerNo)}`,
     ),
+  getStaffTimetable: (className?: string) => {
+    const params = new URLSearchParams();
+    if (className) params.set("className", className);
+    const qs = params.toString();
+    return request<{
+      className: string;
+      hall: string | null;
+      days: import("@/api/types").TimetableWeekDay[];
+    }>(`/staff/timetable${qs ? `?${qs}` : ""}`);
+  },
+  saveStaffTimetable: (payload: {
+    className: string;
+    hall: string;
+    days: import("@/api/types").TimetableWeekDay[];
+  }) =>
+    request<{ ok: boolean; message: string; className: string; hall: string }>(
+      "/staff/timetable",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    ),
   getLeaveHistory: (
     filterOrCounsellorId?: StaffHistoryFilter | string,
     maybeFilter: StaffHistoryFilter = "ALL",

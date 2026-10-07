@@ -75,9 +75,9 @@ export function MarksShowcasePage() {
       {/* Main Showcase Layout: Student Selector Tabs + Subject Assessment Cards */}
       {filteredMarks.length === 0 ? (
         <div className="grid min-h-48 place-items-center rounded-xl border border-border bg-surface p-8 text-center text-muted-foreground">
-          <p className="text-base font-semibold text-foreground">No students found</p>
+          <p className="text-base font-semibold text-foreground">No marks available.</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            No students matching your search in Class {activeClass}.
+            No assessment records found for Class {activeClass}.
           </p>
         </div>
       ) : (
@@ -163,19 +163,19 @@ export function MarksShowcasePage() {
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-foreground">Assignment 1 (Max 20)</span>
                             <span className="font-mono font-bold text-foreground">
-                              {subject.assignments.asmt1.obtainedMarks ?? "—"}
+                              {subject.assignments.asmt1.obtainedMarks ?? "-"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
                             <span className="font-medium text-foreground">Assignment 2 (Max 20)</span>
                             <span className="font-mono font-bold text-foreground">
-                              {subject.assignments.asmt2.obtainedMarks ?? "—"}
+                              {subject.assignments.asmt2.obtainedMarks ?? "-"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
                             <span className="font-medium text-foreground">Assignment 3 (Max 40)</span>
                             <span className="font-mono font-bold text-foreground">
-                              {subject.assignments.asmt3.obtainedMarks ?? "—"}
+                              {subject.assignments.asmt3.obtainedMarks ?? "-"}
                             </span>
                           </div>
                         </div>
@@ -190,13 +190,13 @@ export function MarksShowcasePage() {
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-foreground">CIA 1 (Max 60)</span>
                             <span className="font-mono font-bold text-foreground">
-                              {subject.cia.cia1.obtainedMarks ?? "—"}
+                              {subject.cia.cia1.obtainedMarks ?? "-"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
                             <span className="font-medium text-foreground">CIA 2 (Max 60)</span>
                             <span className="font-mono font-bold text-foreground">
-                              {subject.cia.cia2.obtainedMarks ?? "—"}
+                              {subject.cia.cia2.obtainedMarks ?? "-"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between border-t border-border/60 pt-1.5 text-muted-foreground">
@@ -215,7 +215,7 @@ export function MarksShowcasePage() {
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-foreground">Model Exam (Max 100)</span>
                             <span className="font-mono font-bold text-accent text-sm">
-                              {subject.modelExam.obtainedMarks ?? "—"}
+                              {subject.modelExam.obtainedMarks ?? "-"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between border-t border-border/60 pt-1.5">

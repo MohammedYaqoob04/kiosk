@@ -18,10 +18,10 @@ import {
 import { PageBanner } from "@/components/erp/PageBanner";
 import { useAuth } from "@/lib/auth-context";
 import { useStaffClass, StaffClassSelector } from "@/lib/staff-class-context";
-import { demoAssignedStudents } from "@/mock/staff-dashboard";
 import { getClassTimetable } from "@/lib/timetable-store";
-import { getClassMarksStatus } from "@/lib/marks-store";
-import { useLeaveRequests } from "@/lib/leave-store";
+import { api } from "@/api";
+import { useApi } from "@/api/use-api";
+import type { AssignedStudent } from "@/types/staff-dashboard";
 
 const ATTENDANCE_MIN = 75;
 
@@ -29,49 +29,66 @@ export function StaffDashboard() {
   const { user } = useAuth();
   const { activeClass } = useStaffClass();
 
-  // Class students
-  const classStudents = useMemo(() => {
-    return demoAssignedStudents.filter((s) => {
-      const cls = s.className ?? `${s.year === 2 ? "II" : s.year === 3 ? "III" : "IV"}-${s.section}`;
+  // Load real students from backend API
+  const { data: allStudents } = useApi(["staffStudentsDashboard"], () =>
+    api.getAssignedStudents(),
+  );
+
+  // Filter students for active class
+  const classStudents = useMemo<AssignedStudent[]>(() => {
+    if (!allStudents) return [];
+    return allStudents.filter((s) => {
+      if (activeClass === "IV-A" || activeClass === "IV") {
+        return s.year === 4 || s.semester === 7;
+      }
+      if (activeClass === "III-A" || activeClass === "III") {
+        return s.year === 3 || s.semester === 5;
+      }
+      if (activeClass === "II-A" || activeClass === "II") {
+        return s.year === 2 || s.semester === 3;
+      }
+      const cls = s.className ?? `${s.year === 2 ? "II" : s.year === 3 ? "III" : "IV"}-${s.section ?? "A"}`;
       return cls === activeClass;
     });
-  }, [activeClass]);
+  }, [allStudents, activeClass]);
 
-  // Attendance metrics
-  const { avgAttendance, lowAttendanceCount, presentCount, absentCount } = useMemo(() => {
-    if (classStudents.length === 0) {
-      return { avgAttendance: 90.0, lowAttendanceCount: 0, presentCount: 0, absentCount: 0 };
-    }
-    const sum = classStudents.reduce((acc, s) => acc + s.attendancePercentage, 0);
-    const avg = Number((sum / classStudents.length).toFixed(1));
-    const lowCount = classStudents.filter((s) => s.attendancePercentage < ATTENDANCE_MIN).length;
-    // Approximated daily counts
-    const absent = lowCount > 0 ? lowCount : Math.max(1, Math.round(classStudents.length * (1 - avg / 100)));
-    const present = Math.max(0, classStudents.length - absent);
-    return { avgAttendance: avg, lowAttendanceCount: lowCount, presentCount: present, absentCount: absent };
+  // Attendance metrics from real database records (never fake or default to 0% / 90%)
+  const hasAttendanceRecords = useMemo(() => {
+    return classStudents.some((s) => s.attendancePercentage != null);
   }, [classStudents]);
 
-  // Timetable metrics
+  const { avgAttendance, lowAttendanceCount } = useMemo(() => {
+    if (!hasAttendanceRecords || classStudents.length === 0) {
+      return { avgAttendance: null, lowAttendanceCount: null };
+    }
+    const withAtt = classStudents.filter((s) => s.attendancePercentage != null);
+    if (withAtt.length === 0) {
+      return { avgAttendance: null, lowAttendanceCount: null };
+    }
+    const sum = withAtt.reduce((acc, s) => acc + (s.attendancePercentage ?? 0), 0);
+    const avg = Number((sum / withAtt.length).toFixed(1));
+    const lowCount = withAtt.filter(
+      (s) => s.attendancePercentage != null && s.attendancePercentage < ATTENDANCE_MIN,
+    ).length;
+    return { avgAttendance: avg, lowAttendanceCount: lowCount };
+  }, [classStudents, hasAttendanceRecords]);
+
+  // Timetable metrics from authoritative database store
   const timetable = useMemo(() => getClassTimetable(activeClass), [activeClass]);
 
   // Next class calculation
   const nextClass = useMemo(() => {
-    const todayHours = timetable.hours;
+    const todayHours = timetable.hours.filter((h) => !h.isFree);
     if (todayHours.length === 0) return null;
     return todayHours[0] ?? null;
   }, [timetable]);
 
-  // Marks metrics
-  const marksStatus = useMemo(() => getClassMarksStatus(activeClass), [activeClass]);
+  // Real leave queue from backend API
+  const { data: leaveQueue } = useApi(["staffLeaveQueueDashboard"], () => api.getLeaveQueue());
+  const pendingRequestsCount = leaveQueue?.length ?? 0;
 
-  // Leave / OD requests
-  const leaveRequests = useLeaveRequests();
-  const pendingRequestsCount = useMemo(() => {
-    return leaveRequests.filter((r) => r.status === "PENDING_COUNSELLOR").length;
-  }, [leaveRequests]);
-
-  const staffName = user?.name || "Dr. Kumar";
-  const staffId = user?.identifier || "STAFF-AI-104";
+  const staffName = user?.name || "-";
+  const staffId = user?.identifier || "-";
 
   return (
     <div className="staff-portal-page flex flex-col gap-5 p-4 sm:p-6">
@@ -87,7 +104,7 @@ export function StaffDashboard() {
         }
       />
 
-      {/* Prominent Class Selector Bar (Requirement 4) */}
+      {/* Prominent Class Selector Bar */}
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4 shadow-xs">
         <div className="flex flex-wrap items-center gap-3">
           <StaffClassSelector />
@@ -115,43 +132,55 @@ export function StaffDashboard() {
                 <UserCheck className="size-4 text-accent" strokeWidth={1.5} />
                 <span>Attendance · Class {activeClass}</span>
               </span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                  avgAttendance >= ATTENDANCE_MIN
-                    ? "bg-ok/10 text-ok border border-ok/20"
-                    : "bg-danger/10 text-danger border border-danger/20"
-                }`}
-              >
-                {avgAttendance}% Average
-              </span>
+              {avgAttendance != null ? (
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    avgAttendance >= ATTENDANCE_MIN
+                      ? "bg-ok/10 text-ok border border-ok/20"
+                      : "bg-danger/10 text-danger border border-danger/20"
+                  }`}
+                >
+                  {avgAttendance}% Average
+                </span>
+              ) : (
+                <span className="rounded-full border border-border bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                  -
+                </span>
+              )}
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg border border-border bg-surface-2 p-3 text-xs">
               <div>
                 <span className="text-muted-foreground block">Today's Classes</span>
                 <span className="mt-0.5 text-base font-bold text-foreground">
-                  {timetable.hours.length} Periods
+                  {timetable.hours.length > 0 ? `${timetable.hours.length} Periods` : "-"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground block">Conducted Today</span>
                 <span className="mt-0.5 text-base font-bold text-foreground">
-                  {Math.min(timetable.hours.length, 4)} / {timetable.hours.length}
+                  {hasAttendanceRecords ? `${Math.min(timetable.hours.length, 4)} / ${timetable.hours.length}` : "-"}
                 </span>
               </div>
               <div className="border-t border-border/60 pt-2">
                 <span className="text-muted-foreground block">Present Count</span>
-                <span className="mt-0.5 text-base font-bold text-ok">
-                  {presentCount} Students
+                <span className="mt-0.5 text-base font-bold text-foreground">
+                  -
                 </span>
               </div>
               <div className="border-t border-border/60 pt-2">
                 <span className="text-muted-foreground block">Absent Count</span>
-                <span className="mt-0.5 text-base font-bold text-danger">
-                  {absentCount} Students
+                <span className="mt-0.5 text-base font-bold text-foreground">
+                  -
                 </span>
               </div>
             </div>
+
+            {!hasAttendanceRecords && (
+              <p className="mt-2 text-xs text-muted-foreground text-center">
+                No attendance data available.
+              </p>
+            )}
           </div>
 
           <div className="mt-4 border-t border-border pt-3">
@@ -185,23 +214,35 @@ export function StaffDashboard() {
               </div>
               <div className="flex items-center justify-between border-t border-border/60 pt-2">
                 <span className="text-muted-foreground">Low Attendance (&lt; 75%):</span>
-                {lowAttendanceCount > 0 ? (
-                  <span className="font-bold text-danger flex items-center gap-1">
-                    <AlertTriangle className="size-3" />
-                    <span>{lowAttendanceCount} Students</span>
-                  </span>
+                {lowAttendanceCount != null ? (
+                  lowAttendanceCount > 0 ? (
+                    <span className="font-bold text-danger flex items-center gap-1">
+                      <AlertTriangle className="size-3" />
+                      <span>{lowAttendanceCount} Students</span>
+                    </span>
+                  ) : (
+                    <span className="font-semibold text-ok flex items-center gap-1">
+                      <CheckCircle2 className="size-3" />
+                      <span>0 (None)</span>
+                    </span>
+                  )
                 ) : (
-                  <span className="font-semibold text-ok flex items-center gap-1">
-                    <CheckCircle2 className="size-3" />
-                    <span>0 (None)</span>
-                  </span>
+                  <span className="text-muted-foreground">-</span>
                 )}
               </div>
               <div className="flex items-center justify-between border-t border-border/60 pt-2">
                 <span className="text-muted-foreground">Contact Phone Records:</span>
-                <span className="font-semibold text-foreground">100% Verified</span>
+                <span className="font-semibold text-foreground">
+                  {classStudents.filter((s) => s.mobile && s.mobile.trim() !== "").length} / {classStudents.length || 0} Filled
+                </span>
               </div>
             </div>
+
+            {classStudents.length === 0 && (
+              <p className="mt-2 text-xs text-muted-foreground text-center">
+                No students available for this class.
+              </p>
+            )}
           </div>
 
           <div className="mt-4 border-t border-border pt-3">
@@ -225,7 +266,7 @@ export function StaffDashboard() {
                 <span>Timetable · Class {activeClass}</span>
               </span>
               <span className="rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-foreground">
-                Hall: {timetable.hall ?? "C14"}
+                Hall: {timetable.hall ?? "-"}
               </span>
             </div>
 
@@ -236,16 +277,18 @@ export function StaffDashboard() {
               {nextClass ? (
                 <div className="mt-1">
                   <p className="font-bold text-sm text-foreground">
-                    {nextClass.subjectCode} · {nextClass.subjectName}
+                    {nextClass.subjectCode ? `${nextClass.subjectCode} · ` : ""}{nextClass.subjectName}
                   </p>
                   <p className="text-muted-foreground mt-0.5 flex items-center gap-2">
                     <Clock className="size-3" />
-                    <span>Period {nextClass.period} ({nextClass.time})</span>
-                    <span>· Room {nextClass.room}</span>
+                    <span>Period {nextClass.period ?? nextClass.hour} ({nextClass.time ?? `${nextClass.startTime} - ${nextClass.endTime}`})</span>
+                    {nextClass.room && <span>· Room {nextClass.room}</span>}
                   </p>
                 </div>
               ) : (
-                <p className="text-muted-foreground">No classes scheduled for today.</p>
+                <p className="text-muted-foreground">
+                  {timetable.days && timetable.days.length > 0 ? "No classes scheduled for today." : "No timetable available."}
+                </p>
               )}
             </div>
           </div>
@@ -276,25 +319,29 @@ export function StaffDashboard() {
                 <Award className="size-4 text-accent" strokeWidth={1.5} />
                 <span>Marks Showcase · Class {activeClass}</span>
               </span>
-              <span className="rounded-md border border-ok/20 bg-ok/10 px-2 py-0.5 text-xs font-semibold text-ok">
-                Available
+              <span className="rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                No marks available
               </span>
             </div>
 
             <div className="mt-4 space-y-2 rounded-lg border border-border bg-surface-2 p-3 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Assignments 1, 2, 3:</span>
-                <span className="font-bold text-foreground">Available (Max 20/20/40)</span>
+                <span className="font-medium text-muted-foreground">-</span>
               </div>
               <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
                 <span className="text-muted-foreground">CIA 1 &amp; CIA 2:</span>
-                <span className="font-bold text-foreground">Published (Max 60/60)</span>
+                <span className="font-medium text-muted-foreground">-</span>
               </div>
               <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
                 <span className="text-muted-foreground">Model Examination:</span>
-                <span className="font-bold text-foreground">Available (Max 100)</span>
+                <span className="font-medium text-muted-foreground">-</span>
               </div>
             </div>
+
+            <p className="mt-2 text-xs text-muted-foreground text-center">
+              No marks available.
+            </p>
           </div>
 
           <div className="mt-4 border-t border-border pt-3">
@@ -316,9 +363,13 @@ export function StaffDashboard() {
                 <TrendingUp className="size-4 text-accent" strokeWidth={1.5} />
                 <span>Approvals Desk</span>
               </span>
-              {pendingRequestsCount > 0 && (
+              {pendingRequestsCount > 0 ? (
                 <span className="rounded-full border border-accent/20 bg-accent/10 px-2.5 py-0.5 text-xs font-bold text-accent">
                   {pendingRequestsCount} Pending
+                </span>
+              ) : (
+                <span className="rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                  No pending requests
                 </span>
               )}
             </div>
@@ -326,7 +377,9 @@ export function StaffDashboard() {
             <div className="mt-4 space-y-2 rounded-lg border border-border bg-surface-2 p-3 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Pending Review:</span>
-                <span className="font-bold text-accent">{pendingRequestsCount} Requests</span>
+                <span className="font-bold text-foreground">
+                  {pendingRequestsCount > 0 ? `${pendingRequestsCount} Requests` : "No pending requests"}
+                </span>
               </div>
               <div className="flex items-center justify-between border-t border-border/60 pt-1.5">
                 <span className="text-muted-foreground">Decision Flow:</span>
@@ -364,7 +417,7 @@ export function StaffDashboard() {
             </div>
 
             <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-              Broadcast notices, circulars, exam notifications, and event circulars to class students and parents.
+              Broadcast notices, circulars, exam notifications, and event circulars to class students.
             </p>
           </div>
 

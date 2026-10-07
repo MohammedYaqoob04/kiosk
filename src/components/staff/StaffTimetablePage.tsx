@@ -174,135 +174,149 @@ export function StaffTimetablePage() {
         </div>
       )}
 
-      {/* Day Filter Buttons */}
-      <div
-        role="tablist"
-        aria-label="Filter by day"
-        className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={selectedDay === "ALL"}
-          onClick={() => setSelectedDay("ALL")}
-          className={`inline-flex min-h-12 min-w-[70px] items-center justify-center rounded-lg px-4 text-sm font-semibold transition-colors ${
-            selectedDay === "ALL"
-              ? "bg-accent text-white"
-              : "border border-border bg-surface text-foreground hover:bg-surface-2"
-          }`}
-        >
-          Full Week
-        </button>
-        {WEEKDAYS.map((dayName) => (
-          <button
-            key={dayName}
-            type="button"
-            role="tab"
-            aria-selected={selectedDay === dayName}
-            onClick={() => setSelectedDay(dayName)}
-            className={`inline-flex min-h-12 items-center justify-center rounded-lg px-3.5 text-sm font-semibold transition-colors ${
-              selectedDay === dayName
-                ? "bg-accent text-white"
-                : "border border-border bg-surface text-foreground hover:bg-surface-2"
-            }`}
-          >
-            {dayName}
-          </button>
-        ))}
-      </div>
-
-      {/* Weekday Schedule Cards */}
-      <div className="grid gap-4 overflow-y-auto max-h-[700px]">
-        {visibleDays.map((day) => (
+      {/* Empty State or Timetable Display */}
+      {!timetableData.days ||
+      timetableData.days.length === 0 ||
+      timetableData.days.every((d) => d.hours.length === 0) ? (
+        <div className="grid min-h-48 place-items-center rounded-xl border border-border bg-surface p-8 text-center text-muted-foreground">
+          <p className="text-base font-semibold text-foreground">No timetable available.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            No timetable has been published for Class {activeClass}.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Day Filter Buttons */}
           <div
-            key={day.dayName}
-            className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-xs"
+            role="tablist"
+            aria-label="Filter by day"
+            className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2"
           >
-            {/* Day Header */}
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-foreground">{day.dayName}</span>
-                <span className="text-xs text-muted-foreground">({day.hours.length} Periods)</span>
-              </div>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={selectedDay === "ALL"}
+              onClick={() => setSelectedDay("ALL")}
+              className={`inline-flex min-h-12 min-w-[70px] items-center justify-center rounded-lg px-4 text-sm font-semibold transition-colors ${
+                selectedDay === "ALL"
+                  ? "bg-accent text-white"
+                  : "border border-border bg-surface text-foreground hover:bg-surface-2"
+              }`}
+            >
+              Full Week
+            </button>
+            {WEEKDAYS.map((dayName) => (
               <button
+                key={dayName}
                 type="button"
-                onClick={() =>
-                  setEditingSlot({
-                    dayName: day.dayName,
-                    periodIndex: day.hours.length,
-                    isNew: true,
-                    slot: {
-                      hour: day.hours.length + 1,
-                      period: day.hours.length + 1,
-                      time: "15:30 - 16:20",
-                      startTime: "15:30",
-                      endTime: "16:20",
-                      subjectCode: "",
-                      subjectName: "",
-                      staffName: "",
-                      room: timetableData.hall ?? "C14",
-                    },
-                  })
-                }
-                className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground hover:bg-surface-2"
+                role="tab"
+                aria-selected={selectedDay === dayName}
+                onClick={() => setSelectedDay(dayName)}
+                className={`inline-flex min-h-12 items-center justify-center rounded-lg px-3.5 text-sm font-semibold transition-colors ${
+                  selectedDay === dayName
+                    ? "bg-accent text-white"
+                    : "border border-border bg-surface text-foreground hover:bg-surface-2"
+                }`}
               >
-                <Plus className="size-3 text-accent" />
-                <span>Add Period</span>
+                {dayName}
               </button>
-            </div>
-
-            {/* Periods Grid */}
-            {day.hours.length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted-foreground">
-                No classes scheduled for {day.dayName}.
-              </p>
-            ) : (
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                {day.hours.map((slot, pIdx) => (
-                  <div
-                    key={`${day.dayName}-${slot.period ?? slot.hour}-${pIdx}`}
-                    className="flex flex-col justify-between rounded-lg border border-border bg-surface-2 p-3 text-xs"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-accent">
-                          Period {slot.period ?? slot.hour}
-                        </span>
-                        <span className="font-mono text-muted-foreground">{slot.time}</span>
-                      </div>
-                      <p className="mt-1 font-bold text-foreground text-sm">
-                        {slot.subjectCode ? `${slot.subjectCode} · ${slot.subjectName}` : "Free Period"}
-                      </p>
-                      <p className="mt-0.5 text-muted-foreground">
-                        Faculty: {slot.staffName || "Unassigned"}
-                      </p>
-                      <p className="text-muted-foreground">Room: {slot.room || timetableData.hall || "C14"}</p>
-                    </div>
-
-                    <div className="mt-2.5 flex justify-end border-t border-border/60 pt-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditingSlot({
-                            dayName: day.dayName,
-                            periodIndex: pIdx,
-                            slot: structuredClone(slot),
-                            isNew: false,
-                          })
-                        }
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-                      >
-                        <Edit2 className="size-3" />
-                        <span>Edit</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+
+          {/* Weekday Schedule Cards */}
+          <div className="grid gap-4 overflow-y-auto max-h-[700px]">
+            {visibleDays.map((day) => (
+              <div
+                key={day.dayName}
+                className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-xs"
+              >
+                {/* Day Header */}
+                <div className="flex items-center justify-between border-b border-border pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-bold text-foreground">{day.dayName}</span>
+                    <span className="text-xs text-muted-foreground">({day.hours.length} Periods)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditingSlot({
+                        dayName: day.dayName,
+                        periodIndex: day.hours.length,
+                        isNew: true,
+                        slot: {
+                          hour: day.hours.length + 1,
+                          period: day.hours.length + 1,
+                          time: "15:30 - 16:20",
+                          startTime: "15:30",
+                          endTime: "16:20",
+                          subjectCode: "",
+                          subjectName: "",
+                          staffName: "",
+                          room: timetableData.hall ?? "C14",
+                        },
+                      })
+                    }
+                    className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-surface px-2.5 text-xs font-semibold text-foreground hover:bg-surface-2"
+                  >
+                    <Plus className="size-3 text-accent" />
+                    <span>Add Period</span>
+                  </button>
+                </div>
+
+                {/* Periods Grid */}
+                {day.hours.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-muted-foreground">
+                    No classes scheduled for {day.dayName}.
+                  </p>
+                ) : (
+                  <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                    {day.hours.map((slot, pIdx) => (
+                      <div
+                        key={`${day.dayName}-${slot.period ?? slot.hour}-${pIdx}`}
+                        className="flex flex-col justify-between rounded-lg border border-border bg-surface-2 p-3 text-xs"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-accent">
+                              Period {slot.period ?? slot.hour}
+                            </span>
+                            <span className="font-mono text-muted-foreground">{slot.time}</span>
+                          </div>
+                          <p className="mt-1 font-bold text-foreground text-sm">
+                            {slot.subjectCode ? `${slot.subjectCode} · ${slot.subjectName}` : "Free Period"}
+                          </p>
+                          <p className="mt-0.5 text-muted-foreground">
+                            Faculty: {slot.staffName || "Unassigned"}
+                          </p>
+                          <p className="text-muted-foreground">Room: {slot.room || timetableData.hall || "C14"}</p>
+                        </div>
+
+                        <div className="mt-2.5 flex justify-end border-t border-border/60 pt-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditingSlot({
+                                dayName: day.dayName,
+                                periodIndex: pIdx,
+                                slot: structuredClone(slot),
+                                isNew: false,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+                          >
+                            <Edit2 className="size-3" />
+                            <span>Edit</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Edit / Add Period Modal */}
       {editingSlot && (

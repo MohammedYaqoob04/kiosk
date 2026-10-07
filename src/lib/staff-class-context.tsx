@@ -12,18 +12,9 @@ import { useAuth } from "@/lib/auth-context";
 
 const STORAGE_KEY = "kiosk-staff-active-class";
 
-// Counsellor to assigned classes mapping
-const COUNSELLOR_ASSIGNED_CLASSES: Record<string, string[]> = {
-  // Default staff / counsellor handles multiple classes
-  "STAFF-AI-104": ["II-A", "III-A", "IV-A"],
-  "9999900101": ["II-A", "III-A", "IV-A"],
-  "demo-counsellor": ["II-A", "III-A", "IV-A"],
-  "counsellor-demo-1": ["II-A", "III-A", "IV-A"],
-  "counsellor-demo-2": ["III-B"],
-  "counsellor-demo-3": ["IV-A"],
-};
-
-const DEFAULT_CLASSES = ["II-A", "III-A", "IV-A"];
+// Available department classes for counsellor view
+export const AVAILABLE_CLASSES = ["IV-A", "III-A", "II-A"] as const;
+const DEFAULT_CLASS = "IV-A";
 
 export interface StaffClassContextType {
   activeClass: string;
@@ -35,17 +26,15 @@ export interface StaffClassContextType {
 
 const StaffClassContext = createContext<StaffClassContextType | null>(null);
 
-export function getAssignedClassesForStaff(identifierOrId?: string): string[] {
-  if (!identifierOrId) return DEFAULT_CLASSES;
-  return COUNSELLOR_ASSIGNED_CLASSES[identifierOrId] ?? DEFAULT_CLASSES;
+export function getAssignedClassesForStaff(_identifierOrId?: string): string[] {
+  return [...AVAILABLE_CLASSES];
 }
 
 export function StaffClassProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
   const assignedClasses = useMemo(() => {
-    if (user?.role !== "COUNSELLOR") return DEFAULT_CLASSES;
-    return getAssignedClassesForStaff(user.identifier || user.id);
+    return getAssignedClassesForStaff(user?.identifier || user?.id);
   }, [user]);
 
   const [activeClass, setActiveClassState] = useState<string>(() => {
@@ -55,13 +44,13 @@ export function StaffClassProvider({ children }: { children: ReactNode }) {
         return stored;
       }
     }
-    return assignedClasses[0] ?? "III-A";
+    return assignedClasses[0] ?? DEFAULT_CLASS;
   });
 
   // Ensure active class stays authorized if assignedClasses changes
   useEffect(() => {
     if (!assignedClasses.includes(activeClass)) {
-      const fallback = assignedClasses[0] ?? "III-A";
+      const fallback = assignedClasses[0] ?? DEFAULT_CLASS;
       setActiveClassState(fallback);
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(STORAGE_KEY, fallback);
@@ -110,11 +99,11 @@ export function useStaffClass(): StaffClassContextType {
   if (!context) {
     // Fallback when rendered outside provider
     return {
-      activeClass: "III-A",
+      activeClass: DEFAULT_CLASS,
       setActiveClass: () => {},
-      assignedClasses: DEFAULT_CLASSES,
+      assignedClasses: [...AVAILABLE_CLASSES],
       hasMultipleClasses: true,
-      isAuthorizedClass: (cls: string) => DEFAULT_CLASSES.includes(cls),
+      isAuthorizedClass: (cls: string) => (AVAILABLE_CLASSES as readonly string[]).includes(cls),
     };
   }
   return context;

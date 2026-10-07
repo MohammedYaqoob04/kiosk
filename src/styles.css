@@ -375,7 +375,11 @@
   flex: 1 1 auto;
   flex-direction: column;
   gap: 0.75rem;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: clamp(0.75rem, 1.5vw, 1.25rem);
 }
 
@@ -578,7 +582,9 @@
   flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 @media (min-width: 1024px) {
@@ -2052,7 +2058,9 @@
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   border: 1px solid var(--border);
   border-radius: 1rem;
   background: var(--surface);

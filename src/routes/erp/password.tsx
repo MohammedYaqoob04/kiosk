@@ -278,17 +278,27 @@ function ChangePassword() {
           </p>
         </div>
 
-        {!forced && (
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             type="button"
-            variant="outline"
-            onClick={() => void navigate({ to: "/erp/profile" })}
-            className="min-h-14 w-fit gap-2 px-5 text-base"
+            onClick={submit}
+            disabled={!canSubmit}
+            className="min-h-14 flex-1 text-base font-semibold"
           >
-            <ArrowLeft aria-hidden="true" className="size-5" />
-            Cancel
+            {submitting ? "Saving Changed Password…" : "Save Changed Password"}
           </Button>
-        )}
+          {!forced && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void navigate({ to: "/erp/profile" })}
+              className="min-h-14 w-fit gap-2 px-5 text-base"
+            >
+              <ArrowLeft aria-hidden="true" className="size-5" />
+              Cancel
+            </Button>
+          )}
+        </div>
       </section>
 
       <section className="erp-password-keypad w-full">
@@ -310,7 +320,7 @@ function ChangePassword() {
           disabled={!canSubmit}
           className="min-h-14 w-full text-lg font-semibold mt-2"
         >
-          {submitting ? "Updating Password…" : "Update Password"}
+          {submitting ? "Saving Changed Password…" : "Save Changed Password"}
         </Button>
 
         {error && (

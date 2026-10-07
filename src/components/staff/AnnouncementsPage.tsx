@@ -130,7 +130,7 @@ function ComposeNotice({
   role: NoticeRole;
   authorId: string;
   authorName: string;
-  students?: Array<{ regNo: string; name: string; section?: string }>;
+  students?: Array<{ regNo: string; name: string; section?: string | null }>;
   onSent?: () => void;
 }) {
   const [title, setTitle] = useState("");

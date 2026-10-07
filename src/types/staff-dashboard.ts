@@ -3,14 +3,14 @@ export interface AssignedStudent {
   registerNo: string;
   department: string;
   departmentCode: string;
-  attendancePercentage: number;
-  assignedCounsellorId: string;
+  attendancePercentage: number | null;
+  assignedCounsellorId: string | null;
   batch: string;
   programme: string;
   course: string;
   semester: number;
   year: number;
-  section: string;
+  section: string | null;
   mobile: string;
   parentMobile?: string;
   fatherMobile?: string;

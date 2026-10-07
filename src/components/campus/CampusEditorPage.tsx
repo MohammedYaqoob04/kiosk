@@ -39,27 +39,18 @@ import {
   RING_CENTER,
   RING_RADIUS,
   W,
-  getActiveEdges,
-  getActiveJunctions,
-  resetCampusEdges,
-  resetCampusJunctions,
-  saveCampusEdges,
-  saveCampusJunctions,
   type Point,
 } from "@/config/campusMap";
 import {
   campusLocations,
   categoryColors,
   categoryLabels,
-  getActiveBaseMapImage,
-  getActiveCampusLocations,
-  resetBaseMapImage,
-  resetCampusLocations,
-  saveBaseMapImage,
-  saveCampusLocations,
   type CampusCategory,
   type CampusLocation,
 } from "@/config/campusLocations";
+import { useCampusMap, defaultCampusMap, type CampusMapData } from "@/lib/useCampusMap";
+import { CampusMapStage } from "@/components/campus/CampusMapStage";
+import { pointerToMapCoordinates, findNearestNode, roundCoordinate } from "@/lib/campusGeometry";
 import "@/components/campus/campus-editor.css";
 
 const ALL_CATEGORIES: CampusCategory[] = [
@@ -97,14 +88,57 @@ export function CampusEditorPage() {
     );
   }
 
+  const { mapData: savedMapData, saveMap, resetToDefault } = useCampusMap();
+
   // --- Active state ---
-  const [locations, setLocations] = useState<CampusLocation[]>(() => getActiveCampusLocations());
-  const [junctions, setJunctions] = useState<Record<string, Point>>(() => getActiveJunctions());
-  const [edges, setEdges] = useState<[string, string][]>(() => getActiveEdges());
-  const [mapImage, setMapImage] = useState<string>(() => getActiveBaseMapImage());
+  const [locations, setLocations] = useState<CampusLocation[]>(() => savedMapData.locations);
+  const [junctions, setJunctions] = useState<Record<string, Point>>(() => savedMapData.junctions);
+  const [edges, setEdges] = useState<[string, string][]>(() => savedMapData.edges);
+  const [mapImage, setMapImage] = useState<string>(() => savedMapData.image);
+  const [mapWidth, setMapWidth] = useState<number>(() => savedMapData.width);
+  const [mapHeight, setMapHeight] = useState<number>(() => savedMapData.height);
+  const [mapVersion, setMapVersion] = useState<number | string>(() => savedMapData.version);
 
   // History for Undo
   const [history, setHistory] = useState<HistoryState[]>([]);
+
+  // Sync draft state with saved map if history is empty
+  useEffect(() => {
+    if (history.length === 0) {
+      setLocations(savedMapData.locations);
+      setJunctions(savedMapData.junctions);
+      setEdges(savedMapData.edges);
+      setMapImage(savedMapData.image);
+      setMapWidth(savedMapData.width);
+      setMapHeight(savedMapData.height);
+      setMapVersion(savedMapData.version);
+    }
+  }, [savedMapData, history.length]);
+
+  // Preview kiosk mode toggle
+  const [previewKioskMode, setPreviewKioskMode] = useState(false);
+
+  // Dimension mismatch safety banner
+  const [dimensionMismatch, setDimensionMismatch] = useState<{
+    naturalWidth: number;
+    naturalHeight: number;
+  } | null>(null);
+
+  // Image size change dialog
+  const [imageSizeDialog, setImageSizeDialog] = useState<{
+    isOpen: boolean;
+    dataUrl: string;
+    newWidth: number;
+    newHeight: number;
+    oldWidth: number;
+    oldHeight: number;
+  } | null>(null);
+
+  // Manual Transform fields
+  const [transformScaleX, setTransformScaleX] = useState<number>(1);
+  const [transformScaleY, setTransformScaleY] = useState<number>(1);
+  const [transformOffsetX, setTransformOffsetX] = useState<number>(0);
+  const [transformOffsetY, setTransformOffsetY] = useState<number>(0);
 
   // Selection
   const [selectedType, setSelectedType] = useState<"place" | "junction">("place");
@@ -150,9 +184,9 @@ export function CampusEditorPage() {
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteInput, setPasteInput] = useState("");
 
-  // Image upload ref
+  // Image upload ref and stage SVG ref
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const editorSvgRef = useRef<SVGSVGElement | null>(null);
 
   const showToast = useCallback((type: "success" | "error" | "info", message: string) => {
     setToast({ type, message });
@@ -335,13 +369,14 @@ export function CampusEditorPage() {
   );
 
   // --- Coordinate calculations & drag handling ---
-  const getStageCoords = useCallback((clientX: number, clientY: number): Point => {
-    if (!stageRef.current) return [0, 0];
-    const rect = stageRef.current.getBoundingClientRect();
-    const x = Math.round(Math.max(0, Math.min(W, ((clientX - rect.left) / rect.width) * W)));
-    const y = Math.round(Math.max(0, Math.min(H, ((clientY - rect.top) / rect.height) * H)));
-    return [x, y];
-  }, []);
+  const getStageCoords = useCallback(
+    (e: React.PointerEvent | React.MouseEvent | { clientX: number; clientY: number }): Point => {
+      if (!editorSvgRef.current) return [0, 0];
+      const pt = pointerToMapCoordinates(e, editorSvgRef.current);
+      return [pt.x, pt.y];
+    },
+    [],
+  );
 
   const handlePointerDownItem = useCallback(
     (type: "place" | "junction", id: string, e: ReactPointerEvent) => {
@@ -371,7 +406,7 @@ export function CampusEditorPage() {
 
   const handlePointerMove = useCallback(
     (e: ReactPointerEvent) => {
-      const [x, y] = getStageCoords(e.clientX, e.clientY);
+      const [x, y] = getStageCoords(e);
       setCursorCoords([x, y]);
 
       if (!draggingItem) return;
@@ -405,7 +440,7 @@ export function CampusEditorPage() {
   // --- Stage Background Click Handler ---
   const handleStageClick = useCallback(
     (e: React.MouseEvent) => {
-      const [x, y] = getStageCoords(e.clientX, e.clientY);
+      const [x, y] = getStageCoords(e);
 
       if (mode === "add_node") {
         handleAddJunction([x, y]);
@@ -423,12 +458,19 @@ export function CampusEditorPage() {
           }));
           showToast("success", `Relocated junction ${selectedId} to (${x}, ${y})`);
         }
+      } else if (mode === "attach" && selectedLocationForAttach) {
+        const nearest = findNearestNode({ x, y }, junctions);
+        if (nearest) {
+          handleAttachPlaceToNode(selectedLocationForAttach, nearest.nodeId);
+          setSelectedLocationForAttach(null);
+          setMode("drag");
+        } else {
+          setSelectedLocationForAttach(null);
+          showToast("info", "Attachment selection cancelled.");
+        }
       } else if (mode === "link_nodes" && selectedNodeForLink) {
         setSelectedNodeForLink(null);
         showToast("info", "Node linking cancelled.");
-      } else if (mode === "attach" && selectedLocationForAttach) {
-        setSelectedLocationForAttach(null);
-        showToast("info", "Attachment selection cancelled.");
       }
     },
     [
@@ -437,8 +479,10 @@ export function CampusEditorPage() {
       selectedType,
       selectedNodeForLink,
       selectedLocationForAttach,
+      junctions,
       getStageCoords,
       handleAddJunction,
+      handleAttachPlaceToNode,
       pushHistory,
       showToast,
     ],
@@ -446,8 +490,8 @@ export function CampusEditorPage() {
 
   // --- Junction Pin Click Handler ---
   const handleJunctionPinClick = useCallback(
-    (jId: string, e: React.MouseEvent) => {
-      e.stopPropagation();
+    (jId: string, e?: React.MouseEvent) => {
+      e?.stopPropagation();
 
       if (mode === "link_nodes") {
         if (!selectedNodeForLink) {
@@ -492,8 +536,8 @@ export function CampusEditorPage() {
 
   // --- Place Pin Click Handler ---
   const handlePlacePinClick = useCallback(
-    (locId: string, e: React.MouseEvent) => {
-      e.stopPropagation();
+    (locId: string, e?: React.MouseEvent) => {
+      e?.stopPropagation();
 
       if (mode === "attach") {
         setSelectedLocationForAttach(locId);
@@ -558,12 +602,108 @@ export function CampusEditorPage() {
     [selectedPlace, pushHistory],
   );
 
+  // Draft map data computed object
+  const draftMapData = useMemo<CampusMapData>(
+    () => ({
+      width: mapWidth,
+      height: mapHeight,
+      image: mapImage,
+      version: mapVersion,
+      locations,
+      junctions,
+      edges,
+      ringCenter: savedMapData.ringCenter ?? RING_CENTER,
+      ringRadius: savedMapData.ringRadius ?? RING_RADIUS,
+    }),
+    [
+      mapWidth,
+      mapHeight,
+      mapImage,
+      mapVersion,
+      locations,
+      junctions,
+      edges,
+      savedMapData.ringCenter,
+      savedMapData.ringRadius,
+    ],
+  );
+
+  const versionedDraftImageSrc = useMemo(() => {
+    if (!mapImage) return "/assets/campus-map.jpg?v=1";
+    if (mapImage.startsWith("data:") || mapImage.startsWith("blob:")) {
+      return mapImage;
+    }
+    const sep = mapImage.includes("?") ? "&" : "?";
+    return `${mapImage}${sep}v=${mapVersion}`;
+  }, [mapImage, mapVersion]);
+
+  // Attach place to nearest node helper
+  const handleAttachToNearestNode = useCallback(
+    (placeId: string) => {
+      const place = locations.find((l) => l.id === placeId);
+      if (!place) return;
+      const nearest = findNearestNode({ x: place.x, y: place.y }, junctions);
+      if (nearest) {
+        handleAttachPlaceToNode(placeId, nearest.nodeId);
+        showToast(
+          "success",
+          `Connected "${place.name}" to nearest node "${nearest.nodeId}" (${nearest.distance}px away).`,
+        );
+      } else {
+        showToast("error", "No path nodes found to attach to.");
+      }
+    },
+    [locations, junctions, handleAttachPlaceToNode, showToast],
+  );
+
+  // Manual transform helper (scale proportionally or offset)
+  const handleApplyTransform = useCallback(() => {
+    if (
+      transformScaleX === 1 &&
+      transformScaleY === 1 &&
+      transformOffsetX === 0 &&
+      transformOffsetY === 0
+    ) {
+      showToast("info", "No transform values to apply.");
+      return;
+    }
+    pushHistory();
+    setLocations((prev) =>
+      prev.map((l) => {
+        const newX = roundCoordinate(l.x * transformScaleX + transformOffsetX);
+        const newY = roundCoordinate(l.y * transformScaleY + transformOffsetY);
+        return { ...l, x: newX, y: newY, lat: newY, lng: newX };
+      }),
+    );
+    setJunctions((prev) => {
+      const updated: Record<string, Point> = {};
+      for (const [id, pt] of Object.entries(prev)) {
+        updated[id] = [
+          roundCoordinate(pt[0] * transformScaleX + transformOffsetX),
+          roundCoordinate(pt[1] * transformScaleY + transformOffsetY),
+        ];
+      }
+      return updated;
+    });
+    showToast(
+      "success",
+      `Applied transform: Scale (${transformScaleX}, ${transformScaleY}), Offset (${transformOffsetX}px, ${transformOffsetY}px).`,
+    );
+  }, [
+    transformScaleX,
+    transformScaleY,
+    transformOffsetX,
+    transformOffsetY,
+    pushHistory,
+    showToast,
+  ]);
+
   const handleAdjustPlaceCoord = useCallback(
     (axis: "x" | "y", delta: number) => {
       if (!selectedPlace) return;
       pushHistory();
       const currentVal = selectedPlace[axis];
-      const maxVal = axis === "x" ? W : H;
+      const maxVal = axis === "x" ? mapWidth : mapHeight;
       const newVal = Math.max(0, Math.min(maxVal, currentVal + delta));
 
       setLocations((prev) =>
@@ -576,7 +716,7 @@ export function CampusEditorPage() {
         }),
       );
     },
-    [selectedPlace, pushHistory],
+    [selectedPlace, mapWidth, mapHeight, pushHistory],
   );
 
   const handleAdjustJunctionCoord = useCallback(
@@ -584,7 +724,7 @@ export function CampusEditorPage() {
       if (!selectedJunction) return;
       pushHistory();
       const pt = selectedJunction.point;
-      const maxVal = axis === 0 ? W : H;
+      const maxVal = axis === 0 ? mapWidth : mapHeight;
       const newVal = Math.max(0, Math.min(maxVal, pt[axis] + delta));
       const nextPt: Point = axis === 0 ? [newVal, pt[1]] : [pt[0], newVal];
 
@@ -593,20 +733,22 @@ export function CampusEditorPage() {
         [selectedJunction.id]: nextPt,
       }));
     },
-    [selectedJunction, pushHistory],
+    [selectedJunction, mapWidth, mapHeight, pushHistory],
   );
 
   const handleAddPlace = useCallback(() => {
     pushHistory();
     const newId = `l${Date.now().toString(36)}`;
+    const centerX = Math.round(mapWidth / 2);
+    const centerY = Math.round(mapHeight / 2);
     const newPlace: CampusLocation = {
       id: newId,
       name: "New Campus Location",
       category: "academic",
-      x: 450,
-      y: 405,
-      lat: 405,
-      lng: 450,
+      x: centerX,
+      y: centerY,
+      lat: centerY,
+      lng: centerX,
       nodeId: Object.keys(junctions)[0] ?? "mid",
       description: "",
     };
@@ -615,7 +757,7 @@ export function CampusEditorPage() {
     setSelectedId(newId);
     setActiveTab("places");
     showToast("info", "New place added at center. Drag or edit coordinates to place it.");
-  }, [junctions, pushHistory, showToast]);
+  }, [junctions, mapWidth, mapHeight, pushHistory, showToast]);
 
   const handleDeletePlace = useCallback(
     (id: string) => {
@@ -629,7 +771,7 @@ export function CampusEditorPage() {
     [selectedId, pushHistory, showToast],
   );
 
-  // --- Base Map Image Upload ---
+  // --- Base Map Image Upload with Dimension Safety ---
   const handleImageFileChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -643,30 +785,98 @@ export function CampusEditorPage() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
-        if (dataUrl) {
-          setMapImage(dataUrl);
-          saveBaseMapImage(dataUrl);
-          showToast("success", "Custom base map image uploaded and applied to navigation!");
-        }
+        if (!dataUrl) return;
+
+        const img = new Image();
+        img.onload = () => {
+          const realWidth = img.naturalWidth;
+          const realHeight = img.naturalHeight;
+          const prevWidth = mapWidth;
+          const prevHeight = mapHeight;
+
+          if (realWidth !== prevWidth || realHeight !== prevHeight) {
+            setImageSizeDialog({
+              isOpen: true,
+              dataUrl,
+              newWidth: realWidth,
+              newHeight: realHeight,
+              oldWidth: prevWidth,
+              oldHeight: prevHeight,
+            });
+          } else {
+            pushHistory();
+            setMapImage(dataUrl);
+            setMapWidth(realWidth);
+            setMapHeight(realHeight);
+            setMapVersion(Date.now());
+            setDimensionMismatch(null);
+            showToast("success", `Custom base map image uploaded (${realWidth} × ${realHeight}px)!`);
+          }
+        };
+        img.src = dataUrl;
       };
       reader.readAsDataURL(file);
     },
-    [showToast],
+    [mapWidth, mapHeight, pushHistory, showToast],
   );
 
+  const handleConfirmScaleProportionally = useCallback(() => {
+    if (!imageSizeDialog) return;
+    const { dataUrl, newWidth, newHeight, oldWidth, oldHeight } = imageSizeDialog;
+    pushHistory();
+    const sx = newWidth / oldWidth;
+    const sy = newHeight / oldHeight;
+
+    setLocations((prev) =>
+      prev.map((l) => {
+        const nx = roundCoordinate(l.x * sx);
+        const ny = roundCoordinate(l.y * sy);
+        return { ...l, x: nx, y: ny, lat: ny, lng: nx };
+      }),
+    );
+    setJunctions((prev) => {
+      const updated: Record<string, Point> = {};
+      for (const [id, pt] of Object.entries(prev)) {
+        updated[id] = [roundCoordinate(pt[0] * sx), roundCoordinate(pt[1] * sy)];
+      }
+      return updated;
+    });
+    setMapImage(dataUrl);
+    setMapWidth(newWidth);
+    setMapHeight(newHeight);
+    setMapVersion(Date.now());
+    setDimensionMismatch(null);
+    setImageSizeDialog(null);
+    showToast("info", "Map image updated and coordinates scaled proportionally. Pins must be checked.");
+  }, [imageSizeDialog, pushHistory, showToast]);
+
+  const handleConfirmKeepPixelPositions = useCallback(() => {
+    if (!imageSizeDialog) return;
+    const { dataUrl, newWidth, newHeight } = imageSizeDialog;
+    pushHistory();
+    setMapImage(dataUrl);
+    setMapWidth(newWidth);
+    setMapHeight(newHeight);
+    setMapVersion(Date.now());
+    setDimensionMismatch(null);
+    setImageSizeDialog(null);
+    showToast("info", "Map image updated keeping pixel coordinates. Pins must be checked.");
+  }, [imageSizeDialog, pushHistory, showToast]);
+
   const handleResetImage = useCallback(() => {
-    resetBaseMapImage();
     setMapImage("/assets/campus-map.jpg");
+    setMapWidth(W);
+    setMapHeight(H);
+    setMapVersion(Date.now());
+    setDimensionMismatch(null);
     showToast("info", "Reverted to default campus map image.");
   }, [showToast]);
 
-  // --- Submit Changes ---
-  const handleSubmitChanges = useCallback(() => {
-    saveCampusLocations(locations);
-    saveCampusJunctions(junctions);
-    saveCampusEdges(edges);
-    showToast("success", "Changes submitted! Offline campus navigation (/campus) is updated.");
-  }, [locations, junctions, edges, showToast]);
+  // --- Submit Changes (Publishes exact draft coordinates) ---
+  const handleSubmitChanges = useCallback(async () => {
+    await saveMap(draftMapData);
+    showToast("success", "Changes submitted & published! Kiosk and editor are synchronized.");
+  }, [draftMapData, saveMap, showToast]);
 
   // --- Reset All Defaults ---
   const handleResetAllDefaults = useCallback(() => {
@@ -677,19 +887,20 @@ export function CampusEditorPage() {
     ) {
       return;
     }
-    resetCampusLocations();
-    resetCampusJunctions();
-    resetCampusEdges();
-    resetBaseMapImage();
-    setLocations([...campusLocations]);
-    setJunctions({ ...JUNCTIONS });
-    setEdges([...BASE_EDGES]);
-    setMapImage("/assets/campus-map.jpg");
-    setSelectedId(campusLocations[0]?.id ?? null);
+    resetToDefault();
+    setLocations([...defaultCampusMap.locations]);
+    setJunctions({ ...defaultCampusMap.junctions });
+    setEdges([...defaultCampusMap.edges]);
+    setMapImage(defaultCampusMap.image);
+    setMapWidth(defaultCampusMap.width);
+    setMapHeight(defaultCampusMap.height);
+    setMapVersion(Date.now());
+    setSelectedId(defaultCampusMap.locations[0]?.id ?? null);
     setSelectedNodeForLink(null);
     setSelectedLocationForAttach(null);
+    setDimensionMismatch(null);
     showToast("info", "All data reset to code defaults.");
-  }, [showToast]);
+  }, [resetToDefault, showToast]);
 
   // Filtered places list for sidebar
   const filteredPlaces = useMemo(() => {
@@ -977,210 +1188,172 @@ export function CampusEditorPage() {
               >
                 <span>Labels</span>
               </button>
+              <button
+                type="button"
+                className={`campus-stage-toggle-chip ${previewKioskMode ? "is-active" : ""}`}
+                onClick={() => setPreviewKioskMode((v) => !v)}
+                title="Preview map exactly as it will display on the touch kiosk"
+              >
+                <Eye className="size-3.5" />
+                <span>Preview as kiosk</span>
+              </button>
             </div>
           </div>
 
           {/* Map Canvas Viewport */}
           <div
             className="campus-editor-canvas-viewport"
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
+            style={{
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "auto",
+              padding: "16px",
+            }}
           >
-            <div
-              ref={stageRef}
-              className={`campus-editor-stage mode-${mode}`}
-              onClick={handleStageClick}
-            >
-              {/* Base Map Image */}
-              <img
-                src={mapImage}
-                alt="Offline Campus Navigation Base Map"
-                className="campus-editor-stage-img"
-              />
-
-              {/* SVG Path Lines Layer */}
-              <svg
-                className="campus-editor-stage-svg"
-                viewBox={`0 0 ${W} ${H}`}
-                aria-hidden="true"
+            {/* Dimension Mismatch Warning Banner */}
+            {dimensionMismatch && (
+              <div
+                className="mb-3 w-full max-w-4xl rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 shadow-sm flex items-center justify-between gap-3 text-sm z-10"
+                role="alert"
               >
-                {/* Ring Circle */}
-                {showEdges && (
-                  <circle
-                    cx={RING_CENTER[0]}
-                    cy={RING_CENTER[1]}
-                    r={RING_RADIUS}
-                    fill="none"
-                    stroke="#F59E0B"
-                    strokeWidth="3"
-                    strokeDasharray="6 4"
-                    opacity="0.75"
-                  />
-                )}
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="size-5 text-amber-600 flex-shrink-0" />
+                  <span>
+                    <strong>Dimension Mismatch Warning:</strong> Displayed image natural size (
+                    {dimensionMismatch.naturalWidth} × {dimensionMismatch.naturalHeight}px) differs
+                    from map dimensions ({mapWidth} × {mapHeight}px). Pins must be checked.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="campus-action-small-btn whitespace-nowrap"
+                  onClick={() => {
+                    setMapWidth(dimensionMismatch.naturalWidth);
+                    setMapHeight(dimensionMismatch.naturalHeight);
+                    setDimensionMismatch(null);
+                    showToast("info", "Map dimensions updated to match image size.");
+                  }}
+                >
+                  Match Image Size
+                </button>
+              </div>
+            )}
 
-                {/* Path Edges */}
-                {showEdges &&
-                  edges.map(([a, b]) => {
-                    const ptA = junctions[a];
-                    const ptB = junctions[b];
-                    if (!ptA || !ptB) return null;
-                    return (
-                      <line
-                        key={`${a}-${b}`}
-                        x1={ptA[0]}
-                        y1={ptA[1]}
-                        x2={ptB[0]}
-                        y2={ptB[1]}
-                        stroke="#F59E0B"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                        className={`campus-editor-edge-line ${mode === "delete" ? "mode-delete" : ""}`}
-                        style={{
-                          pointerEvents: mode === "delete" ? "stroke" : "none",
-                        }}
-                        onClick={(e) => {
-                          if (mode === "delete") {
-                            e.stopPropagation();
-                            handleDeleteEdge(a, b);
-                          }
-                        }}
-                        opacity="0.85"
-                      />
-                    );
-                  })}
+            {previewKioskMode ? (
+              /* Preview as Kiosk Panel */
+              <div
+                className="campus-editor-kiosk-preview-frame w-full h-full flex items-center justify-center"
+                style={{ maxHeight: "85vh" }}
+              >
+                <CampusMapStage
+                  mapData={draftMapData}
+                  versionedImageSrc={versionedDraftImageSrc}
+                  version={mapVersion}
+                  selectedId={selectedId}
+                  onSelectLocation={(loc) => setSelectedId(loc.id)}
+                  showPins={true}
+                  showNodes={false}
+                  showEdges={false}
+                  showRing={false}
+                  showLabels={showLabels}
+                />
+              </div>
+            ) : (
+              /* Editor Canvas using CampusMapStage */
+              <div
+                className={`campus-editor-stage-outer mode-${mode} w-full h-full flex items-center justify-center`}
+                style={{ maxHeight: "85vh" }}
+              >
+                <CampusMapStage
+                  svgRef={editorSvgRef}
+                  mapData={draftMapData}
+                  versionedImageSrc={versionedDraftImageSrc}
+                  version={mapVersion}
+                  selectedId={selectedId}
+                  selectedType={selectedType}
+                  selectedNodeForLink={selectedNodeForLink}
+                  selectedLocationForAttach={selectedLocationForAttach}
+                  showPins={true}
+                  showNodes={showJunctions}
+                  showEdges={showEdges}
+                  showRing={showEdges}
+                  showLabels={showLabels}
+                  onSelectLocation={(loc) => handlePlacePinClick(loc.id)}
+                  onSelectJunction={(jId) => handleJunctionPinClick(jId)}
+                  onPinPointerDown={handlePointerDownItem}
+                  onSvgPointerMove={handlePointerMove}
+                  onSvgPointerUp={handlePointerUp}
+                  onSvgClick={handleStageClick}
+                  onEdgeClick={(a, b) => {
+                    if (mode === "delete") {
+                      handleDeleteEdge(a, b);
+                    }
+                  }}
+                  onImageSizeCheck={(natW, natH) => {
+                    if (natW !== mapWidth || natH !== mapHeight) {
+                      setDimensionMismatch({ naturalWidth: natW, naturalHeight: natH });
+                    } else {
+                      setDimensionMismatch(null);
+                    }
+                  }}
+                  customOverlayChildren={
+                    <>
+                      {/* Interactive Linking Preview Line */}
+                      {mode === "link_nodes" &&
+                        selectedNodeForLink &&
+                        junctions[selectedNodeForLink] &&
+                        cursorCoords && (
+                          <line
+                            x1={junctions[selectedNodeForLink]![0]}
+                            y1={junctions[selectedNodeForLink]![1]}
+                            x2={cursorCoords[0]}
+                            y2={cursorCoords[1]}
+                            stroke="#F59E0B"
+                            strokeWidth="2.5"
+                            strokeDasharray="5 5"
+                            opacity="0.9"
+                            pointerEvents="none"
+                          />
+                        )}
 
-                {/* Dotted lines from places to attached junction node */}
-                {locations.map((loc) => {
-                  if (!loc.nodeId || !junctions[loc.nodeId]) return null;
-                  const jPt = junctions[loc.nodeId]!;
-                  const isSelected = loc.id === selectedId && selectedType === "place";
-                  const isAttachStart = selectedLocationForAttach === loc.id;
-                  return (
-                    <line
-                      key={`attach-${loc.id}`}
-                      x1={loc.x}
-                      y1={loc.y}
-                      x2={jPt[0]}
-                      y2={jPt[1]}
-                      stroke={isAttachStart ? "#10B981" : isSelected ? "#8B1E2D" : "#10B981"}
-                      strokeWidth={isAttachStart ? "3" : isSelected ? "2.5" : "1.5"}
-                      strokeDasharray="4 4"
-                      opacity={isAttachStart ? "1" : isSelected ? "0.9" : "0.5"}
-                    />
-                  );
-                })}
-
-                {/* Interactive Linking Preview Line */}
-                {mode === "link_nodes" &&
-                  selectedNodeForLink &&
-                  junctions[selectedNodeForLink] &&
-                  cursorCoords && (
-                    <line
-                      x1={junctions[selectedNodeForLink]![0]}
-                      y1={junctions[selectedNodeForLink]![1]}
-                      x2={cursorCoords[0]}
-                      y2={cursorCoords[1]}
-                      stroke="#F59E0B"
-                      strokeWidth="2.5"
-                      strokeDasharray="5 5"
-                      opacity="0.9"
-                    />
-                  )}
-
-                {/* Interactive Place Attach Preview Line */}
-                {mode === "attach" &&
-                  selectedLocationForAttach &&
-                  cursorCoords &&
-                  (() => {
-                    const loc = locations.find((l) => l.id === selectedLocationForAttach);
-                    if (!loc) return null;
-                    return (
-                      <line
-                        x1={loc.x}
-                        y1={loc.y}
-                        x2={cursorCoords[0]}
-                        y2={cursorCoords[1]}
-                        stroke="#10B981"
-                        strokeWidth="2.5"
-                        strokeDasharray="5 5"
-                        opacity="0.9"
-                      />
-                    );
-                  })()}
-              </svg>
-
-              {/* Navigation Junction Nodes */}
-              {showJunctions &&
-                Object.entries(junctions).map(([jId, pt]) => {
-                  const isSelected = selectedId === jId && selectedType === "junction";
-                  const isDragging = draggingItem?.id === jId && draggingItem?.type === "junction";
-                  const isLinkStart = selectedNodeForLink === jId;
-
-                  return (
-                    <div
-                      key={`j-${jId}`}
-                      className={`campus-editor-junction-pin ${isSelected ? "is-selected" : ""} ${
-                        isDragging ? "is-dragging" : ""
-                      } ${isLinkStart ? "is-link-start" : ""}`}
-                      style={{
-                        left: `${(pt[0] / W) * 100}%`,
-                        top: `${(pt[1] / H) * 100}%`,
-                      }}
-                      onPointerDown={(e) => handlePointerDownItem("junction", jId, e)}
-                      onClick={(e) => handleJunctionPinClick(jId, e)}
-                      title={`Junction Node: ${jId}`}
-                    >
-                      <div className="campus-editor-junction-box" />
-                      {showLabels && (
-                        <div className="campus-editor-junction-label">
-                          {jId} ({pt[0]},{pt[1]})
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-              {/* Places Location Pins */}
-              {locations.map((loc) => {
-                const isSelected = loc.id === selectedId && selectedType === "place";
-                const isDragging = draggingItem?.id === loc.id && draggingItem?.type === "place";
-                const isAttachStart = selectedLocationForAttach === loc.id;
-                const catColor = categoryColors[loc.category] || "#8B1E2D";
-
-                return (
-                  <div
-                    key={loc.id}
-                    className={`campus-editor-place-pin ${isSelected ? "is-selected" : ""} ${
-                      isDragging ? "is-dragging" : ""
-                    } ${isAttachStart ? "is-attach-start" : ""}`}
-                    style={{
-                      left: `${(loc.x / W) * 100}%`,
-                      top: `${(loc.y / H) * 100}%`,
-                    }}
-                    onPointerDown={(e) => handlePointerDownItem("place", loc.id, e)}
-                    onClick={(e) => handlePlacePinClick(loc.id, e)}
-                    title={loc.name}
-                  >
-                    <div
-                      className="campus-editor-pin-dot"
-                      style={{ backgroundColor: catColor }}
-                    />
-                    {showLabels && (
-                      <div className="campus-editor-pin-label">
-                        {loc.name} {loc.nodeId ? `[→${loc.nodeId}]` : ""}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      {/* Interactive Place Attach Preview Line */}
+                      {mode === "attach" &&
+                        selectedLocationForAttach &&
+                        cursorCoords &&
+                        (() => {
+                          const loc = locations.find((l) => l.id === selectedLocationForAttach);
+                          if (!loc) return null;
+                          return (
+                            <line
+                              x1={loc.x}
+                              y1={loc.y}
+                              x2={cursorCoords[0]}
+                              y2={cursorCoords[1]}
+                              stroke="#10B981"
+                              strokeWidth="2.5"
+                              strokeDasharray="5 5"
+                              opacity="0.9"
+                              pointerEvents="none"
+                            />
+                          );
+                        })()}
+                    </>
+                  }
+                />
+              </div>
+            )}
           </div>
 
           {/* Bottom Status Bar */}
           <div className="campus-editor-stage-statusbar">
             <div className="campus-editor-stage-statusbar-info">
               <span>
-                <strong>Canvas:</strong> {W} × {H} px
+                <strong>Canvas:</strong> {mapWidth} × {mapHeight} px
               </span>
               {cursorCoords && (
                 <span>
@@ -1339,19 +1512,19 @@ export function CampusEditorPage() {
                     <div className="campus-coords-row">
                       <div className="campus-editor-field-group">
                         <label className="campus-editor-label" htmlFor="place-x-input">
-                          Coordinate X (0..{W})
+                          Coordinate X (0..{mapWidth})
                         </label>
                         <input
                           id="place-x-input"
                           type="number"
                           min={0}
-                          max={W}
+                          max={mapWidth}
                           className="campus-editor-input"
                           value={selectedPlace.x}
                           onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
+                            const val = parseFloat(e.target.value);
                             if (!isNaN(val)) {
-                              handleUpdatePlace({ x: val, lng: val });
+                              handleUpdatePlace({ x: roundCoordinate(val), lng: roundCoordinate(val) });
                             }
                           }}
                         />
@@ -1389,19 +1562,19 @@ export function CampusEditorPage() {
 
                       <div className="campus-editor-field-group">
                         <label className="campus-editor-label" htmlFor="place-y-input">
-                          Coordinate Y (0..{H})
+                          Coordinate Y (0..{mapHeight})
                         </label>
                         <input
                           id="place-y-input"
                           type="number"
                           min={0}
-                          max={H}
+                          max={mapHeight}
                           className="campus-editor-input"
                           value={selectedPlace.y}
                           onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
+                            const val = parseFloat(e.target.value);
                             if (!isNaN(val)) {
-                              handleUpdatePlace({ y: val, lat: val });
+                              handleUpdatePlace({ y: roundCoordinate(val), lat: roundCoordinate(val) });
                             }
                           }}
                         />
@@ -1480,6 +1653,15 @@ export function CampusEditorPage() {
                         >
                           <Link2 className="size-3.5" />
                           <span>Attach</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="campus-action-small-btn"
+                          title="Automatically attach to nearest node"
+                          onClick={() => handleAttachToNearestNode(selectedPlace.id)}
+                        >
+                          <Crosshair className="size-3.5" />
+                          <span>Nearest</span>
                         </button>
                       </div>
                     </div>
@@ -1603,28 +1785,28 @@ export function CampusEditorPage() {
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                      Coordinates on canvas ({W} × {H}):
+                      Coordinates on canvas ({mapWidth} × {mapHeight}):
                     </p>
 
                     <div className="campus-coords-row">
                       <div className="campus-editor-field-group">
                         <label className="campus-editor-label" htmlFor="junc-x-input">
-                          Coordinate X (0..{W})
+                          Coordinate X (0..{mapWidth})
                         </label>
                         <input
                           id="junc-x-input"
                           type="number"
                           min={0}
-                          max={W}
+                          max={mapWidth}
                           className="campus-editor-input"
                           value={selectedJunction.point[0]}
                           onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
+                            const val = parseFloat(e.target.value);
                             if (!isNaN(val)) {
                               pushHistory();
                               setJunctions((prev) => ({
                                 ...prev,
-                                [selectedJunction.id]: [val, selectedJunction.point[1]],
+                                [selectedJunction.id]: [roundCoordinate(val), selectedJunction.point[1]],
                               }));
                             }
                           }}
@@ -1663,22 +1845,22 @@ export function CampusEditorPage() {
 
                       <div className="campus-editor-field-group">
                         <label className="campus-editor-label" htmlFor="junc-y-input">
-                          Coordinate Y (0..{H})
+                          Coordinate Y (0..{mapHeight})
                         </label>
                         <input
                           id="junc-y-input"
                           type="number"
                           min={0}
-                          max={H}
+                          max={mapHeight}
                           className="campus-editor-input"
                           value={selectedJunction.point[1]}
                           onChange={(e) => {
-                            const val = parseInt(e.target.value, 10);
+                            const val = parseFloat(e.target.value);
                             if (!isNaN(val)) {
                               pushHistory();
                               setJunctions((prev) => ({
                                 ...prev,
-                                [selectedJunction.id]: [selectedJunction.point[0], val],
+                                [selectedJunction.id]: [selectedJunction.point[0], roundCoordinate(val)],
                               }));
                             }
                           }}
@@ -1911,7 +2093,14 @@ export function CampusEditorPage() {
                       Current Base Map Status
                     </label>
                     <div className="p-3 bg-surface-2 rounded-lg border text-xs flex items-center justify-between">
-                      <span>{isCustomBaseMap ? "Custom Uploaded Image" : "Default Map Asset"}</span>
+                      <div>
+                        <span className="font-medium block">
+                          {isCustomBaseMap ? "Custom Uploaded Image" : "Default Map Asset"}
+                        </span>
+                        <span className="text-muted-foreground block text-[11px]">
+                          Dimensions: {mapWidth} × {mapHeight} px
+                        </span>
+                      </div>
                       {isCustomBaseMap && (
                         <button
                           type="button"
@@ -1922,6 +2111,65 @@ export function CampusEditorPage() {
                         </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* Explicit Scale & Offset Transforms */}
+                  <div className="mt-3 pt-3 border-t">
+                    <label className="text-xs font-semibold text-text block mb-1">
+                      Scale & Offset Transforms
+                    </label>
+                    <p className="text-[11px] text-muted-foreground mb-2">
+                      Transform all place and node coordinates proportionally or shift by offset:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[11px] text-muted-foreground block mb-0.5">Scale X</label>
+                        <input
+                          type="number"
+                          step="0.05"
+                          className="campus-editor-input"
+                          value={transformScaleX}
+                          onChange={(e) => setTransformScaleX(parseFloat(e.target.value) || 1)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground block mb-0.5">Scale Y</label>
+                        <input
+                          type="number"
+                          step="0.05"
+                          className="campus-editor-input"
+                          value={transformScaleY}
+                          onChange={(e) => setTransformScaleY(parseFloat(e.target.value) || 1)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground block mb-0.5">Offset X (px)</label>
+                        <input
+                          type="number"
+                          step="1"
+                          className="campus-editor-input"
+                          value={transformOffsetX}
+                          onChange={(e) => setTransformOffsetX(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground block mb-0.5">Offset Y (px)</label>
+                        <input
+                          type="number"
+                          step="1"
+                          className="campus-editor-input"
+                          value={transformOffsetY}
+                          onChange={(e) => setTransformOffsetY(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="campus-action-small-btn mt-2.5 w-full justify-center"
+                      onClick={handleApplyTransform}
+                    >
+                      Apply Transform
+                    </button>
                   </div>
 
                   <div className="campus-editor-img-preview mt-2">
@@ -2099,6 +2347,73 @@ export function CampusEditorPage() {
                 type="button"
                 className="campus-action-small-btn"
                 onClick={() => setPasteModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Size Safety Dialog */}
+      {imageSizeDialog && (
+        <div
+          className="campus-editor-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="img-size-dialog-title"
+        >
+          <div className="campus-editor-modal" style={{ maxWidth: "460px" }}>
+            <div className="campus-editor-modal-header">
+              <h3 id="img-size-dialog-title" className="text-base font-bold text-foreground">
+                Map Image Dimensions Changed
+              </h3>
+              <button
+                type="button"
+                onClick={() => setImageSizeDialog(null)}
+                className="hover:opacity-75"
+                aria-label="Close dialog"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              The new image size is{" "}
+              <strong>
+                {imageSizeDialog.newWidth} × {imageSizeDialog.newHeight} px
+              </strong>
+              , differing from previous map dimensions (
+              <strong>
+                {imageSizeDialog.oldWidth} × {imageSizeDialog.oldHeight} px
+              </strong>
+              ).
+            </p>
+
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 text-xs my-2">
+              ⚠️ <strong>Warning:</strong> Pins and junction nodes must be verified after resizing the
+              base map. Choose how existing coordinates should be handled:
+            </div>
+
+            <div className="flex flex-col gap-2 mt-2">
+              <button
+                type="button"
+                className="campus-action-small-btn primary w-full justify-center py-2"
+                onClick={handleConfirmScaleProportionally}
+              >
+                Scale Proportionally
+              </button>
+              <button
+                type="button"
+                className="campus-action-small-btn w-full justify-center py-2"
+                onClick={handleConfirmKeepPixelPositions}
+              >
+                Keep Exact Pixel Positions
+              </button>
+              <button
+                type="button"
+                className="campus-action-small-btn w-full justify-center"
+                onClick={() => setImageSizeDialog(null)}
               >
                 Cancel
               </button>

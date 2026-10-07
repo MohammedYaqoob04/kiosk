@@ -2,26 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import {
   formatDistance,
-  getActiveEdges,
-  getActiveJunctions,
-  H,
   KIOSK_START_NAME,
   type Point,
-  W,
 } from "@/config/campusMap";
 import {
-  CAMPUS_UPDATE_EVENT,
   type CampusCategory,
   type CampusLocation,
   categoryColors,
   categoryLabels,
-  getActiveBaseMapImage,
 } from "@/config/campusLocations";
 import { routeBetween } from "@/lib/campusRouting";
 import { siteContent } from "@/config/siteContent";
+import { useCampusMap } from "@/lib/useCampusMap";
+import { CampusMapStage } from "@/components/campus/CampusMapStage";
 
 export interface CampusMapProps {
-  locations: CampusLocation[];
+  locations?: CampusLocation[];
   selectedId: string | null;
   onSelect: (location: CampusLocation) => void;
   onClose?: () => void;
@@ -39,7 +35,7 @@ const ALL_CATEGORIES: CampusCategory[] = [
 ];
 
 export function CampusMap({
-  locations,
+  locations: propLocations,
   selectedId,
   onSelect,
   onClose,
@@ -47,6 +43,17 @@ export function CampusMap({
   resetTrigger = 0,
 }: CampusMapProps) {
   void parentRoute;
+
+  // Single source of truth for campus map data and version-stamped image
+  const { mapData, versionedImageSrc, version } = useCampusMap();
+  const W = mapData.width;
+  const H = mapData.height;
+
+  // Prioritize live mapData locations
+  const locations = useMemo(
+    () => (mapData.locations && mapData.locations.length > 0 ? mapData.locations : propLocations ?? []),
+    [mapData.locations, propLocations],
+  );
 
   const defaultFromId = useMemo(() => {
     const mainGate = locations.find((l) => l.name === KIOSK_START_NAME);
@@ -63,9 +70,6 @@ export function CampusMap({
   const [routePoints, setRoutePoints] = useState<Point[]>([]);
   const [info, setInfo] = useState("Tap a pin or select places to get directions.");
   const [hiddenCategories, setHiddenCategories] = useState<Set<CampusCategory>>(new Set());
-  const [mapImage, setMapImage] = useState<string>(() => getActiveBaseMapImage());
-  const [junctions, setJunctions] = useState<Record<string, Point>>(() => getActiveJunctions());
-  const [edges, setEdges] = useState<[string, string][]>(() => getActiveEdges());
 
   // Interactive Viewport & Zoom State
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -81,25 +85,11 @@ export function CampusMap({
   const isInitialMountRef = useRef(true);
   const prevSelectedIdRef = useRef<string | null>(selectedId);
 
-  useEffect(() => {
-    const handleUpdate = () => {
-      setMapImage(getActiveBaseMapImage());
-      setJunctions(getActiveJunctions());
-      setEdges(getActiveEdges());
-    };
-    window.addEventListener(CAMPUS_UPDATE_EVENT, handleUpdate);
-    window.addEventListener("storage", handleUpdate);
-    return () => {
-      window.removeEventListener(CAMPUS_UPDATE_EVENT, handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
-    };
-  }, []);
-
-  // Compute base scale to fit the 900x810 stage exactly into the navigation frame
+  // Compute base scale to fit the stage exactly into the navigation frame
   const baseScale = useMemo(() => {
     if (!viewportSize.width || !viewportSize.height) return 1;
     return Math.min((viewportSize.width - 24) / W, (viewportSize.height - 24) / H);
-  }, [viewportSize]);
+  }, [viewportSize, W, H]);
 
   const currentScale = baseScale * userZoom;
 
@@ -129,29 +119,32 @@ export function CampusMap({
 
     updateFit();
     if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(updateFit);
-      observer.observe(el);
-      return () => observer.disconnect();
+      const ro = new ResizeObserver(updateFit);
+      ro.observe(el);
+      return () => ro.disconnect();
     }
     return undefined;
-  }, []);
+  }, [W, H]);
 
-  // Smoothly center and slightly zoom into a location
   const centerOnLocation = useCallback(
-    (loc: { x: number; y: number }, targetZoomLevel = 1.65) => {
-      if (!viewportRef.current) return;
-      const { clientWidth: vw, clientHeight: vh } = viewportRef.current;
+    (loc: CampusLocation, targetZoom = 1.65) => {
+      const el = viewportRef.current;
+      if (!el) return;
+      const vw = el.clientWidth;
+      const vh = el.clientHeight;
       if (vw <= 0 || vh <= 0) return;
 
       const base = Math.min((vw - 24) / W, (vh - 24) / H);
-      const newScale = base * targetZoomLevel;
-      const targetPanX = vw / 2 - loc.x * newScale;
-      const targetPanY = vh / 2 - loc.y * newScale;
+      const targetZoomLevel = Math.max(1.0, Math.min(3.0, targetZoom));
+      const scale = base * targetZoomLevel;
+
+      const targetPanX = vw / 2 - loc.x * scale;
+      const targetPanY = vh / 2 - loc.y * scale;
 
       setUserZoom(targetZoomLevel);
       setPan({ x: targetPanX, y: targetPanY });
     },
-    [],
+    [W, H],
   );
 
   // Sync selection info & center when selected from list
@@ -172,7 +165,6 @@ export function CampusMap({
   }, [selectedId, locations, centerOnLocation]);
 
   useEffect(() => {
-    // Initial mount flag clears after first frame
     const timer = setTimeout(() => {
       isInitialMountRef.current = false;
     }, 100);
@@ -207,14 +199,14 @@ export function CampusMap({
         return;
       }
 
-      const res = routeBetween(startId, endId, junctions, edges, locations);
+      const res = routeBetween(startId, endId, mapData.junctions, mapData.edges, locations);
       setRoutePoints(res.points);
 
       const fromName = locations.find((l) => l.id === startId)?.name ?? startId;
       const toName = locations.find((l) => l.id === endId)?.name ?? endId;
       setInfo(`${fromName} → ${toName} · ${formatDistance(res.totalLength)}`);
     },
-    [fromId, toId, junctions, edges, locations],
+    [fromId, toId, mapData.junctions, mapData.edges, locations],
   );
 
   const handleClearRoute = useCallback(() => {
@@ -240,7 +232,7 @@ export function CampusMap({
         });
       }
     }
-  }, [defaultFromId, defaultToId]);
+  }, [defaultFromId, defaultToId, W, H]);
 
   useEffect(() => {
     if (resetTrigger > 0) {
@@ -248,150 +240,57 @@ export function CampusMap({
     }
   }, [resetTrigger, handleResetView]);
 
-  const handleRouteToSelected = useCallback(
-    (targetId: string) => {
-      setToId(targetId);
-      handleShowRoute(fromId, targetId);
-    },
-    [fromId, handleShowRoute],
-  );
-
-  // Zoom controls
-  const handleZoomIn = useCallback(() => {
-    if (!viewportRef.current) return;
-    const { clientWidth: vw, clientHeight: vh } = viewportRef.current;
-    if (vw <= 0 || vh <= 0) return;
-
-    const base = Math.min((vw - 24) / W, (vh - 24) / H);
-    const nextUserZoom = Math.min(3.5, userZoom + 0.35);
-    const nextScale = base * nextUserZoom;
-
-    const mapCenterX = (vw / 2 - pan.x) / currentScale;
-    const mapCenterY = (vh / 2 - pan.y) / currentScale;
-
-    const nextPanX = vw / 2 - mapCenterX * nextScale;
-    const nextPanY = vh / 2 - mapCenterY * nextScale;
-
-    setUserZoom(nextUserZoom);
-    setPan({ x: nextPanX, y: nextPanY });
-  }, [userZoom, pan, currentScale]);
-
-  const handleZoomOut = useCallback(() => {
-    if (!viewportRef.current) return;
-    const { clientWidth: vw, clientHeight: vh } = viewportRef.current;
-    if (vw <= 0 || vh <= 0) return;
-
-    const base = Math.min((vw - 24) / W, (vh - 24) / H);
-    const nextUserZoom = Math.max(1.0, userZoom - 0.35);
-
-    if (nextUserZoom <= 1.02) {
-      setUserZoom(1.0);
-      setPan({
-        x: (vw - W * base) / 2,
-        y: (vh - H * base) / 2,
-      });
-      return;
-    }
-
-    const nextScale = base * nextUserZoom;
-    const mapCenterX = (vw / 2 - pan.x) / currentScale;
-    const mapCenterY = (vh / 2 - pan.y) / currentScale;
-
-    const nextPanX = vw / 2 - mapCenterX * nextScale;
-    const nextPanY = vh / 2 - mapCenterY * nextScale;
-
-    setUserZoom(nextUserZoom);
-    setPan({ x: nextPanX, y: nextPanY });
-  }, [userZoom, pan, currentScale]);
-
-  // Pointer drag handling for pan
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+  // Touch & Pointer pan handlers
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Only drag with left click or touch
     if (e.button !== 0) return;
     isDraggingRef.current = true;
     hasMovedRef.current = false;
     pointerStartRef.current = { x: e.clientX, y: e.clientY };
     panStartRef.current = { ...pan };
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // Fallback
-    }
     setIsPanning(true);
-  }, [pan]);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDraggingRef.current) return;
     const dx = e.clientX - pointerStartRef.current.x;
     const dy = e.clientY - pointerStartRef.current.y;
-    if (Math.hypot(dx, dy) > 4) {
+
+    if (Math.hypot(dx, dy) > 5) {
       hasMovedRef.current = true;
     }
+
     setPan({
       x: panStartRef.current.x + dx,
       y: panStartRef.current.y + dy,
     });
-  }, []);
+  };
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (isDraggingRef.current) {
-      isDraggingRef.current = false;
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {
-        // Fallback
-      }
-      setIsPanning(false);
-    }
-  }, []);
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    setIsPanning(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+  };
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  // Zoom buttons (+ and -)
+  const handleZoomIn = () => {
+    setUserZoom((prev) => Math.min(3.0, prev + 0.35));
+  };
+
+  const handleZoomOut = () => {
+    setUserZoom((prev) => Math.max(1.0, prev - 0.35));
+  };
+
+  // Wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    if (!viewportRef.current) return;
-    const { clientWidth: vw, clientHeight: vh } = viewportRef.current;
-    if (vw <= 0 || vh <= 0) return;
-
-    const base = Math.min((vw - 24) / W, (vh - 24) / H);
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-    const nextUserZoom = Math.min(3.5, Math.max(1.0, userZoom * zoomFactor));
-
-    if (nextUserZoom <= 1.02) {
-      setUserZoom(1.0);
-      setPan({
-        x: (vw - W * base) / 2,
-        y: (vh - H * base) / 2,
-      });
-      return;
-    }
-
-    const rect = viewportRef.current.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const cursorY = e.clientY - rect.top;
-
-    const mapX = (cursorX - pan.x) / currentScale;
-    const mapY = (cursorY - pan.y) / currentScale;
-
-    const nextScale = base * nextUserZoom;
-    const nextPanX = cursorX - mapX * nextScale;
-    const nextPanY = cursorY - mapY * nextScale;
-
-    setUserZoom(nextUserZoom);
-    setPan({ x: nextPanX, y: nextPanY });
-  }, [userZoom, pan, currentScale]);
-
-  const handlePlacePinClick = useCallback(
-    (loc: CampusLocation, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (hasMovedRef.current) return;
-      onSelect(loc);
-      centerOnLocation(loc, 1.65);
-    },
-    [onSelect, centerOnLocation],
-  );
-
-  const routePointsString = useMemo(
-    () => routePoints.map((pt) => `${pt[0]},${pt[1]}`).join(" "),
-    [routePoints],
-  );
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.88;
+    setUserZoom((prev) => Math.min(3.0, Math.max(1.0, prev * zoomFactor)));
+  };
 
   return (
     <section className="campus-map-section" aria-label={siteContent.campusPage.mapTitle}>
@@ -434,82 +333,32 @@ export function CampusMap({
           <div
             className="campus-map-stage"
             style={{
+              width: `${W}px`,
+              height: `${H}px`,
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${currentScale})`,
               transformOrigin: "0 0",
               transition: isPanning ? "none" : "transform 0.35s cubic-bezier(0.2, 0, 0, 1)",
             }}
           >
-            <img
-              src={mapImage}
-              alt="Arunai Engineering College campus satellite map"
-              className="campus-map-image"
-              draggable={false}
+            {/* ONE shared component: CampusMapStage */}
+            <CampusMapStage
+              mapData={mapData}
+              versionedImageSrc={versionedImageSrc}
+              version={version}
+              selectedId={selectedId}
+              onSelectLocation={(loc) => {
+                if (hasMovedRef.current) return;
+                onSelect(loc);
+                centerOnLocation(loc, 1.65);
+              }}
+              routePoints={routePoints}
+              hiddenCategories={hiddenCategories}
+              showPins={true}
+              showNodes={false}
+              showEdges={false}
+              showRing={false}
+              showLabels={true}
             />
-
-            {/* Navigation route polyline only - no raw network nodes/edges */}
-            <svg
-              className="campus-map-route"
-              viewBox={`0 0 ${W} ${H}`}
-              aria-hidden="true"
-            >
-              {routePoints.length > 1 && (
-                <>
-                  <polyline
-                    points={routePointsString}
-                    fill="none"
-                    stroke="#FFFFFF"
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <polyline
-                    points={routePointsString}
-                    fill="none"
-                    stroke="var(--accent, #8B1E2D)"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeDasharray="16 10"
-                  />
-                </>
-              )}
-            </svg>
-
-            {/* Place Markers placed at exact coordinates as marked in campus-editor */}
-            {locations.map((loc) => {
-              if (hiddenCategories.has(loc.category)) return null;
-              const isSelected = loc.id === selectedId;
-
-              return (
-                <div
-                  key={loc.id}
-                  className={`campus-marker-wrapper ${isSelected ? "is-selected" : ""}`}
-                  style={{
-                    left: `${loc.x}px`,
-                    top: `${loc.y}px`,
-                  }}
-                >
-                  <button
-                    type="button"
-                    className={`campus-marker-hit-area ${isSelected ? "is-selected" : ""}`}
-                    onClick={(e) => handlePlacePinClick(loc, e)}
-                    aria-label={loc.name}
-                    aria-pressed={isSelected}
-                    title={loc.name}
-                  >
-                    <span
-                      className={`campus-marker-dot ${isSelected ? "is-selected" : ""}`}
-                      style={{
-                        backgroundColor: categoryColors[loc.category] || "var(--accent, #8B1E2D)",
-                      }}
-                    />
-                    <span className={`campus-marker-label ${isSelected ? "is-selected" : ""}`}>
-                      {loc.name}
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
           </div>
         </div>
 
@@ -522,7 +371,7 @@ export function CampusMap({
             aria-label="Zoom in"
             title="Zoom in"
           >
-            <ZoomIn className="size-5" strokeWidth={1.5} aria-hidden="true" />
+            <ZoomIn className="size-5" />
           </button>
           <button
             type="button"
@@ -530,132 +379,85 @@ export function CampusMap({
             onClick={handleZoomOut}
             aria-label="Zoom out"
             title="Zoom out"
-            disabled={userZoom <= 1.02}
           >
-            <ZoomOut className="size-5" strokeWidth={1.5} aria-hidden="true" />
+            <ZoomOut className="size-5" />
           </button>
           <button
             type="button"
-            className="campus-control-btn campus-reset-btn"
+            className="campus-control-btn"
             onClick={handleResetView}
             aria-label="Reset view"
             title="Reset view"
           >
-            <RotateCcw className="size-5" strokeWidth={1.5} aria-hidden="true" />
-            <span>Reset view</span>
+            <RotateCcw className="size-5" />
           </button>
         </div>
+
+        {/* Selected location details drawer or banner */}
+        {selectedLocation && (
+          <div className="campus-selected-popup" role="dialog" aria-label="Selected place info">
+            <div className="campus-selected-popup-header">
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-3 rounded-full"
+                  style={{
+                    backgroundColor: categoryColors[selectedLocation.category] || "var(--accent)",
+                  }}
+                  aria-hidden="true"
+                />
+                <h3 className="font-semibold text-foreground text-sm sm:text-base">
+                  {selectedLocation.name}
+                </h3>
+              </div>
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close place details"
+                  className="rounded-lg p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
+            {selectedLocation.description && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selectedLocation.description}
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 text-xs font-semibold text-white shadow-xs hover:bg-accent-hover cursor-pointer"
+                onClick={() => handleShowRoute(KIOSK_START_NAME, selectedLocation.id)}
+              >
+                Directions from Main Gate
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-2 cursor-pointer"
+                onClick={() => handleShowRoute(selectedLocation.id, "l11")}
+              >
+                Directions to AI&amp;DS
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Directions controls card */}
-      <section className="campus-directions-card" aria-label="Campus route directions">
-        <div className="campus-directions-grid">
-          <label className="campus-directions-field">
-            <span>From</span>
-            <select
-              value={fromId}
-              onChange={(e) => setFromId(e.target.value)}
-              className="campus-directions-select"
-              aria-label="Starting location"
-            >
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="campus-directions-field">
-            <span>To</span>
-            <select
-              value={toId}
-              onChange={(e) => setToId(e.target.value)}
-              className="campus-directions-select"
-              aria-label="Destination location"
-            >
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="campus-selected-actions">
+      {/* Info card at bottom */}
+      <div className="campus-map-info-card" role="status" aria-live="polite">
+        <p className="text-sm font-medium text-foreground">{info}</p>
+        {routePoints.length > 0 && (
           <button
             type="button"
-            className="campus-action-btn campus-btn-primary"
-            onClick={() => handleShowRoute()}
-          >
-            Show route
-          </button>
-          <button
-            type="button"
-            className="campus-action-btn campus-btn-secondary"
             onClick={handleClearRoute}
+            className="text-xs text-accent hover:underline font-semibold"
           >
             Clear route
           </button>
-        </div>
-
-        <p className="campus-directions-info" role="status">
-          {info}
-        </p>
-      </section>
-
-      {/* Selected-place card */}
-      {selectedLocation && (
-        <article
-          className="campus-selected-card"
-          aria-label={`Details for ${selectedLocation.name}`}
-        >
-          <div className="campus-selected-card-header">
-            <div>
-              <h3 className="campus-selected-card-title">{selectedLocation.name}</h3>
-              <div className="campus-selected-badges">
-                <span
-                  className="campus-category-badge"
-                  style={{
-                    borderColor: categoryColors[selectedLocation.category],
-                    color: categoryColors[selectedLocation.category],
-                  }}
-                >
-                  {categoryLabels[selectedLocation.category]}
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="campus-card-close-btn"
-              onClick={() => onClose?.()}
-              aria-label="Close location details"
-              title="Close"
-            >
-              <X className="size-5" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-          </div>
-
-          <div className="campus-selected-actions">
-            <button
-              type="button"
-              className="campus-action-btn campus-btn-primary"
-              onClick={() => handleRouteToSelected(selectedLocation.id)}
-            >
-              {siteContent.campusPage.directionsLabel}
-            </button>
-            <button
-              type="button"
-              onClick={() => onClose?.()}
-              className="campus-action-btn campus-btn-secondary"
-              aria-label="Close"
-            >
-              Close
-            </button>
-          </div>
-        </article>
-      )}
+        )}
+      </div>
     </section>
   );
 }

@@ -72,6 +72,26 @@ function TimetablePage() {
           hours: data.hours,
         }));
 
+  const hasAnySchedule = fullWeekDays.some((d) => d.hours.some((h) => !h.isFree));
+
+  if (!hasAnySchedule) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+        <PageBanner
+          title="Weekly Timetable"
+          subtitle="Complete weekly schedule (Monday to Saturday)"
+          icon={CalendarDays}
+        />
+        <div className="grid flex-1 place-items-center rounded-xl border border-border bg-surface p-8 text-center text-muted-foreground">
+          <EmptyState
+            title="No timetable available."
+            description={`No timetable has been published for Class ${studentClass}.`}
+          />
+        </div>
+      </div>
+    );
+  }
+
   const visibleDays =
     selectedDay === "ALL"
       ? fullWeekDays

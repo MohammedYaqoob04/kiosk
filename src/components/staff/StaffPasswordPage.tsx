@@ -262,10 +262,10 @@ export function StaffPasswordPage() {
             type="button"
             disabled={!canSubmit}
             onClick={submit}
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-50"
+            className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 text-base font-semibold text-white shadow-xs hover:bg-accent-hover disabled:opacity-50 cursor-pointer"
           >
-            <ShieldCheck className="size-4" />
-            <span>{submitting ? "Updating Password..." : "Update Password"}</span>
+            <ShieldCheck className="size-5" />
+            <span>{submitting ? "Saving Changed Password..." : "Save Changed Password"}</span>
           </button>
         </div>
 
@@ -298,6 +298,16 @@ export function StaffPasswordPage() {
             passwordVisible={activeVisible}
             onTogglePassword={toggleActiveVisibility}
           />
+
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={submit}
+            className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 text-base font-semibold text-white shadow-xs hover:bg-accent-hover disabled:opacity-50 cursor-pointer mt-2"
+          >
+            <ShieldCheck className="size-5" />
+            <span>{submitting ? "Saving Changed Password..." : "Save Changed Password"}</span>
+          </button>
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ function MyStudents() {
   return (
     <StudentsPage
       regNo={regNo}
+      onSelectRegNo={(selected) => void navigate({ search: { regNo: selected }, replace: true })}
       onBack={() => void navigate({ search: { regNo: undefined }, replace: true })}
     />
   );
