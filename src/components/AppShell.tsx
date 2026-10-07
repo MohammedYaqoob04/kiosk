@@ -56,6 +56,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
   const isErpChooser = pathname === "/erp";
   const isErpWorkspace = pathname.startsWith("/erp/") && !isLogin;
   const isPassword = pathname === "/erp/password";
+  const isCampus = pathname.startsWith("/campus");
 
   useEffect(() => {
     document.documentElement.classList.toggle("idle-warning", warningOpen);
@@ -67,9 +68,9 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
   return (
     <AccessibilityPanelContext.Provider value={openAccessibility}>
       <div
-        className={`app-shell ${isMenu ? "app-shell-menu" : ""} ${isHome ? "app-shell-home" : ""}`}
+        className={`app-shell ${isMenu ? "app-shell-menu" : ""} ${isHome ? "app-shell-home" : ""} ${isCampus ? "app-shell-campus" : ""}`}
       >
-        {!isErpWorkspace && !isHome && !isLogin && !isErpChooser && (
+        {!isErpWorkspace && !isHome && !isLogin && !isErpChooser && !isCampus && (
           <header className="app-header">
             <div className="app-header-left">
               {leftSlot ??
@@ -136,7 +137,7 @@ export function AppShell({ leftSlot, rightSlot, footer }: AppShellProps) {
           <Outlet />
         </main>
 
-        {isLogin || isPassword || isErpWorkspace || isErpChooser ? null : footer ? (
+        {isLogin || isPassword || isErpWorkspace || isErpChooser || isCampus ? null : footer ? (
           <footer className="app-footer">{footer}</footer>
         ) : (
           !isHome && (

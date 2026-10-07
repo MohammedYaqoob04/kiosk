@@ -42,19 +42,25 @@ export function SiteHeader({ campus = false }: { campus?: boolean }) {
         </a>
       )}
 
-      <nav className="site-nav" aria-label={siteContent.header.mainNavigationLabel}>
-        {navItems.map((item) =>
-          item.href === "/campus" ? (
-            <Link key={item.href} to="/campus" activeProps={{ className: "is-active" }}>
-              {item.label}
-            </Link>
-          ) : (
-            <a key={item.href} href={navHref(item.href)}>
-              {item.label}
-            </a>
-          ),
-        )}
-      </nav>
+      {campus ? (
+        <div className="site-header-campus-title">
+          {siteContent.shortInstitutionName} Kiosk
+        </div>
+      ) : (
+        <nav className="site-nav" aria-label={siteContent.header.mainNavigationLabel}>
+          {navItems.map((item) =>
+            item.href === "/campus" ? (
+              <Link key={item.href} to="/campus" activeProps={{ className: "is-active" }}>
+                {item.label}
+              </Link>
+            ) : (
+              <a key={item.href} href={navHref(item.href)}>
+                {item.label}
+              </a>
+            ),
+          )}
+        </nav>
+      )}
 
       <div className="site-header-actions">
         <Link className="site-button site-button-primary site-header-login" to="/erp">
@@ -68,18 +74,20 @@ export function SiteHeader({ campus = false }: { campus?: boolean }) {
         >
           <Accessibility aria-hidden="true" className="size-6" strokeWidth={1.5} />
         </button>
-        <button
-          type="button"
-          className="site-menu-toggle"
-          aria-label={menuOpen ? siteContent.header.menuCloseLabel : siteContent.header.menuOpenLabel}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          {menuOpen ? <X strokeWidth={1.5} /> : <Menu strokeWidth={1.5} />}
-        </button>
+        {!campus && (
+          <button
+            type="button"
+            className="site-menu-toggle"
+            aria-label={menuOpen ? siteContent.header.menuCloseLabel : siteContent.header.menuOpenLabel}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? <X strokeWidth={1.5} /> : <Menu strokeWidth={1.5} />}
+          </button>
+        )}
       </div>
 
-      {menuOpen && (
+      {!campus && menuOpen && (
         <nav className="site-mobile-nav" aria-label={siteContent.header.mobileNavigationLabel}>
           {navItems.map((item) =>
             item.href === "/campus" ? (

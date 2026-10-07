@@ -32,12 +32,22 @@ declare namespace google {
       [key: string]: any;
     }
 
+    class LatLngBounds {
+      constructor(sw?: { lat: number; lng: number }, ne?: { lat: number; lng: number });
+      extend(point: { lat: number; lng: number }): LatLngBounds;
+      isEmpty(): boolean;
+    }
+
     class Map {
       constructor(mapDiv: HTMLElement, opts?: MapOptions);
       getZoom(): number | undefined;
       setZoom(zoom: number): void;
       setCenter(latLng: { lat: number; lng: number }): void;
       panTo(latLng: { lat: number; lng: number }): void;
+      fitBounds(
+        bounds: LatLngBounds,
+        padding?: number | { top?: number; right?: number; bottom?: number; left?: number },
+      ): void;
       addListener(eventName: string, handler: (e: any) => void): any;
     }
 
@@ -50,6 +60,7 @@ declare namespace google {
         strokeWeight?: number;
         clickable?: boolean;
         zIndex?: number;
+        icons?: any[];
         [key: string]: any;
       });
       setMap(map: Map | null): void;
@@ -67,11 +78,15 @@ declare namespace google {
       Map: typeof Map;
     }
 
+    interface CoreLibrary {
+      LatLngBounds: typeof LatLngBounds;
+    }
+
     namespace marker {
       class AdvancedMarkerElement {
         constructor(options?: {
           map?: Map | null;
-          position?: { lat: number | null; lng: number | null };
+          position?: { lat: number | null; lng: number | null } | undefined;
           title?: string;
           content?: HTMLElement;
           zIndex?: number;

@@ -18,9 +18,37 @@ body:has(.campus-page) {
 }
 
 .site-header-campus {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   border-bottom-color: var(--border);
   background: var(--bg-base);
   color: var(--text);
+}
+
+.site-header-campus-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  font-family: var(--font-display, "Sora", sans-serif);
+  font-size: clamp(16px, 1.8vw, 22px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: calc(100% - 360px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .site-header-campus-title {
+    font-size: 14px;
+    max-width: calc(100% - 220px);
+  }
 }
 
 .site-header-back {
@@ -406,6 +434,429 @@ body:has(.campus-page) {
   background: var(--surface-2);
 }
 
+/* Directions Panel */
+.campus-directions-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.campus-directions-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.campus-direction-field-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.campus-route-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  flex: 1;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.15s;
+}
+
+.campus-route-field:active {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.campus-route-field.is-empty {
+  color: var(--text-muted);
+}
+
+.campus-route-field-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.campus-swap-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: 56px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.15s;
+}
+
+.campus-swap-btn:active {
+  background: var(--surface-2);
+}
+
+.campus-directions-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.campus-quick-chips-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.campus-quick-chips-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.campus-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.campus-quick-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.campus-quick-chip:active {
+  background: var(--bg-tint-3);
+  border-color: var(--accent);
+}
+
+/* Route Summary Card */
+.campus-route-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(139, 30, 45, 0.08);
+}
+
+.campus-route-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.campus-route-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.campus-route-distance {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.campus-route-time {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.campus-step-list-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.campus-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.campus-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.campus-step-item.is-arrival {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.campus-route-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #FEE2E2;
+  border: 1px solid #F87171;
+  color: #991B1B;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* Bottom sheet for place picker */
+.campus-bottom-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.campus-bottom-sheet {
+  width: min(100%, 720px);
+  max-height: 85svh;
+  background: var(--surface);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.campus-bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.campus-bottom-sheet-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.campus-bottom-sheet-content {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* QR Code Modal */
+.campus-qr-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.campus-qr-card {
+  width: min(90vw, 400px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.campus-qr-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.campus-qr-box {
+  padding: 16px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.campus-qr-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Live GPS Blue Dot Marker (Google Maps style) */
+.campus-live-gps-marker {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.campus-gps-pulse {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.35);
+  animation: gpsPulse 2s infinite ease-out;
+}
+
+.campus-gps-dot {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #2563EB;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  z-index: 2;
+}
+
+@keyframes gpsPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.campus-recenter-user-btn {
+  color: #2563EB;
+}
+
+.campus-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #DBEAFE;
+  color: #1E40AF;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.campus-live-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563EB;
+  animation: gpsPulse 1.5s infinite ease-out;
+}
+
+.campus-gmaps-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.15s;
+}
+
+.campus-gmaps-btn:hover {
+  background: var(--surface-2);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .campus-bottom-sheet {
+    animation: none;
+  }
+  .campus-legend-chip,
+  .campus-location-item,
+  .campus-route-field {
+    transition: none;
+  }
+  .campus-gps-pulse,
+  .campus-live-indicator-dot {
+    animation: none;
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 900px) {
   .campus-page {
@@ -429,3 +880,4 @@ body:has(.campus-page) {
     height: 420px;
   }
 }
+
