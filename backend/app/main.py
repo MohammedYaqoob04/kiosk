@@ -5,8 +5,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .config import get_settings
-from .routers import audit_log, auth, hod, leave, notices, staff, student
+import os
+import sys
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _BASE_DIR not in sys.path:
+    sys.path.insert(0, _BASE_DIR)
+
+try:
+    from .config import get_settings
+    from .routers import audit_log, auth, hod, leave, notices, staff, student
+except ImportError:
+    from app.config import get_settings
+    from app.routers import audit_log, auth, hod, leave, notices, staff, student
+
 
 settings = get_settings()
 is_prod = settings.env == "production"
