@@ -101,6 +101,9 @@ def _resolve_recipients(db: Session, user: User, atype: AudienceType, value: str
     raise HTTPException(403, {"code": "FORBIDDEN", "message": "HODs cannot use this audience."})
 
 
+MAX_TOTAL_ATTACHMENTS_BYTES = 4 * 1024 * 1024
+
+
 @router.post("", status_code=201)
 async def create_notice(
     title: str = Form(..., max_length=200),
@@ -133,9 +136,18 @@ async def create_notice(
     uploads = [f for f in files if f.filename or f.size]
     if len(uploads) > s.max_attachments:
         raise HTTPException(422, {"code": "TOO_MANY_FILES", "message": f"Attach at most {s.max_attachments} files."})
-    checked = []
+    raw_files = []
+    total_bytes = 0
     for f in uploads:
-        data = await f.read(s.max_upload_bytes + 1)
+        data = await f.read(MAX_TOTAL_ATTACHMENTS_BYTES + 1)
+        total_bytes += len(data)
+        raw_files.append((f, data))
+
+    if total_bytes > MAX_TOTAL_ATTACHMENTS_BYTES:
+        raise HTTPException(422, {"code": "TOO_LARGE", "message": "Total attachments must be 4 MB or smaller."})
+
+    checked = []
+    for f, data in raw_files:
         try:
             checked.append((*filesvc.validate_upload(f.filename, data), data))
         except filesvc.UploadError as e:

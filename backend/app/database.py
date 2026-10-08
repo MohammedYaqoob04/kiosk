@@ -1,7 +1,7 @@
 """Database engine and session. SQLite for local dev, PostgreSQL for production."""
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from .config import get_settings
 
@@ -15,15 +15,26 @@ def normalize_url(url: str) -> str:
     return url
 
 
-DATABASE_URL = normalize_url(get_settings().database_url)
+def get_engine_kwargs(url: str, serverless: bool = False) -> dict:
+    normalized = normalize_url(url)
+    kwargs: dict = {}
+    if normalized.startswith("sqlite"):
+        kwargs["connect_args"] = {"check_same_thread": False}
+        if normalized in ("sqlite://", "sqlite:///:memory:"):
+            kwargs["poolclass"] = StaticPool  # one shared in-memory DB (tests)
+    else:
+        if serverless:
+            kwargs["poolclass"] = NullPool
+            kwargs["connect_args"] = {"prepare_threshold": None}
+        else:
+            kwargs["pool_pre_ping"] = True
+    return kwargs
+
+
+_settings = get_settings()
+DATABASE_URL = normalize_url(_settings.database_url)
 _is_sqlite = DATABASE_URL.startswith("sqlite")
-_kwargs: dict = {}
-if _is_sqlite:
-    _kwargs["connect_args"] = {"check_same_thread": False}
-    if DATABASE_URL in ("sqlite://", "sqlite:///:memory:"):
-        _kwargs["poolclass"] = StaticPool  # one shared in-memory DB (tests)
-else:
-    _kwargs["pool_pre_ping"] = True
+_kwargs = get_engine_kwargs(DATABASE_URL, _settings.db_serverless)
 
 engine = create_engine(DATABASE_URL, **_kwargs)
 

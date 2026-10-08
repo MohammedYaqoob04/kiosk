@@ -124,3 +124,24 @@ def test_withdraw_and_expiry_and_pin_order(client, world):
     assert client.get(f"{API}/notices/sent", headers=c1).json()[0]["withdrawn"] is True
     assert [n["title"] for n in inbox(client, s1, category="Event")]  # category filter works
     assert inbox(client, s1, category="Exam") == []
+
+
+def test_attachments_total_over_4mb_rejected(client, world):
+    c1 = as_staff(client, world["c1"])
+    chunk = 1500 * 1024
+    files_over = [
+        ("a.pdf", PDF + b"0" * (chunk - len(PDF)), "application/pdf"),
+        ("b.png", PNG + b"0" * (chunk - len(PNG)), "image/png"),
+        ("c.jpg", JPG + b"0" * (chunk - len(JPG)), "image/jpeg"),
+    ]
+    r = send(client, c1, files=files_over)
+    assert r.status_code == 422
+    assert r.json()["code"] == "TOO_LARGE"
+
+    files_ok = [
+        ("a.pdf", PDF + b"0" * (1800 * 1024 - len(PDF)), "application/pdf"),
+        ("b.png", PNG + b"0" * (1800 * 1024 - len(PNG)), "image/png"),
+    ]
+    r_ok = send(client, c1, files=files_ok)
+    assert r_ok.status_code == 201
+

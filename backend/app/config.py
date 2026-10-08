@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     env: str = "development"  # development | test | production
     database_url: str = "sqlite:///./kiosk.db"
+    db_serverless: bool = False
     secret_key: str = DEV_SECRET
     access_token_minutes: int = 30
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost:3000"

@@ -5,6 +5,7 @@ os.environ.update({
     "ENV": "test", "DATABASE_URL": "sqlite://", "BCRYPT_ROUNDS": "4",
     "SECRET_KEY": "test-secret-key-test-secret-key-0000",
     "INITIAL_PASSWORD_FORMAT": "ddmmyyyy",
+    "STAFF_SEE_CONTACT": "false",
 })
 
 from datetime import date, timedelta  # noqa: E402
