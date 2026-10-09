@@ -65,8 +65,42 @@ def overview(user: User = Hod, db: Session = Depends(get_db)):
             below.append({"registerNo": s.register_no, "name": s.user.full_name, "section": s.section,
                           "attendancePercentage": p})
     below.sort(key=lambda r: r["attendancePercentage"])
+
+    # Real year-wise breakdown (Years 2, 3, 4)
+    year_breakdown = []
+    for y in (2, 3, 4):
+        y_students = [s for s in students if s.year_of_study == y]
+        y_count = len(y_students)
+        if y_count == 0:
+            year_breakdown.append({
+                "year": y,
+                "studentCount": 0,
+                "presentCount": None,
+                "absentCount": None,
+                "averageAttendancePercent": None,
+            })
+        else:
+            y_pcts = [pct[s.id] for s in y_students if pct.get(s.id) is not None]
+            p_cnt = sum(1 for p in y_pcts if p >= 75) if y_pcts else None
+            a_cnt = sum(1 for p in y_pcts if p < 75) if y_pcts else None
+            avg_p = round(sum(y_pcts) / len(y_pcts), 2) if y_pcts else None
+            year_breakdown.append({
+                "year": y,
+                "studentCount": y_count,
+                "presentCount": p_cnt,
+                "absentCount": a_cnt,
+                "averageAttendancePercent": avg_p,
+            })
+
+    all_pcts = [p for p in pct.values() if p is not None]
+    dept_present = sum(1 for p in all_pcts if p >= 75) if all_pcts else None
+    dept_absent = sum(1 for p in all_pcts if p < 75) if all_pcts else None
+    dept_avg = round(sum(all_pcts) / len(all_pcts), 2) if all_pcts else None
+    faculty_list = _dept_counsellors(db, user)
+
     return {
         "cards": {"pendingApprovals": len(pending_rows), "totalStudents": len(students),
+                  "totalFaculty": len(faculty_list),
                   "belowMinAttendance": len(below), "leaveThisMonth": leave_month or 0,
                   "noticesSent": notices_sent or 0},
         "attendanceBySection": [
@@ -75,6 +109,37 @@ def overview(user: User = Hod, db: Session = Depends(get_db)):
             for k in sorted(counts)],
         "belowMinStudents": below,
         "pendingApprovals": [serialize_leave(db, r, context=True) for r in pending_rows[:50]],  # oldest first
+        "yearBreakdown": year_breakdown,
+        "departmentSummary": {
+            "totalStudents": len(students),
+            "totalFaculty": len(faculty_list),
+            "presentCount": dept_present,
+            "absentCount": dept_absent,
+            "averageAttendancePercent": dept_avg,
+            "passPercentage": None,  # Honest empty state: no exam marks in dataset
+        },
+    }
+
+
+@router.get("/analytics")
+def analytics(user: User = Hod, db: Session = Depends(get_db)):
+    students = _dept_students(db, user)
+    pct = attendance_by_student(db, [s.id for s in students])
+    all_pcts = [p for p in pct.values() if p is not None]
+    dept_avg = round(sum(all_pcts) / len(all_pcts), 2) if all_pcts else None
+    counsellors = _dept_counsellors(db, user)
+
+    dept_leaves = select(LeaveRequest).join(Student, Student.id == LeaveRequest.student_id).where(
+        Student.department_id == user.department_id)
+    pending_approvals = db.scalar(select(func.count()).select_from(dept_leaves.where(
+        LeaveRequest.status.in_([LeaveStatus.PENDING_HOD, LeaveStatus.PENDING_COUNSELLOR])).subquery())) or 0
+
+    return {
+        "totalStudents": len(students),
+        "totalFaculty": len(counsellors),
+        "overallAttendancePercent": dept_avg,
+        "passPercentage": None,  # None when no real exam data is available
+        "pendingApprovals": pending_approvals,
     }
 
 
@@ -92,12 +157,88 @@ def counsellors(user: User = Hod, db: Session = Depends(get_db)):
 
 
 @router.get("/students")
-def students(user: User = Hod, db: Session = Depends(get_db)):
+def students(year: int | None = Query(None), user: User = Hod, db: Session = Depends(get_db)):
     rows = _dept_students(db, user)
+    if year is not None:
+        rows = [s for s in rows if s.year_of_study == year]
     pct = attendance_by_student(db, [s.id for s in rows])
     return [{**student_out(s, pct.get(s.id)),
-             "counsellor": {"id": s.counsellor.username, "name": s.counsellor.full_name} if s.counsellor else None}
+             "counsellor": {"id": s.counsellor.username, "staffId": s.counsellor.username, "name": s.counsellor.full_name} if s.counsellor else None}
             for s in rows]
+
+
+@router.get("/classes")
+def list_classes(user: User = Hod, db: Session = Depends(get_db)):
+    """List department classes (Years 2, 3, 4) with student counts and assigned counsellor."""
+    dept_sts = _dept_students(db, user)
+    sections = sorted(list({s.section for s in dept_sts if s.section} | {"A"}))
+    classes = []
+    for y in (2, 3, 4):
+        for sec in sections:
+            matching = [s for s in dept_sts if s.year_of_study == y and (s.section == sec or (not s.section and sec == "A"))]
+            counsellor = None
+            for s in matching:
+                if s.counsellor:
+                    counsellor = {"id": s.counsellor.username, "staffId": s.counsellor.username, "name": s.counsellor.full_name}
+                    break
+            classes.append({
+                "year": y,
+                "section": sec,
+                "className": f"Year {y} - {user.department.code} - Section {sec}",
+                "studentCount": len(matching),
+                "counsellor": counsellor,
+            })
+    return classes
+
+
+class AssignClassIn(BaseModel):
+    counsellor_id: str = Field(alias="counsellorId", min_length=1, max_length=40)
+    year: int = Field(ge=1, le=4)
+    section: str = Field(min_length=1, max_length=5)
+    model_config = {"populate_by_name": True}
+
+
+@router.post("/assign-class")
+def assign_class(body: AssignClassIn, user: User = Hod, db: Session = Depends(get_db)):
+    c = _counsellor_in_dept(db, user, body.counsellor_id)
+    sec = body.section.strip().upper()
+    sems = [body.year * 2 - 1, body.year * 2]
+    students = list(db.scalars(select(Student).where(
+        Student.department_id == user.department_id,
+        Student.semester.in_(sems),
+        (Student.section == sec) | (Student.section.is_(None))
+    )))
+    for s in students:
+        s.counsellor_id = c.id
+        s.section = sec
+    class_name = f"Year {body.year} - {user.department.code} - Section {sec}"
+    audit.log(db, user, audit.STUDENT_ASSIGN, target_type="user", target_id=c.username,
+              detail={"class": class_name, "count": len(students)})
+    db.commit()
+    return {"updated": len(students), "className": class_name, "counsellor": c.full_name}
+
+
+class UnassignClassIn(BaseModel):
+    year: int = Field(ge=1, le=4)
+    section: str = Field(min_length=1, max_length=5)
+
+
+@router.post("/unassign-class")
+def unassign_class(body: UnassignClassIn, user: User = Hod, db: Session = Depends(get_db)):
+    sec = body.section.strip().upper()
+    sems = [body.year * 2 - 1, body.year * 2]
+    students = list(db.scalars(select(Student).where(
+        Student.department_id == user.department_id,
+        Student.semester.in_(sems),
+        Student.section == sec
+    )))
+    for s in students:
+        s.counsellor_id = None
+    class_name = f"Year {body.year} - {user.department.code} - Section {sec}"
+    audit.log(db, user, audit.STUDENT_UNASSIGN, target_type="class", target_id=class_name,
+              detail={"count": len(students)})
+    db.commit()
+    return {"updated": len(students), "className": class_name}
 
 
 class AssignIn(BaseModel):
@@ -130,7 +271,6 @@ def assign(body: AssignIn, user: User = Hod, db: Session = Depends(get_db)):
     skipped = sorted(wanted - {s.register_no for s in found})
     audit.log(db, user, audit.STUDENT_ASSIGN, target_type="user", target_id=c.username, detail={"count": len(found)})
     db.commit()
-    # Requests already submitted keep their counsellor; use POST /leave/{id}/reassign for those.
     return {"updated": len(found), "skipped": skipped}
 
 

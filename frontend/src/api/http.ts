@@ -310,10 +310,26 @@ export const httpApi = {
     }),
   getHodOverview: () =>
     request<import("@/api/types").HodOverviewResponse>("/hod/overview"),
+  getHodAnalytics: () =>
+    request<import("@/api/types").HodAnalyticsResponse>("/hod/analytics"),
+  getHodClasses: () =>
+    request<import("@/api/types").HodClassItem[]>("/hod/classes"),
+  assignClass: (counsellorId: string, year: number, section: string) =>
+    request<{ updated: number; className: string; counsellor: string }>("/hod/assign-class", {
+      method: "POST",
+      body: JSON.stringify({ counsellorId, year, section }),
+    }),
+  unassignClass: (year: number, section: string) =>
+    request<{ updated: number; className: string }>("/hod/unassign-class", {
+      method: "POST",
+      body: JSON.stringify({ year, section }),
+    }),
   getHodCounsellors: () =>
     request<import("@/api/types").HodCounsellor[]>("/hod/counsellors"),
-  getHodStudents: () =>
-    request<import("@/api/types").HodStudent[]>("/hod/students"),
+  getHodStudents: (year?: number) =>
+    request<import("@/api/types").HodStudent[]>(
+      year ? `/hod/students?year=${encodeURIComponent(year)}` : "/hod/students",
+    ),
   assignStudents: (counsellorId: string, registerNos: string[]) =>
     request<import("@/api/types").AssignStudentsResponse>("/hod/assign", {
       method: "POST",

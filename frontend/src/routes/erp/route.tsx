@@ -206,12 +206,14 @@ function ErpLayout() {
           ] as const)
         : ([
             { label: "Dashboard", to: "/erp/hod" },
+            { label: "Department Overview", to: "/erp/hod/overview" },
+            { label: "Department Analytics", to: "/erp/hod/analytics" },
             { label: "Approvals", to: "/erp/hod/approvals" },
             { label: "Students & Assignment", to: "/erp/hod/students" },
-            { label: "Upload Students", to: "/erp/hod/students/upload" },
             { label: "Notices", to: "/erp/hod/notices" },
             { label: "Reports", to: "/erp/hod/reports" },
-            { label: "Activity Log", to: "/erp/hod/activity" },
+            { label: "Activity Vlog", to: "/erp/hod/activity" },
+            { label: "Change Password", to: "/erp/password" },
           ] as const);
   return (
     <div className="erp-app-shell">

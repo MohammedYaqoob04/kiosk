@@ -45,9 +45,16 @@ def _audience_string(n: Notice) -> str:
 
 
 def parse_audience(text: str) -> tuple[AudienceType, str | None, list[str]]:
-    """The kiosk's audience strings: MY_STUDENTS | ALL_STUDENTS | ALL_COUNSELLORS | SECTION:A |
+    """The kiosk's audience strings: MY_STUDENTS | ALL_STUDENTS | ALL_COUNSELLORS | BOTH | SECTION:A |
     SELECTED_STUDENTS:5104...,5104..."""
-    kind, _, value = text.strip().partition(":")
+    raw = text.strip()
+    if raw.upper() in ("BOTH", "ALL"):
+        return AudienceType.BOTH, None, []
+    if raw.upper() in ("STAFF", "FACULTY"):
+        return AudienceType.ALL_COUNSELLORS, None, []
+    if raw.upper() == "STUDENTS":
+        return AudienceType.ALL_STUDENTS, None, []
+    kind, _, value = raw.partition(":")
     try:
         atype = AudienceType(kind)
     except ValueError:
@@ -86,6 +93,14 @@ def _resolve_recipients(db: Session, user: User, atype: AudienceType, value: str
     dept = Student.department_id == user.department_id
     if atype == AudienceType.ALL_STUDENTS:
         return list(db.scalars(select(Student.user_id).where(dept)))
+    if atype == AudienceType.ALL_COUNSELLORS:
+        return list(db.scalars(select(User.id).where(
+            User.role == Role.COUNSELLOR, User.department_id == user.department_id, User.is_active.is_(True))))
+    if atype == AudienceType.BOTH:
+        student_ids = list(db.scalars(select(Student.user_id).where(dept)))
+        counsellor_ids = list(db.scalars(select(User.id).where(
+            User.role == Role.COUNSELLOR, User.department_id == user.department_id, User.is_active.is_(True))))
+        return student_ids + counsellor_ids
     if atype == AudienceType.SECTION:
         if not value or not value.strip():
             raise HTTPException(422, {"code": "INVALID", "message": "Choose a section."})
@@ -95,9 +110,6 @@ def _resolve_recipients(db: Session, user: User, atype: AudienceType, value: str
         if len(ids) != len(set(reg_nos)):
             raise HTTPException(403, {"code": "FORBIDDEN", "message": "Some students are not in your department."})
         return ids
-    if atype == AudienceType.ALL_COUNSELLORS:
-        return list(db.scalars(select(User.id).where(
-            User.role == Role.COUNSELLOR, User.department_id == user.department_id, User.is_active.is_(True))))
     raise HTTPException(403, {"code": "FORBIDDEN", "message": "HODs cannot use this audience."})
 
 

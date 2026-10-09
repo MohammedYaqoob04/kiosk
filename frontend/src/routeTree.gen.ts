@@ -45,8 +45,10 @@ import { Route as LoginHodRouteImport } from './routes/login.hod'
 import { Route as LoginStaffRouteImport } from './routes/login.staff'
 import { Route as LoginStudentRouteImport } from './routes/login.student'
 import { Route as ErpHodActivityRouteImport } from './routes/erp/hod.activity'
+import { Route as ErpHodAnalyticsRouteImport } from './routes/erp/hod.analytics'
 import { Route as ErpHodApprovalsRouteImport } from './routes/erp/hod.approvals'
 import { Route as ErpHodNoticesRouteImport } from './routes/erp/hod.notices'
+import { Route as ErpHodOverviewRouteImport } from './routes/erp/hod.overview'
 import { Route as ErpHodReportsRouteImport } from './routes/erp/hod.reports'
 import { Route as ErpHodStudentsRouteImport } from './routes/erp/hod.students'
 import { Route as ErpStaffAnnouncementsRouteImport } from './routes/erp/staff.announcements'
@@ -240,6 +242,11 @@ const ErpHodActivityRoute = ErpHodActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => ErpHodRoute,
 } as any)
+const ErpHodAnalyticsRoute = ErpHodAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => ErpHodRoute,
+} as any)
 const ErpHodApprovalsRoute = ErpHodApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
@@ -248,6 +255,11 @@ const ErpHodApprovalsRoute = ErpHodApprovalsRouteImport.update({
 const ErpHodNoticesRoute = ErpHodNoticesRouteImport.update({
   id: '/notices',
   path: '/notices',
+  getParentRoute: () => ErpHodRoute,
+} as any)
+const ErpHodOverviewRoute = ErpHodOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
   getParentRoute: () => ErpHodRoute,
 } as any)
 const ErpHodReportsRoute = ErpHodReportsRouteImport.update({
@@ -348,8 +360,10 @@ export interface FileRoutesByFullPath {
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
   '/erp/hod/activity': typeof ErpHodActivityRoute
+  '/erp/hod/analytics': typeof ErpHodAnalyticsRoute
   '/erp/hod/approvals': typeof ErpHodApprovalsRoute
   '/erp/hod/notices': typeof ErpHodNoticesRoute
+  '/erp/hod/overview': typeof ErpHodOverviewRoute
   '/erp/hod/reports': typeof ErpHodReportsRoute
   '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
@@ -400,8 +414,10 @@ export interface FileRoutesByTo {
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
   '/erp/hod/activity': typeof ErpHodActivityRoute
+  '/erp/hod/analytics': typeof ErpHodAnalyticsRoute
   '/erp/hod/approvals': typeof ErpHodApprovalsRoute
   '/erp/hod/notices': typeof ErpHodNoticesRoute
+  '/erp/hod/overview': typeof ErpHodOverviewRoute
   '/erp/hod/reports': typeof ErpHodReportsRoute
   '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
@@ -453,8 +469,10 @@ export interface FileRoutesById {
   '/login/staff': typeof LoginStaffRoute
   '/login/student': typeof LoginStudentRoute
   '/erp/hod/activity': typeof ErpHodActivityRoute
+  '/erp/hod/analytics': typeof ErpHodAnalyticsRoute
   '/erp/hod/approvals': typeof ErpHodApprovalsRoute
   '/erp/hod/notices': typeof ErpHodNoticesRoute
+  '/erp/hod/overview': typeof ErpHodOverviewRoute
   '/erp/hod/reports': typeof ErpHodReportsRoute
   '/erp/hod/students': typeof ErpHodStudentsRouteWithChildren
   '/erp/staff/announcements': typeof ErpStaffAnnouncementsRoute
@@ -507,8 +525,10 @@ export interface FileRouteTypes {
     | '/login/staff'
     | '/login/student'
     | '/erp/hod/activity'
+    | '/erp/hod/analytics'
     | '/erp/hod/approvals'
     | '/erp/hod/notices'
+    | '/erp/hod/overview'
     | '/erp/hod/reports'
     | '/erp/hod/students'
     | '/erp/staff/announcements'
@@ -559,8 +579,10 @@ export interface FileRouteTypes {
     | '/login/staff'
     | '/login/student'
     | '/erp/hod/activity'
+    | '/erp/hod/analytics'
     | '/erp/hod/approvals'
     | '/erp/hod/notices'
+    | '/erp/hod/overview'
     | '/erp/hod/reports'
     | '/erp/hod/students'
     | '/erp/staff/announcements'
@@ -611,8 +633,10 @@ export interface FileRouteTypes {
     | '/login/staff'
     | '/login/student'
     | '/erp/hod/activity'
+    | '/erp/hod/analytics'
     | '/erp/hod/approvals'
     | '/erp/hod/notices'
+    | '/erp/hod/overview'
     | '/erp/hod/reports'
     | '/erp/hod/students'
     | '/erp/staff/announcements'
@@ -901,6 +925,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpHodActivityRouteImport
       parentRoute: typeof ErpHodRoute
     }
+    '/erp/hod/analytics': {
+      id: '/erp/hod/analytics'
+      path: '/analytics'
+      fullPath: '/erp/hod/analytics'
+      preLoaderRoute: typeof ErpHodAnalyticsRouteImport
+      parentRoute: typeof ErpHodRoute
+    }
     '/erp/hod/approvals': {
       id: '/erp/hod/approvals'
       path: '/approvals'
@@ -913,6 +944,13 @@ declare module '@tanstack/react-router' {
       path: '/notices'
       fullPath: '/erp/hod/notices'
       preLoaderRoute: typeof ErpHodNoticesRouteImport
+      parentRoute: typeof ErpHodRoute
+    }
+    '/erp/hod/overview': {
+      id: '/erp/hod/overview'
+      path: '/overview'
+      fullPath: '/erp/hod/overview'
+      preLoaderRoute: typeof ErpHodOverviewRouteImport
       parentRoute: typeof ErpHodRoute
     }
     '/erp/hod/reports': {
@@ -1016,16 +1054,20 @@ const ErpHodStudentsRouteWithChildren = ErpHodStudentsRoute._addFileChildren(
 
 interface ErpHodRouteChildren {
   ErpHodActivityRoute: typeof ErpHodActivityRoute
+  ErpHodAnalyticsRoute: typeof ErpHodAnalyticsRoute
   ErpHodApprovalsRoute: typeof ErpHodApprovalsRoute
   ErpHodNoticesRoute: typeof ErpHodNoticesRoute
+  ErpHodOverviewRoute: typeof ErpHodOverviewRoute
   ErpHodReportsRoute: typeof ErpHodReportsRoute
   ErpHodStudentsRoute: typeof ErpHodStudentsRouteWithChildren
 }
 
 const ErpHodRouteChildren: ErpHodRouteChildren = {
   ErpHodActivityRoute: ErpHodActivityRoute,
+  ErpHodAnalyticsRoute: ErpHodAnalyticsRoute,
   ErpHodApprovalsRoute: ErpHodApprovalsRoute,
   ErpHodNoticesRoute: ErpHodNoticesRoute,
+  ErpHodOverviewRoute: ErpHodOverviewRoute,
   ErpHodReportsRoute: ErpHodReportsRoute,
   ErpHodStudentsRoute: ErpHodStudentsRouteWithChildren,
 }

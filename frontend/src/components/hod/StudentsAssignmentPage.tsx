@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -8,18 +7,14 @@ import {
   GraduationCap,
   Phone,
   Search,
-  Upload,
-  UserCheck,
   UsersRound,
-  UserX,
 } from "lucide-react";
 
 import { PageBanner } from "@/components/erp/PageBanner";
-import { TouchTextInput } from "@/components/TouchTextInput";
 import { Skeleton } from "@/components/erp/Skeleton";
 import { api, formatServerError } from "@/api";
 import { useApi } from "@/api/use-api";
-import type { HodStudent } from "@/api/types";
+import type { HodClassItem, HodStudent } from "@/api/types";
 
 type ViewTab = "cards" | "assign";
 type YearFilter = "all" | 2 | 3 | 4;
@@ -46,13 +41,16 @@ export function StudentsAssignmentPage() {
   const [activeRegNo, setActiveRegNo] = useState<string | null>(null);
 
   const [revision, setRevision] = useState(0);
+  const [assignTargetClass, setAssignTargetClass] = useState<string>("");
   const [selectedCounsellor, setSelectedCounsellor] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const refresh = () => setRevision((v) => v + 1);
 
-  const counsellorsQuery = useApi(["hodCounsellors"], () => api.getHodCounsellors());
+  const counsellorsQuery = useApi(["hodCounsellors", revision], () => api.getHodCounsellors());
   const studentsQuery = useApi(["hodStudents", revision], () => api.getHodStudents());
+  const classesQuery = useApi(["hodClasses", revision], () => api.getHodClasses());
 
   const summaryQuery = useApi(
     ["hodStudentSummary", activeRegNo],
@@ -70,6 +68,7 @@ export function StudentsAssignmentPage() {
 
   const counsellorsList = counsellorsQuery.data ?? [];
   const allStudents = studentsQuery.data ?? [];
+  const classesList = classesQuery.data ?? [];
 
   const currentCounsellorId =
     selectedCounsellor || counsellorsList[0]?.staffId || counsellorsList[0]?.id || "";
@@ -112,36 +111,36 @@ export function StudentsAssignmentPage() {
     });
   }, [allStudents, selectedYear, selectedSection, shortageOnly, search]);
 
-  // Actions
-  const onAssignSection = async (sec: string) => {
-    if (!currentCounsellorId) return;
+  // Class assignment action
+  const onAssignClassSubmit = async (year: number, section: string, counsellorId: string) => {
+    if (!counsellorId || submitting) return;
+    setSubmitting(true);
+    setActionMessage("");
     try {
-      const res = await api.assignSection(currentCounsellorId, sec);
-      setActionMessage(`Section ${sec} assigned (${res.updated} students).`);
+      const res = await api.assignClass(counsellorId, year, section);
+      setActionMessage(
+        `Assigned ${res.className} to ${res.counsellor} (${res.updated} students updated).`,
+      );
       refresh();
     } catch (cause) {
-      setActionMessage(formatServerError(cause, "Assignment failed."));
+      setActionMessage(formatServerError(cause, "Class assignment failed."));
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const onAssignStudent = async (student: HodStudent) => {
-    if (!currentCounsellorId) return;
+  const onUnassignClassSubmit = async (year: number, section: string) => {
+    if (submitting) return;
+    setSubmitting(true);
+    setActionMessage("");
     try {
-      await api.assignStudents(currentCounsellorId, [student.registerNo]);
-      setActionMessage(`${student.name} assigned.`);
+      const res = await api.unassignClass(year, section);
+      setActionMessage(`Unassigned ${res.className} (${res.updated} students updated).`);
       refresh();
     } catch (cause) {
-      setActionMessage(formatServerError(cause, "Assignment failed."));
-    }
-  };
-
-  const onUnassignStudent = async (student: HodStudent) => {
-    try {
-      await api.unassignStudent(student.registerNo);
-      setActionMessage(`${student.name} unassigned.`);
-      refresh();
-    } catch (cause) {
-      setActionMessage(formatServerError(cause, "Unassignment failed."));
+      setActionMessage(formatServerError(cause, "Class unassignment failed."));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -249,104 +248,86 @@ export function StudentsAssignmentPage() {
                 {programme} · {course} ({deptCode})
               </p>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
-                <span className="rounded-full border border-border bg-surface-2 px-3 py-1 text-foreground">
-                  Section: {section}
-                </span>
-                <span className="rounded-full border border-border bg-surface-2 px-3 py-1 text-foreground">
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                <span className="rounded-md bg-surface-2 px-2.5 py-1 text-foreground border border-border">
                   Year {year} · Sem {semester}
                 </span>
-                <span className="rounded-full border border-border bg-surface-2 px-3 py-1 text-foreground">
-                  Batch: {batch}
+                <span className="rounded-md bg-surface-2 px-2.5 py-1 text-foreground border border-border">
+                  Section {section}
                 </span>
-                <span className="rounded-full border border-border bg-surface-2 px-3 py-1 text-foreground">
-                  Gender: {gender}
+                <span className="rounded-md bg-surface-2 px-2.5 py-1 text-foreground border border-border">
+                  Batch {batch}
                 </span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Key KPI Stats Grid */}
+        {/* Key Metrics Grid */}
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-border bg-surface p-4 shadow-xs">
-            <span className="text-xs font-semibold text-muted-foreground block mb-1">
-              Attendance Record
+            <span className="text-xs font-semibold text-muted-foreground block">
+              Attendance Status
             </span>
-            <div className="flex items-center gap-2">
+            <div className="mt-2 flex items-baseline gap-2">
               <span
                 className={`text-2xl font-bold ${
-                  attendance === null
-                    ? "text-muted-foreground"
-                    : isShortage
-                      ? "text-danger"
-                      : "text-ok"
+                  attendance === null ? "text-muted-foreground" : isShortage ? "text-danger" : "text-ok"
                 }`}
               >
                 {attendance !== null ? `${attendance}%` : "—"}
               </span>
               {attendance !== null && (
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                    isShortage
-                      ? "bg-danger/10 text-danger border border-danger/30"
-                      : "bg-ok/10 text-ok border border-ok/30"
-                  }`}
+                  className={`text-xs font-semibold ${isShortage ? "text-danger" : "text-ok"}`}
                 >
                   {isShortage ? "Shortage (< 75%)" : "Eligible"}
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-muted-foreground mt-1 block">
-              75% required for examination
-            </span>
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-4 shadow-xs">
-            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-1">
-              <Phone className="size-3.5 text-accent" />
-              <span>Student Phone</span>
+            <span className="text-xs font-semibold text-muted-foreground block">
+              Assigned Counsellor
             </span>
-            <p className="font-mono text-lg font-bold text-foreground truncate">{mobile}</p>
-            <span className="text-[11px] text-muted-foreground mt-1 block">Direct phone contact</span>
+            <p className="mt-2 text-base font-bold text-foreground truncate">{counsellorName}</p>
+            <span className="text-xs text-muted-foreground block mt-0.5">Faculty In-Charge</span>
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-4 shadow-xs">
-            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-1">
-              <Phone className="size-3.5 text-muted-foreground" />
-              <span>Parent / Guardian Phone</span>
-            </span>
-            <p className="font-mono text-lg font-bold text-foreground truncate">{parentMobile}</p>
-            <span className="text-[11px] text-muted-foreground mt-1 block">Guardian emergency phone</span>
+            <span className="text-xs font-semibold text-muted-foreground block">Student Phone</span>
+            <p className="mt-2 text-base font-mono font-bold text-foreground truncate">{mobile}</p>
+            <span className="text-xs text-muted-foreground block mt-0.5">Primary Contact</span>
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-4 shadow-xs">
-            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-1">
-              <UsersRound className="size-3.5 text-accent" />
-              <span>Assigned Counsellor</span>
-            </span>
-            <p className="text-base font-bold text-foreground truncate">{counsellorName}</p>
-            <span className="text-[11px] text-muted-foreground mt-1 block">Faculty mentee advisor</span>
+            <span className="text-xs font-semibold text-muted-foreground block">Parent Phone</span>
+            <p className="mt-2 text-base font-mono font-bold text-foreground truncate">
+              {parentMobile}
+            </p>
+            <span className="text-xs text-muted-foreground block mt-0.5">Emergency Contact</span>
           </div>
         </section>
 
-        {/* Leave & OD Requests History */}
+        {/* Recent Leave / OD Requests */}
         <section className="rounded-xl border border-border bg-surface p-5 shadow-xs">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h2 className="font-display text-base font-bold text-foreground">
-              Leave &amp; On-Duty History
-            </h2>
+          <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="size-5 text-accent" strokeWidth={1.5} />
+              <h2 className="text-base font-bold text-foreground">Recent Leave &amp; OD Requests</h2>
+            </div>
             <span className="text-xs font-semibold text-muted-foreground">
-              {recentRequests.length} {recentRequests.length === 1 ? "record" : "records"}
+              {recentRequests.length} Record{recentRequests.length === 1 ? "" : "s"}
             </span>
           </div>
 
           {recentRequests.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-4 bg-surface-2/40 rounded-lg text-center">
-              No leave or OD requests submitted by this student.
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No leave or on-duty requests recorded for this student.
             </p>
           ) : (
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-surface-2 text-xs font-semibold text-muted-foreground uppercase">
                   <tr>
@@ -384,7 +365,7 @@ export function StudentsAssignmentPage() {
     <div className="staff-portal-page flex flex-col gap-5 p-4 sm:p-6 overflow-y-auto">
       <PageBanner
         title="Students &amp; Assignment"
-        subtitle="Department student profiles and counsellor assignments"
+        subtitle="Department student profiles and class counsellor assignments"
         icon={UsersRound}
       />
 
@@ -418,17 +399,9 @@ export function StudentsAssignmentPage() {
             }`}
           >
             <UsersRound className="size-4 mr-2" strokeWidth={1.5} />
-            <span>Counsellor Assignment</span>
+            <span>Class-Wise Counsellor Assignment</span>
           </button>
         </div>
-
-        <Link
-          to="/erp/hod/students/upload"
-          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 font-semibold text-foreground hover:bg-surface-2 shadow-xs cursor-pointer"
-        >
-          <Upload className="size-4 text-accent" strokeWidth={1.5} />
-          <span>Upload Student Sheet</span>
-        </Link>
       </div>
 
       {actionMessage && (
@@ -437,7 +410,7 @@ export function StudentsAssignmentPage() {
           <button
             type="button"
             onClick={() => setActionMessage("")}
-            className="text-xs text-muted-foreground hover:underline ml-3"
+            className="text-xs text-muted-foreground hover:underline ml-3 cursor-pointer"
           >
             Dismiss
           </button>
@@ -543,12 +516,17 @@ export function StudentsAssignmentPage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {filteredStudents.map((student) => {
                 const att = student.attendancePercentage;
                 const isShort = att !== null && att < 75;
                 const y = getStudentYear(student);
-                const counsellorName = student.counsellor?.name || "No counsellor assigned";
+                const counsellorName = student.counsellor?.name || "Unassigned";
+                const parentPhone =
+                  student.parentMobile ||
+                  student.fatherMobile ||
+                  student.motherMobile ||
+                  "—";
 
                 return (
                   <article
@@ -556,53 +534,90 @@ export function StudentsAssignmentPage() {
                     className="flex flex-col justify-between rounded-xl border border-border bg-surface p-4 shadow-xs hover:border-accent/40 transition-colors"
                   >
                     <div>
+                      {/* Top: Name & Reg No */}
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-foreground text-sm truncate">{student.name}</h3>
-                          <span className="font-mono text-xs text-muted-foreground block mt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setActiveRegNo(student.registerNo)}
+                          className="min-w-0 text-left hover:opacity-80 transition-opacity cursor-pointer flex-1"
+                        >
+                          <h3 className="truncate text-base font-bold text-foreground">
+                            {student.name || "—"}
+                          </h3>
+                          <p className="font-mono text-xs font-semibold text-muted-foreground">
                             {student.registerNo}
-                          </span>
-                        </div>
+                          </p>
+                        </button>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-bold shrink-0 ${
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold border ${
                             att === null
-                              ? "bg-surface-2 text-muted-foreground border border-border"
+                              ? "bg-surface-2 text-muted-foreground border-border"
                               : isShort
-                                ? "bg-danger/10 text-danger border border-danger/30"
-                                : "bg-ok/10 text-ok border border-ok/30"
+                                ? "bg-danger/10 text-danger border-danger/30"
+                                : "bg-ok/10 text-ok border-ok/30"
                           }`}
                         >
                           {att !== null ? `${att}%` : "—"}
                         </span>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                      {/* Department & Year / Section */}
+                      <p className="mt-1.5 text-xs text-muted-foreground truncate">
+                        {student.department || "Artificial Intelligence and Data Science"}
+                      </p>
+
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold text-muted-foreground">
                         {y && (
-                          <span className="rounded bg-surface-2 px-2 py-0.5 text-foreground">
+                          <span className="rounded bg-surface-2 px-2 py-0.5 text-foreground border border-border">
                             Year {y}
                           </span>
                         )}
                         {student.section && (
-                          <span className="rounded bg-surface-2 px-2 py-0.5 text-foreground">
+                          <span className="rounded bg-surface-2 px-2 py-0.5 text-foreground border border-border">
                             Sec {student.section}
                           </span>
                         )}
                         {student.semester && (
-                          <span className="rounded bg-surface-2 px-2 py-0.5">Sem {student.semester}</span>
+                          <span className="rounded bg-surface-2 px-2 py-0.5 text-muted-foreground border border-border">
+                            Sem {student.semester}
+                          </span>
                         )}
                       </div>
 
-                      <div className="mt-2.5 text-xs">
-                        <span className="text-muted-foreground">Counsellor: </span>
-                        <span
-                          className={
-                            student.counsellor
-                              ? "font-semibold text-foreground"
-                              : "text-muted-foreground italic"
-                          }
-                        >
-                          {counsellorName}
-                        </span>
+                      {/* Contact Info Block */}
+                      <div className="mt-3.5 space-y-2 rounded-lg border border-border bg-surface-2/60 p-3 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-muted-foreground flex items-center gap-1.5">
+                            <Phone className="size-3 text-muted-foreground" />
+                            <span>Student Phone:</span>
+                          </span>
+                          <span className="font-mono font-semibold text-foreground">
+                            {student.mobile || "—"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
+                          <span className="font-medium text-muted-foreground flex items-center gap-1.5">
+                            <Phone className="size-3 text-muted-foreground" />
+                            <span>Parent Phone:</span>
+                          </span>
+                          <span className="font-mono font-semibold text-foreground">
+                            {parentPhone}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
+                          <span className="font-medium text-muted-foreground">Counsellor:</span>
+                          <span
+                            className={
+                              student.counsellor
+                                ? "font-semibold text-foreground"
+                                : "text-muted-foreground italic"
+                            }
+                          >
+                            {counsellorName}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -623,119 +638,169 @@ export function StudentsAssignmentPage() {
         </>
       )}
 
-      {/* TAB 2: COUNSELLOR ASSIGNMENT TABLE */}
+      {/* TAB 2: CLASS-WISE COUNSELLOR ASSIGNMENT */}
       {tab === "assign" && (
-        <>
-          <section className="erp-surface flex flex-wrap items-end gap-3 p-4 rounded-xl border border-border shadow-xs">
-            <label className="grid min-w-64 flex-1 gap-2 text-sm font-semibold">
-              Select Counsellor
-              <select
-                value={currentCounsellorId}
-                onChange={(event) => setSelectedCounsellor(event.target.value)}
-                className="min-h-14 rounded-lg border border-border bg-surface px-3 text-sm"
-              >
-                {counsellorsList.length === 0 ? (
-                  <option value="">No faculty data available</option>
-                ) : (
-                  counsellorsList.map((counsellor) => {
-                    const cid = counsellor.staffId || counsellor.id;
-                    return (
-                      <option key={cid} value={cid}>
-                        {counsellor.name} ({counsellor.studentCount} assigned)
-                      </option>
-                    );
-                  })
-                )}
-              </select>
-            </label>
+        <div className="flex flex-col gap-6">
+          {/* Class-wise Assignment Form */}
+          <section className="erp-surface p-5 rounded-xl border border-border shadow-xs">
+            <h2 className="text-base font-bold text-foreground mb-1">
+              Assign Class to Counsellor
+            </h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              Select an entire class and assign a faculty member as counsellor. All students in the class
+              will automatically be assigned to the selected counsellor.
+            </p>
 
-            {/* Dynamic Section buttons from actual students */}
-            {availableSections.map((sec) => (
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3 items-end">
+              <label className="grid gap-2 text-sm font-semibold text-foreground">
+                Target Class
+                <select
+                  value={assignTargetClass}
+                  onChange={(e) => setAssignTargetClass(e.target.value)}
+                  className="min-h-14 rounded-lg border border-border bg-surface px-3 text-sm"
+                >
+                  <option value="">Select a class...</option>
+                  {classesList.map((cls) => (
+                    <option key={`${cls.year}-${cls.section}`} value={`${cls.year}-${cls.section}`}>
+                      {cls.className} ({cls.studentCount} students)
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-foreground">
+                Assign to Counsellor
+                <select
+                  value={currentCounsellorId}
+                  onChange={(e) => setSelectedCounsellor(e.target.value)}
+                  className="min-h-14 rounded-lg border border-border bg-surface px-3 text-sm"
+                >
+                  {counsellorsList.length === 0 ? (
+                    <option value="">No faculty members available</option>
+                  ) : (
+                    counsellorsList.map((c) => (
+                      <option key={c.staffId || c.id} value={c.staffId || c.id}>
+                        {c.name} ({c.staffId || c.id})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+
               <button
-                key={sec}
                 type="button"
-                disabled={!currentCounsellorId}
-                onClick={() => void onAssignSection(sec)}
-                className="inline-flex min-h-14 items-center justify-center rounded-lg border border-border bg-surface px-4 text-xs font-bold text-foreground hover:bg-surface-2 disabled:opacity-50 cursor-pointer"
+                disabled={!assignTargetClass || !currentCounsellorId || submitting}
+                onClick={() => {
+                  const [yStr, sec] = assignTargetClass.split("-");
+                  if (yStr && sec) {
+                    void onAssignClassSubmit(Number(yStr), sec, currentCounsellorId);
+                  }
+                }}
+                className="inline-flex min-h-14 items-center justify-center rounded-lg bg-accent text-white px-5 text-sm font-bold shadow-xs hover:bg-accent/90 disabled:opacity-50 cursor-pointer"
               >
-                Assign Section {sec}
+                {submitting ? "Assigning..." : "Assign Class to Counsellor"}
               </button>
-            ))}
+            </div>
           </section>
 
-          <section className="erp-surface min-h-0 flex-1 overflow-x-auto rounded-xl border border-border shadow-xs">
-            {allStudents.length === 0 ? (
-              <div className="p-12 text-center text-sm text-muted-foreground font-semibold">
-                No students available
+          {/* Department Classes Table */}
+          <section className="erp-surface p-5 rounded-xl border border-border shadow-xs">
+            <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
+              <div>
+                <h2 className="text-base font-bold text-foreground">Department Classes Overview</h2>
+                <p className="text-xs text-muted-foreground">
+                  Current counsellor allocation by academic year and section
+                </p>
               </div>
-            ) : (
-              <table className="w-full min-w-[800px] text-left text-sm">
-                <thead className="sticky top-0 bg-surface-2 text-xs font-semibold text-muted-foreground uppercase">
-                  <tr>
-                    <th className="border-b border-border p-3">Reg No</th>
-                    <th className="border-b border-border p-3">Name</th>
-                    <th className="border-b border-border p-3">Section</th>
-                    <th className="border-b border-border p-3">Attendance</th>
-                    <th className="border-b border-border p-3">Counsellor</th>
-                    <th className="border-b border-border p-3">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {allStudents.map((student) => {
-                    const assignedCounsellor = student.counsellor;
-                    const counsellorText = assignedCounsellor
-                      ? assignedCounsellor.name
-                      : "No counsellor assigned";
+              <span className="text-xs font-semibold text-muted-foreground">
+                {classesList.length} Classes
+              </span>
+            </div>
 
-                    return (
-                      <tr key={student.registerNo} className="hover:bg-surface-2/30">
-                        <td className="p-3 font-mono">{student.registerNo}</td>
-                        <td className="p-3 font-semibold text-foreground">{student.name}</td>
-                        <td className="p-3">{student.section ? `Sec ${student.section}` : "—"}</td>
-                        <td className="p-3">
-                          {student.attendancePercentage !== null
-                            ? `${student.attendancePercentage}%`
-                            : "—"}
-                        </td>
+            {classesQuery.loading ? (
+              <div className="p-8 text-center text-muted-foreground">Loading classes...</div>
+            ) : classesList.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No classes available.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-surface-2 text-xs font-semibold text-muted-foreground uppercase">
+                    <tr>
+                      <th className="p-3">Class Name</th>
+                      <th className="p-3">Academic Year</th>
+                      <th className="p-3">Section</th>
+                      <th className="p-3">Enrolled Students</th>
+                      <th className="p-3">Assigned Counsellor</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {classesList.map((item) => (
+                      <tr key={`${item.year}-${item.section}`} className="hover:bg-surface-2/30">
+                        <td className="p-3 font-bold text-foreground">{item.className}</td>
+                        <td className="p-3 font-semibold">Year {item.year}</td>
+                        <td className="p-3 font-mono">Sec {item.section}</td>
                         <td className="p-3">
                           <span
-                            className={
-                              assignedCounsellor
-                                ? "font-semibold text-foreground"
-                                : "text-muted-foreground italic"
-                            }
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-bold font-mono ${
+                              item.studentCount > 0
+                                ? "bg-ok/10 text-ok border border-ok/30"
+                                : "bg-surface-2 text-muted-foreground border border-border"
+                            }`}
                           >
-                            {counsellorText}
+                            {item.studentCount > 0 ? `${item.studentCount} Students` : "—"}
                           </span>
                         </td>
-                        <td className="p-2">
-                          {assignedCounsellor ? (
-                            <button
-                              type="button"
-                              onClick={() => void onUnassignStudent(student)}
-                              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-danger hover:bg-danger/10 cursor-pointer"
-                            >
-                              Unassign
-                            </button>
+                        <td className="p-3">
+                          {item.counsellor ? (
+                            <div>
+                              <span className="font-semibold text-foreground">
+                                {item.counsellor.name}
+                              </span>
+                              <span className="block font-mono text-xs text-muted-foreground">
+                                {item.counsellor.staffId}
+                              </span>
+                            </div>
                           ) : (
-                            <button
-                              type="button"
-                              disabled={!currentCounsellorId}
-                              onClick={() => void onAssignStudent(student)}
-                              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-2 disabled:opacity-50 cursor-pointer"
-                            >
-                              Assign
-                            </button>
+                            <span className="text-muted-foreground italic">Unassigned</span>
                           )}
                         </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {item.counsellor && (
+                              <button
+                                type="button"
+                                disabled={submitting}
+                                onClick={() => void onUnassignClassSubmit(item.year, item.section)}
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-danger/30 bg-danger/10 px-3 text-xs font-semibold text-danger hover:bg-danger/20 disabled:opacity-50 cursor-pointer"
+                              >
+                                Unassign
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={!currentCounsellorId || submitting}
+                              onClick={() =>
+                                void onAssignClassSubmit(
+                                  item.year,
+                                  item.section,
+                                  currentCounsellorId,
+                                )
+                              }
+                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-2 disabled:opacity-50 cursor-pointer"
+                            >
+                              {item.counsellor ? "Reassign" : "Assign"}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
-        </>
+        </div>
       )}
     </div>
   );

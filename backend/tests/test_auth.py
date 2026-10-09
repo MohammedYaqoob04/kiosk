@@ -76,11 +76,21 @@ def test_must_change_password_blocks_everything_else(client, world):
 
 def test_staff_password_policy(client, world):
     h = as_staff(client, world["c1"])
-    for bad in ("short1", "alllettersonly", "12345678", "staff-1"):
-        r = client.post(f"{API}/auth/change-password", headers=h, json={"current": STAFF_PW, "next": bad})
-        assert r.status_code == 422, bad
-    r = client.post(f"{API}/auth/change-password", headers=h, json={"current": STAFF_PW, "next": "Better-pass-2026"})
+    cur = "1234"
+    r = client.post(f"{API}/auth/change-password", headers=h, json={"current": STAFF_PW, "next": cur})
     assert r.status_code == 200
+    h = login(client, world["c1"], cur)
+
+    for bad in ("abc", "abcde", "password", "123456"):
+        r = client.post(f"{API}/auth/change-password", headers=h, json={"current": cur, "next": bad})
+        assert r.status_code == 422, bad
+
+    for good in ("abcd", "ABCD", "Ab12", "a@#1", "1A@b"):
+        r = client.post(f"{API}/auth/change-password", headers=h, json={"current": cur, "next": good})
+        assert r.status_code == 200
+        cur = good
+        h = login(client, world["c1"], cur)
+
 
 
 def test_logout_kills_the_token(client, world):

@@ -27,10 +27,17 @@ def validate_new_password(role: Role, new: str, *, username: str, dob: date | No
         if new in username or username in new:
             raise PasswordPolicyError("Your password must not be your register number.")
         return
-    # Staff, HOD, admin
+    # Staff and HOD: must contain EXACTLY 4 characters (any characters allowed)
+    if role in (Role.COUNSELLOR, Role.HOD):
+        if len(new) != 4:
+            raise PasswordPolicyError("Password must be exactly 4 characters.")
+        return
+
+    # Admin
     if not 8 <= len(new) <= 64:
         raise PasswordPolicyError("Use 8 to 64 characters.")
     if not (re.search(r"[A-Za-z]", new) and re.search(r"\d", new)):
         raise PasswordPolicyError("Use at least one letter and one digit.")
     if new.lower() == username.lower():
         raise PasswordPolicyError("Your password must not be your staff ID.")
+

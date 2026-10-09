@@ -137,7 +137,7 @@ function ComposeNotice({
   const [body, setBody] = useState("");
   const [category, setCategory] = useState<NoticeCategory>("Notice");
   const [audience, setAudience] = useState<NoticeAudience>(
-    role === "COUNSELLOR" ? "MY_STUDENTS" : "ALL_STUDENTS",
+    role === "COUNSELLOR" ? "MY_STUDENTS" : "BOTH",
   );
   const [selectedRegNos, setSelectedRegNos] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState("");
@@ -275,30 +275,43 @@ function ComposeNotice({
           ))}
         </div>
       </fieldset>
-      <label className="grid max-w-lg gap-2 font-semibold text-foreground">
-        Audience
-        <select
-          value={audience}
-          onChange={(event) => setAudience(event.target.value as NoticeAudience)}
-          className="min-h-14 rounded-lg border border-border bg-surface px-3"
-        >
-          {role === "COUNSELLOR" ? (
-            <>
-              <option value="MY_STUDENTS">My Students</option>
-              <option value="SELECTED_STUDENTS:">Pick students</option>
-            </>
-          ) : (
-            <>
-              <option value="ALL_STUDENTS">Students (All Students)</option>
-              <option value="ALL_COUNSELLORS">Staff (All Faculty / Counsellors)</option>
-              <option value="ALL">Both (Staff &amp; Students)</option>
-              <option value="SECTION:A">Section A</option>
-              <option value="SECTION:B">Section B</option>
-              <option value="SELECTED_STUDENTS:">Pick students</option>
-            </>
-          )}
-        </select>
-      </label>
+      <fieldset className="grid gap-2">
+        <legend className="font-semibold text-foreground">Target Audience</legend>
+        {role === "HOD" ? (
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["ALL_COUNSELLORS", "Staff"],
+                ["ALL_STUDENTS", "Students"],
+                ["BOTH", "Both (Staff & Students)"],
+              ] as const
+            ).map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                aria-pressed={audience === val}
+                onClick={() => setAudience(val as NoticeAudience)}
+                className={`min-h-14 rounded-lg border px-5 font-semibold text-sm transition-colors cursor-pointer ${
+                  audience === val
+                    ? "border-accent bg-accent text-white shadow-xs"
+                    : "border-border bg-surface text-foreground hover:bg-surface-2"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <select
+            value={audience}
+            onChange={(event) => setAudience(event.target.value as NoticeAudience)}
+            className="min-h-14 rounded-lg border border-border bg-surface px-3 max-w-lg"
+          >
+            <option value="MY_STUDENTS">My Students</option>
+            <option value="SELECTED_STUDENTS:">Pick students</option>
+          </select>
+        )}
+      </fieldset>
       {isSelectedAudience && students && (
         <fieldset className="grid max-h-56 gap-1 overflow-auto rounded-xl border border-border p-3">
           <legend className="px-1 font-semibold text-foreground">Choose students</legend>

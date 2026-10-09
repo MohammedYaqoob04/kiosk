@@ -69,3 +69,5 @@ class AudienceType(str, Enum):
     ALL_STUDENTS = "ALL_STUDENTS"          # HOD
     SECTION = "SECTION"                    # HOD
     ALL_COUNSELLORS = "ALL_COUNSELLORS"    # HOD
+    BOTH = "BOTH"                          # HOD (both staff and students)
+

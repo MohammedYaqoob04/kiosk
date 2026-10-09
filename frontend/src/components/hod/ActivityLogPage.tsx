@@ -57,7 +57,7 @@ export function ActivityLogPage({ role }: { role: "COUNSELLOR" | "HOD" }) {
 
   return (
     <div className="staff-portal-page flex flex-col gap-5 p-4 sm:p-6 overflow-y-auto">
-      <PageBanner title="Activity Log" subtitle="Append-only portal activity" icon={Activity} />
+      <PageBanner title="Activity Vlog" subtitle="Official department activity vlog" icon={Activity} />
       <section className="grid gap-3 sm:grid-cols-3">
         <label className="grid gap-2 text-sm font-semibold">
           Action

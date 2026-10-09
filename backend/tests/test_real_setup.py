@@ -39,16 +39,16 @@ def test_bootstrap_creates_staff_and_students_and_everyone_must_change_password(
         assert r.status_code == 200 and r.json()["user"]["mustChangePassword"] is True
         h = {"Authorization": f"Bearer {r.json()['accessToken']}"}
         assert client.get(f"{API}/staff/students", headers=h).status_code == 403  # blocked until changed
-        bad = client.post(f"{API}/auth/change-password", headers=h, json={"current": weak, "next": "short1"})
+        bad = client.post(f"{API}/auth/change-password", headers=h, json={"current": weak, "next": "bad123"})
         assert bad.status_code == 422
-        ok = client.post(f"{API}/auth/change-password", headers=h, json={"current": weak, "next": f"{username}-2026"})
+        ok = client.post(f"{API}/auth/change-password", headers=h, json={"current": weak, "next": "P@s1"})
         assert ok.status_code == 200
         assert post_login(client, username, weak).status_code == 401
-        assert post_login(client, username, f"{username}-2026", portal).status_code == 200
+        assert post_login(client, username, "P@s1", portal).status_code == 200
 
     # students: register number + date of birth (ddmmyyyy); all 10 belong to the only counsellor
     assert post_login(client, "510423243001", "14-05-2006", "student").status_code == 200
-    h = as_staff_pw(client, "anitha-staff", "anitha-staff-2026")
+    h = as_staff_pw(client, "anitha-staff", "P@s1")
     assert len(client.get(f"{API}/staff/students", headers=h).json()) == 10
 
 
@@ -60,8 +60,8 @@ def test_hod_uploads_the_excel_sheet(client, tmp_path, monkeypatch):
     run_bootstrap(tmp_path, monkeypatch)
     r = post_login(client, "noorulhassan-hod", "noor123")
     h = {"Authorization": f"Bearer {r.json()['accessToken']}"}
-    client.post(f"{API}/auth/change-password", headers=h, json={"current": "noor123", "next": "Hod-Pass-2026"})
-    h = login(client, "noorulhassan-hod", "Hod-Pass-2026")
+    client.post(f"{API}/auth/change-password", headers=h, json={"current": "noor123", "next": "Hod1"})
+    h = login(client, "noorulhassan-hod", "Hod1")
     sheet = FIXED.read_bytes()
 
     r = client.post(f"{API}/hod/students/import", data={"dryRun": "true"}, files={"file": ("s.xlsx", BytesIO(sheet), "x")}, headers=h)

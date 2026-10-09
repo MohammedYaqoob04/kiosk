@@ -63,19 +63,26 @@ def my_students(q: str | None = None, below_min: bool = False,
 
 
 @router.get("/students/{register_no}")
-def student_summary(register_no: str, user: User = Counsellor, db: Session = Depends(get_db)):
+def student_summary(register_no: str,
+                    user: User = Depends(require_roles(Role.COUNSELLOR, Role.HOD)),
+                    db: Session = Depends(get_db)):
     st = db.scalar(select(Student).where(Student.register_no == register_no))
-    if st is None or st.counsellor_id != user.id:
-        raise not_found(NOT_ASSIGNED)  # same answer whether or not the student exists
+    if st is None:
+        raise not_found(NOT_ASSIGNED)
+    if user.role == Role.COUNSELLOR and st.counsellor_id != user.id:
+        raise not_found(NOT_ASSIGNED)
+    if user.role == Role.HOD and st.department_id != user.department_id:
+        raise not_found(NOT_ASSIGNED)
     p = attendance_by_student(db, [st.id]).get(st.id)
     recent = db.scalars(select(LeaveRequest).where(LeaveRequest.student_id == st.id)
-                        .order_by(LeaveRequest.created_at.desc()).limit(5)).all()
-    # Deliberately no mobile, email or date of birth in the summary.
+                        .order_by(LeaveRequest.created_at.desc()).limit(10)).all()
     return {"registerNo": st.register_no, "name": st.user.full_name, "batch": st.batch, "section": st.section,
             "semester": st.semester, "attendancePercentage": p, "belowMinAttendance": is_below_min(p),
             "recentRequests": [{"id": str(r.id), "kind": r.type.value, "category": r.category,
                                 "status": r.status.value, "fromDate": r.from_date.isoformat(),
                                 "toDate": r.to_date.isoformat(),
+                                "reason": r.reason,
+                                "eventName": r.event_name,
                                 "rejectionReason": next((a.remark for a in reversed(r.actions)
                                                          if a.decision.value == "REJECT"), None)} for r in recent]}
 

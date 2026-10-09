@@ -36,14 +36,17 @@ function ChangePassword() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const maxLen = isStudent ? 32 : 64;
+  const isStaffOrHod = user?.role === "COUNSELLOR" || user?.role === "HOD";
+  const maxLen = isStudent ? 32 : isStaffOrHod ? 4 : 64;
 
   const isNewPasswordValid = isStudent
     ? newPassword.length >= 6 && newPassword.length <= 32
-    : newPassword.length >= 8 &&
-      newPassword.length <= 64 &&
-      /[A-Za-z]/.test(newPassword) &&
-      /\d/.test(newPassword);
+    : isStaffOrHod
+      ? newPassword.length === 4
+      : newPassword.length >= 8 &&
+        newPassword.length <= 64 &&
+        /[A-Za-z]/.test(newPassword) &&
+        /\d/.test(newPassword);
 
   const canSubmit =
     currentPassword.length > 0 &&
@@ -124,11 +127,15 @@ function ChangePassword() {
 
   const rulesText = isStudent
     ? "New password must be 6 to 32 characters, match the confirmation, and differ from the current password."
-    : "New password must be 8 to 64 characters with at least one letter and one digit, match the confirmation, and differ from the current password.";
+    : isStaffOrHod
+      ? "New password must be exactly 4 characters, match the confirmation, and differ from the current password."
+      : "New password must be 8 to 64 characters with at least one letter and one digit, match the confirmation, and differ from the current password.";
 
   const headingSubtitle = isStudent
     ? "New password must be 6 to 32 characters"
-    : "New password must be 8 to 64 characters with at least one letter and one digit";
+    : isStaffOrHod
+      ? "New password must be exactly 4 characters"
+      : "New password must be 8 to 64 characters with at least one letter and one digit";
 
   return (
     <div className={`erp-password-layout ${forced ? "is-forced" : ""}`}>
@@ -193,7 +200,7 @@ function ChangePassword() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-foreground">New Password</span>
               <span className="text-xs text-muted-foreground">
-                {isStudent ? "6–32 chars" : "8–64 chars (1 letter, 1 digit)"}
+                {isStudent ? "6–32 chars" : isStaffOrHod ? "Exactly 4 chars" : "8–64 chars (1 letter, 1 digit)"}
               </span>
             </div>
             <div
@@ -213,7 +220,7 @@ function ChangePassword() {
                   )
                 ) : (
                   <span className="font-sans text-sm text-muted-foreground tracking-normal">
-                    {isStudent ? "At least 6 characters" : "At least 8 chars with letter & digit"}
+                    {isStudent ? "At least 6 characters" : isStaffOrHod ? "Enter exactly 4 characters" : "At least 8 chars with letter & digit"}
                   </span>
                 )}
               </span>

@@ -195,8 +195,8 @@ export function HodDashboard() {
               : totalStudentsCount > 0
                 ? totalStudentsCount
                 : selectedYear === "all"
-                  ? overview?.cards.totalStudents ?? "0"
-                  : "0"}
+                  ? overview?.cards.totalStudents ?? "—"
+                  : "—"}
           </p>
           <span className="text-[11px] text-muted-foreground">
             {selectedYear === "all" ? "Entire department" : `Year ${selectedYear} students`}

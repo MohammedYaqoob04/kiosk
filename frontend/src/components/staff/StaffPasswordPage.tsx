@@ -25,13 +25,10 @@ export function StaffPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const maxLen = 64;
+  const maxLen = 4;
 
-  // Staff password validation: >= 8 characters, alphanumeric
-  const hasMinLength = newPassword.length >= 8 && newPassword.length <= maxLen;
-  const hasLetter = /[A-Za-z]/.test(newPassword);
-  const hasDigit = /\d/.test(newPassword);
-  const isNewPasswordValid = hasMinLength && hasLetter && hasDigit;
+  // Staff & HOD password validation: exactly 4 characters (any characters allowed)
+  const isNewPasswordValid = newPassword.length === 4;
 
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
   const isDifferentFromCurrent = newPassword.length > 0 && newPassword !== currentPassword;
@@ -236,23 +233,18 @@ export function StaffPasswordPage() {
           <div className="rounded-lg border border-border bg-surface-2 p-3 text-xs space-y-1.5">
             <span className="font-bold text-foreground block mb-1">Password Requirements:</span>
             <div className="flex items-center gap-2">
-              <span className={hasMinLength ? "text-ok font-bold" : "text-muted-foreground"}>
-                {hasMinLength ? "✓" : "○"} At least 8 characters
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={hasLetter ? "text-ok font-bold" : "text-muted-foreground"}>
-                {hasLetter ? "✓" : "○"} Contains at least one letter (A-Z)
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={hasDigit ? "text-ok font-bold" : "text-muted-foreground"}>
-                {hasDigit ? "✓" : "○"} Contains at least one number (0-9)
+              <span className={isNewPasswordValid ? "text-ok font-bold" : "text-muted-foreground"}>
+                {isNewPasswordValid ? "✓" : "○"} Exactly 4 characters (any characters allowed)
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className={passwordsMatch ? "text-ok font-bold" : "text-muted-foreground"}>
                 {passwordsMatch ? "✓" : "○"} New password matches confirm password
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={isDifferentFromCurrent ? "text-ok font-bold" : "text-muted-foreground"}>
+                {isDifferentFromCurrent ? "✓" : "○"} Different from current password
               </span>
             </div>
           </div>

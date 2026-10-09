@@ -206,6 +206,7 @@ export interface LeaveDecisionInput {
 export interface HodOverviewCards {
   pendingApprovals: number;
   totalStudents: number;
+  totalFaculty?: number;
   belowMinAttendance: number;
   leaveThisMonth: number;
   noticesSent: number;
@@ -224,11 +225,46 @@ export interface HodBelowMinStudent {
   attendancePercentage: number | null;
 }
 
+export interface HodYearBreakdown {
+  year: number;
+  studentCount: number;
+  presentCount: number | null;
+  absentCount: number | null;
+  averageAttendancePercent: number | null;
+}
+
+export interface HodDepartmentSummary {
+  totalStudents: number;
+  totalFaculty: number;
+  presentCount: number | null;
+  absentCount: number | null;
+  averageAttendancePercent: number | null;
+  passPercentage: number | null;
+}
+
+export interface HodClassItem {
+  year: number;
+  section: string;
+  className: string;
+  studentCount: number;
+  counsellor?: { id: string; staffId: string; name: string } | null;
+}
+
+export interface HodAnalyticsResponse {
+  totalStudents: number;
+  totalFaculty: number;
+  overallAttendancePercent: number | null;
+  passPercentage: number | null;
+  pendingApprovals: number;
+}
+
 export interface HodOverviewResponse {
   cards: HodOverviewCards;
   attendanceBySection: HodSectionAttendance[];
   belowMinStudents: HodBelowMinStudent[];
   pendingApprovals: Request[];
+  yearBreakdown?: HodYearBreakdown[];
+  departmentSummary?: HodDepartmentSummary;
 }
 
 export interface HodCounsellor {
@@ -289,7 +325,8 @@ export type NoticeAudience =
   | "ALL_STUDENTS"
   | "SECTION:A"
   | "SECTION:B"
-  | "ALL_COUNSELLORS";
+  | "ALL_COUNSELLORS"
+  | "BOTH";
 
 export function noticeAudienceSelection(regNos: string[]): NoticeAudience {
   return `SELECTED_STUDENTS:${[...new Set(regNos)].join(",")}`;
