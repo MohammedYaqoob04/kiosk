@@ -1,4 +1,4 @@
-export const SHOW_PLACEHOLDERS = true;
+export const SHOW_PLACEHOLDERS = false;
 
 export type HeroImageStyle = "framed" | "bleed" | "arch";
 export const HERO_IMAGE_STYLE: HeroImageStyle = "framed";

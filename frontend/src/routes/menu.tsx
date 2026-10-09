@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Building2, CalendarDays, CircleHelp, GraduationCap, Map, UsersRound } from "lucide-react";
+import { Building2, CalendarDays, CircleHelp, GraduationCap, Landmark, Map } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
@@ -8,42 +8,42 @@ import { useAuth } from "@/lib/auth-context";
 const menuItems: Array<{
   title: string;
   description: string;
-  to: "/campus" | "/departments" | "/faculty" | "/notices" | "/erp" | "/contact";
+  to: "/campus" | "/departments" | "/facilities" | "/notices" | "/erp" | "/contact";
   icon: LucideIcon;
 }> = [
   {
     title: "Explore Campus",
-    description: "Map and facilities",
+    description: "Map and navigation",
     to: "/campus",
     icon: Map,
   },
   {
     title: "Departments",
-    description: "Academic departments",
+    description: "13+ academic disciplines",
     to: "/departments",
     icon: Building2,
   },
   {
-    title: "Faculty Directory",
-    description: "Find faculty",
-    to: "/faculty",
-    icon: UsersRound,
+    title: "Campus Facilities",
+    description: "Labs, library & hostels",
+    to: "/facilities",
+    icon: Landmark,
   },
   {
     title: "Notices & Events",
-    description: "Updates and events",
+    description: "Circulars and schedules",
     to: "/notices",
     icon: CalendarDays,
   },
   {
     title: "ERP Login",
-    description: "Attendance, marks, leave",
+    description: "Student & staff portals",
     to: "/erp",
     icon: GraduationCap,
   },
   {
     title: "Help & Contact",
-    description: "Get help and contact us",
+    description: "Enquiry & admissions",
     to: "/contact",
     icon: CircleHelp,
   },
@@ -51,7 +51,7 @@ const menuItems: Array<{
 
 export const Route = createFileRoute("/menu")({
   head: () => ({
-    meta: [{ title: "Services | KIOSK" }],
+    meta: [{ title: "Services | Arunai KIOSK" }],
   }),
   component: MenuPage,
 });
