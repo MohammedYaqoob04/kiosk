@@ -695,6 +695,17 @@ export const siteContent = {
     officialSiteLabel: "Visit Official Website",
   },
 
+  campusPage: {
+    title: "Explore Campus",
+    searchLabel: "Search a building or department",
+    listLabel: "Campus locations",
+    noResults: "No campus locations match your search.",
+    mapTitle: "Campus map",
+    emptyMapTitle: "Interactive campus map goes here",
+    noMapData: "-- add verified campus map data to enable navigation",
+    directionsLabel: "Get directions",
+  },
+
   footer: {
     quickLinksTitle: "Quick Links",
     copyright: "© 2026 Arunai Engineering College (Autonomous). All rights reserved.",

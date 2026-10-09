@@ -51,7 +51,7 @@ const QUICK_CHIPS: QuickChip[] = [
 export function CampusPage() {
   const [search, setSearch] = useState("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(campusLocations[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
 
   // Routing State
@@ -235,7 +235,9 @@ export function CampusPage() {
     setActiveRoute(null);
     setRouteError(null);
     setToId("");
+    setSelectedId(null);
     stopLiveTracking();
+    setResetTrigger((prev) => prev + 1);
   }, [stopLiveTracking]);
 
   // Swap From and To
@@ -353,6 +355,9 @@ export function CampusPage() {
 
   const handleSelectLocation = (location: CampusLocation) => {
     setSelectedId(location.id);
+    if (location.id !== fromId) {
+      setToId(location.id);
+    }
   };
 
   const handleCloseSelected = () => {
@@ -396,7 +401,7 @@ export function CampusPage() {
     <div className="campus-page">
       <SiteHeader campus />
       <main className="campus-page-inner">
-        <h1 className="campus-page-title">{siteContent.campusPage.title}</h1>
+        <h1 className="campus-page-title">{siteContent.campusPage?.title ?? "Explore Campus"}</h1>
         <div className="campus-explorer">
           <section className="campus-location-panel" aria-label="Campus navigation and locations">
             {/* Directions Box (Requirement 2) */}
@@ -623,7 +628,7 @@ export function CampusPage() {
             {/* Search Box */}
             <div className="campus-search-box">
               <label className="block text-sm font-semibold text-foreground mb-2">
-                {siteContent.campusPage.searchLabel}
+                {siteContent.campusPage?.searchLabel ?? "Search a building or department"}
               </label>
               <div className="relative">
                 <input
@@ -634,7 +639,7 @@ export function CampusPage() {
                   placeholder="Tap to search"
                   onClick={() => setKeyboardOpen((prev) => !prev)}
                   className="min-h-14 w-full rounded-xl border border-input bg-background px-4 text-left text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                  aria-label={siteContent.campusPage.searchLabel}
+                  aria-label={siteContent.campusPage?.searchLabel ?? "Search a building or department"}
                   aria-expanded={keyboardOpen}
                 />
                 {search && (
@@ -691,7 +696,7 @@ export function CampusPage() {
               )}
             </div>
 
-            <h2>{siteContent.campusPage.listLabel}</h2>
+            <h2>{siteContent.campusPage?.listLabel ?? "Campus locations"}</h2>
             {filteredLocations.length > 0 ? (
               <div className="campus-location-list">
                 {filteredLocations.map((location) => (
@@ -726,7 +731,7 @@ export function CampusPage() {
                 ))}
               </div>
             ) : (
-              <p className="campus-location-empty">{siteContent.campusPage.noResults}</p>
+              <p className="campus-location-empty">{siteContent.campusPage?.noResults ?? "No campus locations match your search."}</p>
             )}
           </section>
 

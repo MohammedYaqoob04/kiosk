@@ -8,6 +8,7 @@ import {
   categoryColors,
   categoryLabels,
 } from "@/config/campusLocations";
+import { campusNodes, campusEdges } from "@/config/campusGraph";
 import { siteContent } from "@/config/siteContent";
 
 export interface ActiveRoute {
@@ -72,6 +73,8 @@ export function CampusMap({
   const startMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const endMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const userMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const routeWaypointsRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const walkwayPolylinesRef = useRef<google.maps.Polyline[]>([]);
 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -185,16 +188,31 @@ export function CampusMap({
       }
     }
 
+    const prevAuthFailure = (window as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure;
+    (window as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure = () => {
+      console.warn("Google Maps authentication failed - verify API key and HTTP referrers in Google Cloud Console.");
+      if (!isCancelled) {
+        setLoadError(true);
+      }
+    };
+
     initGoogleMap();
 
     return () => {
       isCancelled = true;
+      (window as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure = prevAuthFailure;
       markersMapRef.current.forEach((marker) => {
         marker.map = null;
       });
       markersMapRef.current.clear();
       routeCasingRef.current?.setMap(null);
       routePolylineRef.current?.setMap(null);
+      walkwayPolylinesRef.current.forEach((pl) => pl.setMap(null));
+      walkwayPolylinesRef.current = [];
+      routeWaypointsRef.current.forEach((m) => {
+        m.map = null;
+      });
+      routeWaypointsRef.current = [];
       if (startMarkerRef.current) startMarkerRef.current.map = null;
       if (endMarkerRef.current) endMarkerRef.current.map = null;
       if (userMarkerRef.current) userMarkerRef.current.map = null;
@@ -203,16 +221,52 @@ export function CampusMap({
     };
   }, [isKeyConfigured]);
 
-  // Pan when selected location has coordinates (if no active route taking precedence)
+  // Pan when selected location has coordinates
   useEffect(() => {
-    if (!mapInstanceRef.current || !selectedLocation || activeRoute) return;
+    if (!mapInstanceRef.current || !selectedLocation) return;
     if (selectedLocation.lat != null && selectedLocation.lng != null) {
       mapInstanceRef.current.panTo({
         lat: selectedLocation.lat,
         lng: selectedLocation.lng,
       });
     }
-  }, [selectedLocation, activeRoute]);
+  }, [selectedLocation]);
+
+  // Draw full campus walkway network as subtle background paths
+  useEffect(() => {
+    if (!mapLoaded || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+
+    walkwayPolylinesRef.current.forEach((pl) => pl.setMap(null));
+    walkwayPolylinesRef.current = [];
+
+    const nodeCoordMap = new Map<string, { lat: number; lng: number }>();
+    campusNodes.forEach((n) => nodeCoordMap.set(n.id, { lat: n.lat, lng: n.lng }));
+
+    const polylines: google.maps.Polyline[] = [];
+    campusEdges.forEach(([a, b]) => {
+      const coordA = nodeCoordMap.get(a);
+      const coordB = nodeCoordMap.get(b);
+      if (!coordA || !coordB) return;
+
+      const pl = new google.maps.Polyline({
+        path: [coordA, coordB],
+        strokeColor: "#F8FAFC",
+        strokeOpacity: 0.45,
+        strokeWeight: 3,
+        map,
+        zIndex: 10,
+      });
+      polylines.push(pl);
+    });
+
+    walkwayPolylinesRef.current = polylines;
+
+    return () => {
+      polylines.forEach((pl) => pl.setMap(null));
+      walkwayPolylinesRef.current = [];
+    };
+  }, [mapLoaded]);
 
   // Draw active route on map as a vibrant blue line like Google Maps with dark navy casing
   useEffect(() => {
@@ -236,6 +290,12 @@ export function CampusMap({
     if (endMarkerRef.current) {
       endMarkerRef.current.map = null;
       endMarkerRef.current = null;
+    }
+    if (routeWaypointsRef.current.length > 0) {
+      routeWaypointsRef.current.forEach((m) => {
+        m.map = null;
+      });
+      routeWaypointsRef.current = [];
     }
 
     if (!activeRoute || activeRoute.coordinates.length < 2) return;
@@ -324,6 +384,30 @@ export function CampusMap({
       zIndex: 150,
     });
     endMarkerRef.current = endMarker;
+
+    // Waypoint dots along the route path
+    const waypointMarkers: google.maps.marker.AdvancedMarkerElement[] = [];
+    for (let i = 1; i < activeRoute.coordinates.length - 1; i++) {
+      const coord = activeRoute.coordinates[i];
+      const dotEl = document.createElement("div");
+      dotEl.className = "campus-route-waypoint-dot";
+      dotEl.style.width = "10px";
+      dotEl.style.height = "10px";
+      dotEl.style.borderRadius = "50%";
+      dotEl.style.backgroundColor = "#FFFFFF";
+      dotEl.style.border = "2px solid #2563EB";
+      dotEl.style.boxShadow = "0 1px 4px rgba(0,0,0,0.5)";
+      dotEl.style.pointerEvents = "none";
+
+      const wpMarker = new AdvancedMarkerElement({
+        map,
+        position: coord,
+        content: dotEl,
+        zIndex: 125,
+      });
+      waypointMarkers.push(wpMarker);
+    }
+    routeWaypointsRef.current = waypointMarkers;
   }, [mapLoaded, activeRoute]);
 
   // Render and update live user GPS position (blue dot)
@@ -450,7 +534,7 @@ export function CampusMap({
             loc.id === fromId ||
             loc.id === toId)
       );
-      const shouldShowLabel = !isRouteActive || isSourceOrDest;
+      const shouldShowLabel = true;
       const isHighlighted = isSelected || isSourceOrDest;
 
       if (shouldShowLabel) {
@@ -519,7 +603,7 @@ export function CampusMap({
   }, [mapLoaded, locations, hiddenCategories, selectedId, onSelect, activeRoute, fromId, toId]);
 
   return (
-    <section className="campus-map-section" aria-label={siteContent.campusPage.mapTitle}>
+    <section className="campus-map-section" aria-label={siteContent.campusPage?.mapTitle ?? "Campus map"}>
       {/* Category legend chips (>= 56px touch hit areas) */}
       <div className="campus-map-legend" role="toolbar" aria-label="Category filters">
         {ALL_CATEGORIES.map((category) => {
@@ -667,7 +751,7 @@ export function CampusMap({
               className="campus-action-btn campus-btn-primary"
               aria-label={`Directions to ${selectedLocation.name}`}
             >
-              {siteContent.campusPage.directionsLabel}
+              {siteContent.campusPage?.directionsLabel ?? "Directions"}
             </button>
             <button
               type="button"

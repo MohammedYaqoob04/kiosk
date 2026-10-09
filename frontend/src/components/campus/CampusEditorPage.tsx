@@ -78,6 +78,9 @@ export function CampusEditorPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerLibRef = useRef<google.maps.MarkerLibrary | null>(null);
+  const mapsLibRef = useRef<google.maps.MapsLibrary | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const isKeyConfigured = Boolean(campusMap.apiKey.trim());
 
   // Markers & polylines tracking
   const nodeMarkersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
@@ -195,7 +198,7 @@ export function CampusEditorPage() {
 
   // Google Maps setup
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    if (!mapContainerRef.current || !isKeyConfigured) return;
     let isCancelled = false;
 
     async function initEditorMap() {
@@ -205,14 +208,14 @@ export function CampusEditorPage() {
           v: "weekly",
         });
 
-        const [{ Map }, markerLib] = await Promise.all([
+        const [mapsLib, markerLib] = await Promise.all([
           importLibrary("maps") as Promise<google.maps.MapsLibrary>,
           importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
         ]);
 
         if (isCancelled || !mapContainerRef.current) return;
 
-        const map = new Map(mapContainerRef.current, {
+        const map = new mapsLib.Map(mapContainerRef.current, {
           center: { lat: campusMap.center[0], lng: campusMap.center[1] },
           zoom: campusMap.zoom,
           minZoom: campusMap.minZoom,
@@ -226,7 +229,9 @@ export function CampusEditorPage() {
         });
 
         mapInstanceRef.current = map;
+        mapsLibRef.current = mapsLib;
         markerLibRef.current = markerLib;
+        setMapLoaded(true);
       } catch (err) {
         console.error("Failed to initialize Google Maps in editor:", err);
       }
@@ -236,6 +241,10 @@ export function CampusEditorPage() {
 
     return () => {
       isCancelled = true;
+      mapInstanceRef.current = null;
+      mapsLibRef.current = null;
+      markerLibRef.current = null;
+      setMapLoaded(false);
     };
   }, []);
 
@@ -346,8 +355,8 @@ export function CampusEditorPage() {
 
   // Render Edges
   useEffect(() => {
+    if (!mapLoaded || !mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
-    if (!map) return;
 
     const nodeCoordMap = new Map<string, { lat: number; lng: number }>();
     data.nodes.forEach((n) => nodeCoordMap.set(n.id, { lat: n.lat, lng: n.lng }));
@@ -355,7 +364,7 @@ export function CampusEditorPage() {
     const currentEdgeKeys = new Set<string>();
 
     if (showEdges) {
-      data.edges.forEach(([a, b], idx) => {
+      data.edges.forEach(([a, b]) => {
         const coordA = nodeCoordMap.get(a);
         const coordB = nodeCoordMap.get(b);
         if (!coordA || !coordB) return;
@@ -377,7 +386,7 @@ export function CampusEditorPage() {
 
         let polyline = edgePolylinesRef.current.get(edgeKey);
         if (!polyline) {
-          polyline = new google.maps.Polyline({
+          const newPolyline = new google.maps.Polyline({
             path: [coordA, coordB],
             map,
             strokeColor: isRouteEdge ? "#10B981" : isSelected ? "#EF4444" : "#FBBF24",
@@ -386,7 +395,7 @@ export function CampusEditorPage() {
             clickable: true,
           });
 
-          polyline.addListener("click", (e: any) => {
+          newPolyline.addListener("click", () => {
             if (currentTool === "delete") {
               const nextEdges = data.edges.filter(
                 ([eA, eB]) => !(eA === a && eB === b) && !(eA === b && eB === a)
@@ -397,7 +406,7 @@ export function CampusEditorPage() {
             }
           });
 
-          edgePolylinesRef.current.set(edgeKey, polyline);
+          edgePolylinesRef.current.set(edgeKey, newPolyline);
         } else {
           polyline.setPath([coordA, coordB]);
           polyline.setOptions({
@@ -415,15 +424,13 @@ export function CampusEditorPage() {
         edgePolylinesRef.current.delete(key);
       }
     });
-  }, [data.nodes, data.edges, showEdges, selectedItem, currentTool, routeResult, pushState]);
+  }, [mapLoaded, data.nodes, data.edges, showEdges, selectedItem, currentTool, routeResult, pushState]);
 
   // Render Nodes (Square dots with labels)
   useEffect(() => {
+    if (!mapLoaded || !mapInstanceRef.current || !markerLibRef.current) return;
     const map = mapInstanceRef.current;
-    const markerLib = markerLibRef.current;
-    if (!map || !markerLib) return;
-
-    const { AdvancedMarkerElement } = markerLib;
+    const { AdvancedMarkerElement } = markerLibRef.current;
     const currentNodeIds = new Set<string>();
 
     if (showNodes) {
@@ -543,6 +550,7 @@ export function CampusEditorPage() {
       }
     });
   }, [
+    mapLoaded,
     data.nodes,
     data.edges,
     data.locations,
@@ -558,11 +566,9 @@ export function CampusEditorPage() {
 
   // Render Places (Large colored round dots with names)
   useEffect(() => {
+    if (!mapLoaded || !mapInstanceRef.current || !markerLibRef.current) return;
     const map = mapInstanceRef.current;
-    const markerLib = markerLibRef.current;
-    if (!map || !markerLib) return;
-
-    const { AdvancedMarkerElement } = markerLib;
+    const { AdvancedMarkerElement } = markerLibRef.current;
     const currentPlaceIds = new Set<string>();
 
     data.locations.forEach((loc) => {
@@ -669,7 +675,7 @@ export function CampusEditorPage() {
         placeMarkersRef.current.delete(id);
       }
     });
-  }, [data.locations, showLabels, selectedItem, attachPlaceId, currentTool, pushState]);
+  }, [mapLoaded, data.locations, showLabels, selectedItem, attachPlaceId, currentTool, pushState]);
 
   // Validation checks
   const validationIssues = useMemo(() => {
@@ -1064,6 +1070,30 @@ export function CampusEditorPage() {
         {/* Map Stage */}
         <div className="campus-editor-map-wrapper">
           <div ref={mapContainerRef} className="campus-editor-map" />
+          {!isKeyConfigured && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                color: "#F8FAFC",
+                zIndex: 10,
+                padding: 24,
+                textAlign: "center",
+              }}
+            >
+              <AlertTriangle className="size-10 text-amber-500" strokeWidth={1.5} />
+              <h3 className="text-xl font-semibold">Google Maps Key Not Configured</h3>
+              <p className="text-sm text-slate-300 max-w-md">
+                Add <code>VITE_GOOGLE_MAPS_API_KEY</code> to <code>.env</code> to load the campus editor map.
+              </p>
+            </div>
+          )}
 
           {/* Toggles bar */}
           <div className="campus-editor-toggles">
